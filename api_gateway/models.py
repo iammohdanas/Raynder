@@ -20,9 +20,6 @@ class Tender(models.Model):
     company_name = models.CharField(max_length=500, blank=True, null=True)
     state = models.CharField(max_length=100, blank=True, null=True)
     city = models.CharField(max_length=100, blank=True, null=True)
-    capacity_mw = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
-    amount_crore = models.DecimalField(max_digits=20, decimal_places=2, null=True, blank=True)
-    is_high_priority = models.BooleanField(default=False, db_index=True)
     address = models.TextField(blank=True, null=True)
     tender_value = models.DecimalField(max_digits=20, decimal_places=2, blank=True, null=True)
     earnest_money = models.DecimalField(max_digits=20, decimal_places=2, blank=True, null=True)
@@ -57,3 +54,36 @@ class Tender(models.Model):
 
     def __str__(self):
         return f"{self.tender_id} - {self.title or 'Untitled Tender'}"
+    
+    
+class TenderPriority(models.Model):
+
+    tender = models.OneToOneField(
+        Tender,
+        on_delete=models.CASCADE,
+        related_name="priority",
+    )
+
+    capacity_mw = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        null=True,
+        blank=True,
+    )
+
+    amount_crore = models.DecimalField(
+        max_digits=20,
+        decimal_places=2,
+        null=True,
+        blank=True,
+    )
+
+    created_at = models.DateTimeField(
+        auto_now_add=True
+    )
+
+    updated_at = models.DateTimeField(
+        auto_now=True
+    )
+    def __str__(self):
+        return f"{self.tender.tender_id} - {self.tender.title}"

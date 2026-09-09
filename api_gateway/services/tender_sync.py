@@ -8,7 +8,6 @@ from crawlers.tendertiger.crawler.auth import TenderTigerAuth
 from crawlers.tendertiger.crawler.search import TenderTigerSearch
 import json
 
-
 from crawlers.tendertiger.crawler.config import (EMAIL, PASSWORD)
 
 

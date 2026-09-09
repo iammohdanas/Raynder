@@ -5,6 +5,7 @@ from rest_framework.decorators import api_view
 from rest_framework.response import Response
 
 from api_gateway.models import Tender
+from api_gateway.utils.filter_keywords import get_search_keywords
 from authenticator.services.tendertiger_auth_manager import TenderTigerAuthManager
 from api_gateway.services.tendertiger_mapper import TenderTigerMapper
 from crawlers.tendertiger.crawler.auth import TenderTigerAuth
@@ -16,6 +17,8 @@ from rest_framework import status
 from django.shortcuts import get_object_or_404
 from api_gateway.models import Tender
 from .serializers import TenderSerializer
+from api_gateway.models import Tender, TenderPriority
+from api_gateway.services.tender_priority import TenderPriorityService
 
 
 load_dotenv()
@@ -28,8 +31,9 @@ def sync_tenders(request):
         auth = auth_manager.get_auth()
         search = TenderTigerSearch(auth)
 
-        keywords = ["solar","wind", "BESS", "Green Hydrogen", "33 KV", "66 KV", "132 KV", "110 KV", "765 KV", "800 KV", "220 KV", "400 KV", "Substations", "Transmission Lines", "VRFB"]
-
+ 
+        keywords = ["solar", "wind", "BESS", "Green Hydrogen", "33 KV", "66 KV", "132 KV", "110 KV", "765 KV", "800 KV", "220 KV", "400 KV", "765/400 KV", "Substations", "Transmission Lines", "VRFB"]
+        keywords = get_search_keywords(keywords)
         created_count = 0
         updated_count = 0
         mapper = TenderTigerMapper()
@@ -37,7 +41,7 @@ def sync_tenders(request):
         total_fetched = 0
 
         for keyword in keywords:
-            search_result = search.search(keyword=keyword, rescount=60)
+            search_result = search.search(keyword=keyword, rescount=100)
             tenders_list = search_result.get("TenderList", [])
             total_fetched += len(tenders_list)
 
@@ -60,7 +64,15 @@ def sync_tenders(request):
                 )
 
                 if serializer.is_valid():
-                    serializer.save()
+                    tender_obj = serializer.save()
+                    priority_data = TenderPriorityService.analyze(tender)
+                    if priority_data["is_high_priority"]:
+                        TenderPriority.objects.update_or_create(
+                            tender=tender_obj,
+                            defaults={"capacity_mw": priority_data["capacity_mw"], "amount_crore": priority_data["amount_crore"]},
+                        )
+                    else:
+                        TenderPriority.objects.filter(tender=tender_obj).delete()
                     if existing_tender:
                         updated_count += 1
                     else:
@@ -202,7 +214,95 @@ def get_tender_detail(request, tender_id):
             },
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
-        
+ 
+ 
+@api_view(["GET"])
+def get_priority_tenders(request):
+    """
+    Server-side DataTables API for high-priority tenders.
+
+    Supports:
+    - Pagination
+    - Search
+    - Ordering
+    """
+    try:
+        start = int(request.GET.get("start", 0))
+        length = max(1, min(int(request.GET.get("length", 10)), 100))
+        search_value = request.GET.get("search[value]", "").strip()
+
+        # Only tenders which exist in TenderPriority
+        queryset = TenderPriority.objects.select_related("tender")
+        records_total = queryset.count()
+
+        # Search
+        if search_value:
+            queryset = queryset.filter(
+                Q(tender__tender_id__icontains=search_value)
+                | Q(tender__source_tender_id__icontains=search_value)
+                | Q(tender__tender_ref_no__icontains=search_value)
+                | Q(tender__tcno__icontains=search_value)
+                | Q(tender__title__icontains=search_value)
+                | Q(tender__description__icontains=search_value)
+                | Q(tender__company_name__icontains=search_value)
+                | Q(tender__state__icontains=search_value)
+                | Q(tender__city__icontains=search_value)
+                | Q(tender__address__icontains=search_value)
+            )
+
+        records_filtered = queryset.count()
+        queryset = queryset.order_by("-id")
+
+        paginator = Paginator(queryset, length)
+        page_number = (start // length) + 1
+        page = paginator.get_page(page_number)
+
+        data = []
+        for priority in page.object_list:
+            tender = priority.tender
+            location_parts = [v for v in [tender.city, tender.state] if v]
+
+            data.append({
+                "id": tender.id,
+                "priority_id": priority.id,
+                "tender_id": tender.tender_id,
+                "title": tender.title,
+                "tender_ref_no": tender.tender_ref_no,
+                "due_date": tender.closing_date.strftime("%d-%m-%Y") if tender.closing_date else None,
+                "authority": tender.company_name,
+                "location": ", ".join(location_parts) if location_parts else "Pan India",
+                "capacity_mw": float(priority.capacity_mw) if priority.capacity_mw is not None else None,
+                "amount_crore": float(priority.amount_crore) if priority.amount_crore is not None else None,
+                "is_paid": None,
+                "fit_score": 0,
+                "recommendation": None,
+                "view_url": f"/tenders/{tender.id}/",
+            })
+
+        # Statistics
+        total_capacity = TenderPriority.objects.aggregate(total=Sum("capacity_mw")).get("total") or 0
+
+        return Response(
+            {
+                "draw": int(request.GET.get("draw", 1)),
+                "recordsTotal": records_total,
+                "recordsFiltered": records_filtered,
+                "data": data,
+                "stats": {
+                    "total_tenders": records_total,
+                    "recommended_count": records_total,
+                    "total_capacity_mw": float(total_capacity),
+                    "last_sync": None,
+                },
+            },
+            status=status.HTTP_200_OK,
+        )
+
+    except Exception as e:
+        return Response(
+            {"success": False, "error": str(e)},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )       
         
 @api_view(["POST"])
 def create_tender(request):

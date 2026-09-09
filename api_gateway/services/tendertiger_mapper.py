@@ -75,3 +75,6 @@ class TenderTigerMapper:
     @staticmethod
     def convert_date(date_value):
         return TenderTigerMapper.parse_date(date_value)
+    
+    
+
