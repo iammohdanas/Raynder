@@ -1,0 +1,47 @@
+
+
+<input type="hidden" id="hd_imageUrl" />
+<input type="hidden" value="0" id="hdnTenderDocsCount">
+
+
+                <div class="d-listing DownloadRequest" id="dv_request">
+
+                    <p class="no-documents">Tender documents not published by department.</p>
+                </div>
+            <!--else
+        {-->
+            <!--<p>Tender documents not published by department.</p>
+        }-->
+
+    <script>
+        var imageUrl = document.getElementById('hd_imageUrl').value;
+
+        // Check if the image URL is not null or empty
+        if (imageUrl) {
+            // Set the image src attribute to the URL
+            document.getElementById('docdownloadimage').src = imageUrl;
+            document.getElementById('docdownloadimage').style.display = 'block';
+        }
+    </script>
+    
+
+
+
+
+
+
+<script>
+    function ChatWithUs(DocumentPath, FileName, FolderPath) {
+        $.ajax({
+            method: "Get",
+            url: '/TenderDetail/ConvertPdfToText',
+            data: { documentPath: DocumentPath, fileName: FileName, PDFfolderPath: FolderPath},
+            success: function (data) {
+                if (data.successCode == 1)
+                {
+                    window.location = '/TenderDetail/ChatWithAI';
+                }
+            }
+        });
+    }
+</script>

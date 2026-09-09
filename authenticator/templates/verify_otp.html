@@ -1,0 +1,98 @@
+{% extends "base_auth.html" %}
+{% load static %}
+{% block title %}Verify OTP | Rays Power Infra{% endblock %}
+
+{% block content %}
+<section class="h-100 d-flex align-items-center">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-xxl-4 col-xl-5 col-lg-5 col-md-7 col-sm-9">
+                <div class="text-center mb-4 animate__animated animate__fadeInDown">
+                    <img src="{% static 'images/rays_logo.png' %}" alt="Logo" style="width: 150px; filter: drop-shadow(0 4px 8px rgba(0,0,0,0.2));">
+                </div>
+
+                <div class="card shadow-lg animate__animated animate__zoomIn">
+                    <div class="card-body p-5 text-center">
+                        <div class="mb-4">
+                            <div class="d-inline-block bg-light p-3 rounded-circle mb-3">
+                                <i class="fas fa-shield-halved fa-2x text-primary"></i>
+                            </div>
+                            <h1 class="fs-4 fw-bold">Two-Step Verification</h1>
+                            <p class="text-muted small">Please enter the OTP sent to your registered device.</p>
+                        </div>
+
+                        {% include '_sys_notifications.html' %}
+
+                        <form method="POST" id="otp-form" class="needs-validation" novalidate="" autocomplete="off">
+                            {% csrf_token %}
+                            <input type="hidden" name="otp" id="final_otp">
+
+                            <div class="otp-input-container">
+                                <input type="text" class="otp-digit" maxlength="1" pattern="\d*" inputmode="numeric" required>
+                                <input type="text" class="otp-digit" maxlength="1" pattern="\d*" inputmode="numeric" required>
+                                <input type="text" class="otp-digit" maxlength="1" pattern="\d*" inputmode="numeric" required>
+                                <input type="text" class="otp-digit" maxlength="1" pattern="\d*" inputmode="numeric" required>
+                                <input type="text" class="otp-digit" maxlength="1" pattern="\d*" inputmode="numeric" required>
+                                <input type="text" class="otp-digit" maxlength="1" pattern="\d*" inputmode="numeric" required>
+                            </div>
+
+                            <div class="d-grid mb-3">
+                                <button type="submit" class="btn btn-primary">
+                                    Verify OTP <i class="fas fa-lock-open ms-2"></i>
+                                </button>
+                            </div>
+
+                            <p class="small text-muted mb-0">
+                                Didn't receive code? <a href="#" class="text-primary fw-bold">Resend OTP</a>
+                            </p>
+                        </form>
+                    </div>
+                </div>
+
+                <div class="text-center mt-5 footer-text animate__animated animate__fadeInUp">
+                    &copy; <script>document.write(new Date().getFullYear());</script> Rays Power Infra Land Platform.
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    const inputs = document.querySelectorAll('.otp-digit');
+    const finalInput = document.getElementById('final_otp');
+
+    function updateFinalValue() {
+        let otp = "";
+        inputs.forEach(input => otp += input.value);
+        finalInput.value = otp;
+    }
+
+    inputs.forEach((input, index) => {
+        input.addEventListener('input', (e) => {
+            if (e.target.value.length > 1) {
+                e.target.value = e.target.value.slice(0, 1);
+            }
+            if (e.target.value && index < inputs.length - 1) {
+                inputs[index + 1].focus();
+            }
+            updateFinalValue();
+        });
+
+        input.addEventListener('keydown', (e) => {
+            if (e.key === 'Backspace' && !e.target.value && index > 0) {
+                inputs[index - 1].focus();
+            }
+        });
+    });
+
+    document.getElementById('otp-form').addEventListener('submit', function(e) {
+        updateFinalValue();
+        if (finalInput.value.length < 6) {
+            e.preventDefault();
+            alert("Please enter a complete 6-digit OTP.");
+        }
+    });
+</script>
+{% endblock %}

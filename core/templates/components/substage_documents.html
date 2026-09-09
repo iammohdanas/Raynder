@@ -1,0 +1,411 @@
+<div class="border-top pt-4 mb-4">
+
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-4">
+
+        <div>
+
+            <h6 class="fw-bold text-uppercase tracking-wider text-secondary small mb-1">
+                Substage Documents
+            </h6>
+
+            <div class="small text-muted">
+                Documents uploaded specifically for this workflow substage
+            </div>
+
+        </div>
+
+        <button class="btn btn-dark rounded-pill px-4" data-bs-toggle="modal"
+            data-bs-target="#uploadDocumentModal{{ substage.id }}">
+            <i class="bi bi-plus-circle me-2"></i>
+            Add Document
+        </button>
+
+    </div>
+
+    {% if substage.documents.all %}
+
+    <div class="row g-3">
+
+        {% for document in substage.documents.all %}
+
+        <div class="col-lg-6">
+
+            <div class="card border-0 shadow-sm rounded-4 h-100 bg-light overflow-hidden">
+
+                <!-- DOCUMENT HEADER -->
+
+                <div class="card-header bg-white border-0 p-3">
+
+                    <div class="d-flex justify-content-between align-items-start gap-3">
+
+                        <div class="d-flex align-items-center gap-3">
+
+                            <div class="bg-primary bg-opacity-10 text-primary rounded-circle d-flex align-items-center justify-content-center"
+                                style="width: 52px; height: 52px;">
+                                <i class="bi bi-file-earmark-text fs-4"></i>
+                            </div>
+
+                            <div>
+
+                                <div class="fw-bold text-dark">
+                                    {{ document.title }}
+                                </div>
+
+                                <div class="small text-muted text-break">
+                                    {{ document.document_type|default:"General Document" }}
+                                </div>
+
+                            </div>
+
+                        </div>
+
+                        <div>
+
+                            {% if document.verification_status == 'verified' %}
+
+                            <span
+                                class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-3 py-2">
+                                Verified
+                            </span>
+
+                            {% elif document.verification_status == 'rejected' %}
+
+                            <span
+                                class="badge bg-danger-subtle text-danger border border-danger-subtle rounded-pill px-3 py-2">
+                                Rejected
+                            </span>
+
+                            {% elif document.verification_status == 'under_review' %}
+
+                            <span
+                                class="badge bg-info-subtle text-info border border-info-subtle rounded-pill px-3 py-2">
+                                Under Review
+                            </span>
+
+                            {% else %}
+
+                            <span
+                                class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle rounded-pill px-3 py-2">
+                                Pending
+                            </span>
+
+                            {% endif %}
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+                <!-- DOCUMENT BODY -->
+
+                <div class="card-body p-4">
+
+                    <!-- DOCUMENT INFO -->
+
+                    <div class="row g-3 mb-3">
+
+                        <div class="col-md-6">
+
+                            <div class="small text-muted mb-1">
+                                Uploaded By
+                            </div>
+
+                            <div class="fw-semibold">
+                                {{ document.uploaded_by|default:"System" }}
+                            </div>
+
+                        </div>
+
+                        <div class="col-md-6">
+
+                            <div class="small text-muted mb-1">
+                                Version
+                            </div>
+
+                            <div class="fw-semibold">
+                                v{{ document.version }}
+                            </div>
+
+                        </div>
+
+                        <div class="col-md-12">
+
+                            <div class="small text-muted mb-1">
+                                Uploaded File
+                            </div>
+
+                            <div class="fw-semibold text-break">
+                                {{ document.document.name }}
+                            </div>
+
+                        </div>
+
+                        <div class="col-md-12">
+
+                            <div class="small text-muted mb-1">
+                                Uploaded On
+                            </div>
+
+                            <div class="fw-semibold small">
+                                {{ document.created_at }}
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                    <!-- DESCRIPTION -->
+
+                    <div class="mb-3">
+
+                        <div class="small text-muted mb-1">
+                            Description
+                        </div>
+
+                        <div class="bg-white border rounded-3 p-3 small text-secondary">
+                            {{ document.description|default:"No description provided." }}
+                        </div>
+
+                    </div>
+
+                    <!-- REMARKS -->
+
+                    <div class="mb-3">
+
+                        <div class="small text-muted mb-1">
+                            Remarks
+                        </div>
+
+                        <div class="bg-white border rounded-3 p-3 small text-secondary">
+                            {{ document.remarks|default:"No remarks available." }}
+                        </div>
+
+                    </div>
+
+                    <!-- FUTURE AI SECTION -->
+
+                    {% if document.ai_summary %}
+
+                    <div class="mb-3">
+
+                        <div class="small text-muted mb-1">
+                            AI Summary
+                        </div>
+
+                        <div class="bg-dark text-light rounded-3 p-3 small">
+                            {{ document.ai_summary }}
+                        </div>
+
+                    </div>
+
+                    {% endif %}
+
+                    <!-- FOOTER -->
+
+                    <div class="d-flex justify-content-between align-items-center border-top pt-3 flex-wrap gap-2">
+
+                        <div class="small text-muted">
+
+                            {% if document.ai_verification_score %}
+
+                            AI Confidence:
+                            <span class="fw-bold text-success">
+                                {{ document.ai_verification_score }}%
+                            </span>
+
+                            {% else %}
+
+                            <div class="d-flex align-items-center gap-2 flex-wrap">
+
+                                <span>
+                                    Awaiting AI Verification
+                                </span>
+
+                                <button class="btn btn-sm btn-warning rounded-pill px-3 verify-document-btn"
+                                    data-document-id="{{ document.id }}">
+                                    <i class="bi bi-cpu me-1"></i>
+                                    Verify Using AI
+                                </button>
+
+                            </div>
+
+                            {% endif %}
+
+                        </div>
+
+                        <div class="d-flex gap-2">
+
+                            <a href="{{ document.document.url }}" class="btn btn-outline-dark btn-sm rounded-pill px-3"
+                                target="_blank">
+                                View
+                            </a>
+
+                            <a href="{{ document.document.url }}" class="btn btn-dark btn-sm rounded-pill px-3"
+                                download>
+                                Download
+                            </a>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+        {% endfor %}
+
+    </div>
+
+    {% else %}
+
+    <!-- EMPTY STATE -->
+
+    <div class="bg-light rounded-4 border p-5 text-center">
+
+        <div class="mb-3">
+            <i class="bi bi-folder2-open display-5 text-muted"></i>
+        </div>
+
+        <h5 class="fw-bold text-dark">
+            No Documents Uploaded
+        </h5>
+
+        <p class="text-muted mb-4">
+            Upload legal, technical, survey, agreement or AI-verifiable documents
+            specifically for this substage.
+        </p>
+
+        <button class="btn btn-dark rounded-pill px-4" data-bs-toggle="modal"
+            data-bs-target="#uploadDocumentModal{{ substage.id }}">
+            Upload First Document
+        </button>
+
+    </div>
+
+    {% endif %}
+
+</div>
+
+<script>
+
+    document.addEventListener("DOMContentLoaded", function () {
+
+        const verifyButtons = document.querySelectorAll(
+            ".verify-document-btn"
+        );
+
+        verifyButtons.forEach(button => {
+
+            button.addEventListener("click", async function () {
+
+                const documentId = this.dataset.documentId;
+
+                const originalHTML = this.innerHTML;
+
+                this.disabled = true;
+
+                this.innerHTML = `
+                <span class="spinner-border spinner-border-sm me-2"></span>
+                Verifying...
+            `;
+
+                try {
+
+                    const response = await fetch(
+                        `/api/documents/${documentId}/verify/`,
+                        {
+                            method: "POST",
+                            headers: {
+                                "X-CSRFToken": getCSRFToken(),
+                                "Content-Type": "application/json"
+                            }
+                        }
+                    );
+
+                    const result = await response.json();
+
+                    if (result.success) {
+
+                        showToast(
+                            "AI verification completed successfully.",
+                            "success"
+                        );
+
+                        setTimeout(() => {
+
+                            window.location.reload();
+
+                        }, 1500);
+
+                    } else {
+
+                        showToast(
+                            result.message || "Verification failed.",
+                            "danger"
+                        );
+
+                        this.disabled = false;
+
+                        this.innerHTML = originalHTML;
+
+                    }
+
+                } catch (error) {
+
+                    console.error(error);
+
+                    showToast(
+                        "Something went wrong during AI verification.",
+                        "danger"
+                    );
+
+                    this.disabled = false;
+
+                    this.innerHTML = originalHTML;
+
+                }
+
+            });
+
+        });
+
+    });
+
+</script>
+<script>
+
+document.addEventListener("DOMContentLoaded", function () {
+
+    // Reset modal form every time modal opens
+    document.querySelectorAll(".modal").forEach(modal => {
+
+        modal.addEventListener("show.bs.modal", function () {
+
+            const form = modal.querySelector("form");
+
+            if (form) {
+                form.reset();
+            }
+
+        });
+
+        // Optional: also reset when modal closes
+        modal.addEventListener("hidden.bs.modal", function () {
+
+            const form = modal.querySelector("form");
+
+            if (form) {
+                form.reset();
+            }
+
+        });
+
+    });
+
+});
+
+</script>

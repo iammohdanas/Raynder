@@ -1,0 +1,452 @@
+{% extends "base.html" %}
+{% load static %}
+{% block content %}
+      <!-- Hero Section -->
+      <section class="hero__v1-b section d-flex align-items-center" id="home"
+        style="background-image: url('{% static 'images/hero-bg-2-min.jpg' %}')" data-aos="fade-in">
+        <div class="container">
+          <div class="row">
+            <h1 class="hero-title text-white mb-5 pt-5" data-aos="fade-up">
+              <span>Automated Intelligence for </span>
+              <span>Every EPC Opportunity: </span>
+              <span>AI Tender Platform</span>
+            </h1>
+            <div class="d-flex align-items-center gap-4 cta-btns" data-aos="fade-up" data-aos-delay="100">
+              <a class="btn btn-light btn-white hover-outline" href="#tenders">Explore Tenders</a>
+              <a class="glightbox play-btn d-inline-flex align-items-center gap-2"
+                href="https://www.youtube.com/watch?v=DQx96G4yHd8">
+                <i class="bi bi-play-fill"></i> Watch Intelligence Platform Demo
+              </a>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Hero Supporting Visuals -->
+      <div class="hero__v1-img-wrap">
+        <div class="container">
+          <div class="row g-3">
+            <div class="col-md-6" data-aos="fade-up">
+              <a href="#">
+                <img class="object-fit-cover w-100 img rounded-5 img-fluid" src="{% static 'images/img-3-min.jpg' %}"
+                  alt="Automated Crawling & Discovery">
+              </a>
+            </div>
+            <div class="col-md-3" data-aos="fade-up" data-aos-delay="100">
+              <a href="#">
+                <img class="object-fit-cover w-100 img rounded-5 img-fluid" src="{% static 'images/img-4-min.jpg' %}"
+                  alt="AI Document OCR & Summaries">
+              </a>
+            </div>
+            <div class="col-md-3" data-aos="fade-up" data-aos-delay="200">
+              <a href="#">
+                <img class="object-fit-cover w-100 img rounded-5 img-fluid" src="{% static 'images/img-5-min.jpg' %}"
+                  alt="Purchase Recommendation Engine">
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Stats Bar (Aligned with BRD Data & System Specs) -->
+      <div class="section stats__v8 pt-md-0 pb-0">
+        <div class="container">
+          <div class="row pt-md-5 g-4">
+            <div class="col-6 col-sm-6 col-md-3 col-lg-2 stats-item text-center" data-aos="fade-up">
+              <h2 class="fs-3 fw-bold">
+                <span class="purecounter" data-purecounter-start="0" data-purecounter-end="4"
+                  data-purecounter-duration="2">0</span><span> hrs</span>
+              </h2>
+              <p>Crawl Frequency</p>
+            </div>
+            <div class="col-6 col-sm-6 col-md-3 col-lg-2 stats-item text-center" data-aos="fade-up"
+              data-aos-delay="100">
+              <h2 class="fs-3 fw-bold">
+                <span class="purecounter" data-purecounter-start="0" data-purecounter-end="7"
+                  data-purecounter-duration="2">0</span>
+              </h2>
+              <p>LangGraph AI Agents</p>
+            </div>
+            <div class="col-6 col-sm-6 col-md-3 col-lg-2 stats-item text-center" data-aos="fade-up"
+              data-aos-delay="200">
+              <h2 class="fs-3 fw-bold">
+                <span class="purecounter" data-purecounter-start="0" data-purecounter-end="100"
+                  data-purecounter-duration="2">0</span><span>%</span>
+              </h2>
+              <p>OCR & Document Parsing</p>
+            </div>
+            <div class="col-6 col-sm-6 col-md-3 col-lg-2 stats-item text-center" data-aos="fade-up"
+              data-aos-delay="300">
+              <h2 class="fs-3 fw-bold">
+                <span class="purecounter" data-purecounter-start="0" data-purecounter-end="99"
+                  data-purecounter-duration="2">0</span><span>.5%</span>
+              </h2>
+              <p>System Uptime</p>
+            </div>
+            <div class="col-6 col-sm-6 col-md-3 col-lg-2 stats-item text-center" data-aos="fade-up"
+              data-aos-delay="400">
+              <h2 class="fs-3 fw-bold">
+                <span class="purecounter" data-purecounter-start="0" data-purecounter-end="12"
+                  data-purecounter-duration="2">0</span>
+              </h2>
+              <p>Core Data Models</p>
+            </div>
+            <div class="col-6 col-sm-6 col-md-3 col-lg-2 stats-item text-center" data-aos="fade-up"
+              data-aos-delay="500">
+              <h2 class="fs-3 fw-bold">
+                <span class="purecounter" data-purecounter-start="0" data-purecounter-end="0"
+                  data-purecounter-duration="2">0</span><span> Sec</span>
+              </h2>
+              <p>Manual Monitoring</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Core Features / System Capabilities (Services Section) -->
+      <div class="section services__v8" id="services">
+        <div class="container">
+          <div class="row g-2">
+            <div class="col-xs-12 col-sm-6 col-md-6 col-lg-4" data-aos="fade-up" data-aos-delay="100">
+              <div class="service-item h-100 rounded-4 p-4">
+                <div class="icon mb-4"><i class="bi bi-robot fs-1 text-primary"></i></div>
+                <h3 class="h6 mb-3 fw-semibold">Authenticated Crawling</h3>
+                <p>Celery Beat triggers TenderTiger searches every 4 hours, managing session persistence and lazy loading automatically.</p>
+              </div>
+            </div>
+            <div class="col-xs-12 col-sm-6 col-md-6 col-lg-4" data-aos="fade-up" data-aos-delay="200">
+              <div class="service-item h-100 rounded-4 p-4">
+                <div class="icon mb-4"><i class="bi bi-cpu fs-1 text-primary"></i></div>
+                <h3 class="h6 mb-3 fw-semibold">LangGraph Agent Multi-Pipeline</h3>
+                <p>7 specialized AI agents orchestrate keyword expansion, tender classification, company fit, and risk analysis.</p>
+              </div>
+            </div>
+            <div class="col-xs-12 col-sm-6 col-md-6 col-lg-4" data-aos="fade-up" data-aos-delay="300">
+              <div class="service-item h-100 rounded-4 p-4">
+                <div class="icon mb-4"><i class="bi bi-file-earmark-pdf fs-1 text-primary"></i></div>
+                <h3 class="h6 mb-3 fw-semibold">OCR & Document Vectorization</h3>
+                <p>Free tender documents are downloaded, processed via OCR, summarized, and chunked into PGVector for RAG search.</p>
+              </div>
+            </div>
+            <div class="col-xs-12 col-sm-6 col-md-6 col-lg-4" data-aos="fade-up">
+              <div class="service-item h-100 p-4 rounded-4">
+                <div class="icon mb-4"><i class="bi bi-cart-check fs-1 text-primary"></i></div>
+                <h3 class="h6 mb-3 fw-semibold">Purchase Recommendation Engine</h3>
+                <p>Calculates viability scores for paid tenders and sends email alerts with AI advice before purchasing tender documents.</p>
+              </div>
+            </div>
+            <div class="col-xs-12 col-sm-6 col-md-6 col-lg-4" data-aos="fade-up" data-aos-delay="100">
+              <div class="service-item h-100 p-4 rounded-4">
+                <div class="icon mb-4"><i class="bi bi-search-heart fs-1 text-primary"></i></div>
+                <h3 class="h6 mb-3 fw-semibold">Semantic Vector Search (RAG)</h3>
+                <p>Query past and present tender repositories using plain-language vector search powered by PGVector.</p>
+              </div>
+            </div>
+            <div class="col-xs-12 col-sm-6 col-md-6 col-lg-4" data-aos="fade-up" data-aos-delay="200">
+              <div class="service-item h-100 p-4 rounded-4">
+                <div class="icon mb-4"><i class="bi bi-arrow-repeat fs-1 text-primary"></i></div>
+                <h3 class="h6 mb-3 fw-semibold">Continuous Feedback Learning</h3>
+                <p>Captures historical bid/no-bid decision outcomes to fine-tune future classification and purchase heuristics over time.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Architecture & Processing Pipeline (About Section) -->
+      <div class="section about__v10" id="about">
+        <div class="container">
+          <div class="row align-items-center">
+            <div class="col-md-6 mb-5 mb-md-0" data-aos="fade-up">
+              <a class="d-block position-relative glightbox play" href="https://www.youtube.com/watch?v=DQx96G4yHd8">
+                <span class="d-flex align-items-center rounded-circle justify-content-center position-absolute">
+                  <i class="bi bi-play-fill"></i>
+                </span>
+                <img class="img-fluid rounded-5" src="{% static 'images/img-1-min.jpg' %}" alt="Architecture Pipeline">
+              </a>
+            </div>
+            <div class="col-md-6" data-aos="fade-up" data-aos-delay="100">
+              <div class="row justify-content-end">
+                <div class="col-md-11">
+                  <h2 class="fs-4 fw-bold mb-3">AI Agent Architecture Pipeline</h2>
+                  <p>Our platform uses a Supervisor-led LangGraph architecture to process, analyze, and score EPC tenders end-to-end.</p>
+                  <ul class="list-unstyled d-flex flex-column features mt-4 gap-4">
+                    <li class="d-flex w-100 gap-4">
+                      <div class="icon text-primary"><i class="bi bi-1-circle fs-2"></i></div>
+                      <div>
+                        <h3 class="fs-6 fw-bold">Step 1: Ingestion & Normalization</h3>
+                        <p>Celery Beat executes automated TenderTiger login, lazy loading, raw JSON parsing, and PostgreSQL record persistence.</p>
+                      </div>
+                    </li>
+                    <li class="d-flex w-100 gap-4">
+                      <div class="icon text-primary"><i class="bi bi-2-circle fs-2"></i></div>
+                      <div>
+                        <h3 class="fs-6 fw-bold">Step 2: Multi-Agent Analysis</h3>
+                        <p>Classification, Company Fit, and Risk Agents evaluate EPC alignment and generate compatibility scores.</p>
+                      </div>
+                    </li>
+                    <li class="d-flex w-100 gap-4">
+                      <div class="icon text-primary"><i class="bi bi-3-circle fs-2"></i></div>
+                      <div>
+                        <h3 class="fs-6 fw-bold">Step 3: Recommendation & Alerts</h3>
+                        <p>Purchase Advisor triggers email alerts for high-value paid tenders and updates the dynamic dashboard.</p>
+                      </div>
+                    </li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tenders Portfolio / Active Tenders Grid -->
+      <div class="section portfolio__v6" id="tenders">
+        <div class="container">
+          <div class="row mb-4" data-aos="fade-up">
+            <div class="col-md-6 mx-auto text-center">
+              <h2 class="fw-bold fs-4 mb-4">Live Tender Feed</h2>
+              <p>Real-time updates of newly crawled tenders, AI suitability scores, and purchase recommendations for Rays Power Infra.</p>
+            </div>
+          </div>
+          <div class="row g-3">
+            <div class="col-md-4" data-aos="fade-up" data-aos-delay="100">
+              <a class="portfolio-item rounded-5 overflow-hidden d-block position-relative" href="#">
+                <img class="img-fluid object-fit-cover" src="{% static 'images/img-1-min.jpg' %}" alt="Solar EPC Tender">
+                <div class="project-info rounded-5 text-center">
+                  <span class="type">Category: Solar EPC</span>
+                  <h3 class="title mb-0">100MW Utility Ground Solar</h3>
+                  <span class="location">Recommendation: Buy (Fit Score: 94%)</span>
+                </div>
+              </a>
+            </div>
+            <div class="col-md-4" data-aos="fade-up" data-aos-delay="200">
+              <a class="portfolio-item rounded-5 overflow-hidden d-block position-relative" href="#">
+                <img class="img-fluid object-fit-cover" src="{% static 'images/img-2-min.jpg' %}" alt="Substation Tender">
+                <div class="project-info rounded-5 text-center">
+                  <span class="type">Category: EHV Substation</span>
+                  <h3 class="title mb-0">220kV Pooling Substation</h3>
+                  <span class="location">Recommendation: Review (Fit Score: 78%)</span>
+                </div>
+              </a>
+            </div>
+            <div class="col-md-4" data-aos="fade-up" data-aos-delay="300">
+              <a class="portfolio-item rounded-5 overflow-hidden d-block position-relative" href="#">
+                <img class="img-fluid object-fit-cover" src="{% static 'images/img-3-min.jpg' %}" alt="Transmission Line Tender">
+                <div class="project-info rounded-5 text-center">
+                  <span class="type">Category: Transmission Line</span>
+                  <h3 class="title mb-0">Interstate Transmission Line</h3>
+                  <span class="location">Recommendation: Skip (High Risk)</span>
+                </div>
+              </a>
+            </div>
+            <div class="col-md-6" data-aos="fade-up" data-aos-delay="400">
+              <a class="portfolio-item rounded-5 overflow-hidden d-block position-relative" href="#">
+                <img class="img-fluid object-fit-cover" src="{% static 'images/img-4-min.jpg' %}" alt="BESS Tender">
+                <div class="project-info rounded-5 text-center">
+                  <span class="type">Category: BESS / Storage</span>
+                  <h3 class="title mb-0">50MW/100MWh Battery Storage System</h3>
+                  <span class="location">Status: Document OCR Complete</span>
+                </div>
+              </a>
+            </div>
+            <div class="col-md-6" data-aos="fade-up" data-aos-delay="500">
+              <a class="portfolio-item rounded-5 overflow-hidden d-block position-relative" href="#">
+                <img class="img-fluid object-fit-cover" src="{% static 'images/img-5-min.jpg' %}" alt="Rooftop Solar Tender">
+                <div class="project-info rounded-5 text-center">
+                  <span class="type">Category: Distributed Solar</span>
+                  <h3 class="title mb-0">State-wide Commercial Rooftop Project</h3>
+                  <span class="location">Status: Free Document Downloaded</span>
+                </div>
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Semantic Search / Interactive AI Query Tool -->
+      <div class="section solar-calc" id="search" data-aos="fade-up">
+        <div class="container">
+          <div class="row">
+            <div class="col-md-12 mx-auto">
+              <div class="solar-calc-inner p-5 rounded-5">
+                <div class="calc">
+                  <h3 class="fs-4 fw-bold mb-4">Semantic Vector Search (RAG)</h3>
+                  <p class="text-muted">Search through parsed tender documents, technical clauses, and historical bid records using natural language.</p>
+                  <div class="d-inline-flex flex-column flex-md-row gap-4 flex-wrap align-items-end mb-4 w-100">
+                    <div class="flex-grow-1 w-100">
+                      <label class="w-100">Query / Natural Language Search:
+                        <input class="form-control mt-3 w-100" id="searchQuery" type="text" placeholder="e.g. Find all tenders requiring 220kV bay extension experience in Rajasthan">
+                      </label>
+                    </div>
+                    <button class="calculate-btn btn btn-primary px-4">Execute Vector Search</button>
+                  </div>
+                  <div id="results"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- System Operations / Escalation Matrix -->
+      <div class="section team__v4" id="team">
+        <div class="container">
+          <div class="row mb-5">
+            <div class="col-md-7 mx-auto text-center" data-aos="fade-up">
+              <h2 class="fw-bold fs-4 mb-3">System Administration & Monitoring</h2>
+              <p>Core contacts and operations teams supervising crawler health, Redis workers, and AI agents.</p>
+            </div>
+          </div>
+          <div class="row g-4">
+            <div class="col-md-6 col-lg-3" data-aos="fade-up">
+              <div class="card-item text-center rounded-5 pb-5 overflow-hidden">
+                <div class="img mb-5 px-5 pt-4">
+                  <img class="img-fluid rounded-circle" src="{% static 'images/person-sq-1-min.jpg' %}" alt="Crawler Monitoring">
+                </div>
+                <div class="info px-5 pt-5 mb-4">
+                  <h3 class="fs-5 mb-0">Crawler Operator</h3>
+                  <span class="title">TenderTiger Orchestrator</span>
+                </div>
+                <div class="social px-2 d-inline-flex gap-2">
+                  <a href="#"><i class="bi bi-envelope"></i></a>
+                  <a href="#"><i class="bi bi-telephone"></i></a>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-6 col-lg-3" data-aos="fade-up" data-aos-delay="100">
+              <div class="card-item text-center rounded-5 pb-5 overflow-hidden">
+                <div class="img mb-5 px-5 pt-4">
+                  <img class="img-fluid rounded-circle" src="{% static 'images/person-sq-2-min.jpg' %}" alt="AI Engineer">
+                </div>
+                <div class="info px-5 pt-5 mb-4">
+                  <h3 class="fs-5 mb-0">AI Pipeline Lead</h3>
+                  <span class="title">LangGraph & RAG Admin</span>
+                </div>
+                <div class="social px-2 d-inline-flex gap-2">
+                  <a href="#"><i class="bi bi-envelope"></i></a>
+                  <a href="#"><i class="bi bi-telephone"></i></a>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-6 col-lg-3" data-aos="fade-up" data-aos-delay="200">
+              <div class="card-item text-center rounded-5 pb-5 overflow-hidden">
+                <div class="img mb-5 px-5 pt-4">
+                  <img class="img-fluid rounded-circle" src="{% static 'images/person-sq-3-min.jpg' %}" alt="Tender Analyst">
+                </div>
+                <div class="info px-5 pt-5 mb-4">
+                  <h3 class="fs-5 mb-0">Lead Tender Analyst</h3>
+                  <span class="title">Bid Evaluation Lead</span>
+                </div>
+                <div class="social px-2 d-inline-flex gap-2">
+                  <a href="#"><i class="bi bi-envelope"></i></a>
+                  <a href="#"><i class="bi bi-telephone"></i></a>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-6 col-lg-3" data-aos="fade-up" data-aos-delay="300">
+              <div class="card-item text-center rounded-5 pb-5 overflow-hidden">
+                <div class="img mb-5 px-5 pt-4">
+                  <img class="img-fluid rounded-circle" src="{% static 'images/person-sq-4-min.jpg' %}" alt="DevOps Admin">
+                </div>
+                <div class="info px-5 pt-5 mb-4">
+                  <h3 class="fs-5 mb-0">DevOps & EC2 Lead</h3>
+                  <span class="title">System Uptime & Infrastructure</span>
+                </div>
+                <div class="social px-2 d-inline-flex gap-2">
+                  <a href="#"><i class="bi bi-envelope"></i></a>
+                  <a href="#"><i class="bi bi-telephone"></i></a>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- System FAQ -->
+      <div class="section faq__v3" id="faq">
+        <div class="container" data-aos="fade-up">
+          <div class="row">
+            <div class="col-lg-5 mx-auto text-center">
+              <h2 class="fs-4 fw-bold mb-3">System Operations FAQ</h2>
+              <p class="mb-5">Key technical operational answers for the Tender Intelligence Platform.</p>
+            </div>
+          </div>
+          <div class="content rounded-4 py-5 px-4">
+            <div class="row">
+              <div class="col-lg-5 mb-5 mb-lg-0">
+                <img class="img-fluid rounded-5" src="{% static 'images/img-3-min.jpg' %}" alt="Operation FAQ">
+              </div>
+              <div class="col-lg-7">
+                <div class="accordion custom-accordion" id="accordionSOP">
+                  <div class="accordion-item">
+                    <h2 class="accordion-header">
+                      <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#f1">
+                        How often does the TenderTiger crawler run?
+                      </button>
+                    </h2>
+                    <div class="accordion-collapse collapse show" id="f1" data-bs-parent="#accordionSOP">
+                      <div class="accordion-body">
+                        Celery Beat schedules automated crawls every 4 hours. It maintains an authenticated session, searches for configured keywords, handles dynamic lazy loading, and ingests all newly posted tenders.
+                      </div>
+                    </div>
+                  </div>
+                  <div class="accordion-item">
+                    <h2 class="accordion-header">
+                      <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#f2">
+                        How does the Purchase Recommendation Agent evaluate paid tenders?
+                      </button>
+                    </h2>
+                    <div class="accordion-collapse collapse" id="f2" data-bs-parent="#accordionSOP">
+                      <div class="accordion-body">
+                        The agent combines output from the Classification, Company Fit, and Risk Assessment agents against historical bid feedback to compute a score, recommending whether purchasing the tender document is justified.
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Action Form: Add Keywords / Trigger On-Demand Crawl -->
+      <div class="section contact__v5" id="contact">
+        <div class="container">
+          <div class="row mb-5">
+            <div class="col-12 mb-4" data-aos="fade-up">
+              <h2 class="fs-4 fw-bold">Platform Management</h2>
+            </div>
+            <div class="col-md-6 mb-5 mb-md-0">
+              <div class="d-flex flex-column gap-5">
+                <div class="d-flex align-items-start gap-3" data-aos="fade-up">
+                  <div class="icon d-block"><i class="bi bi-cpu fs-5"></i></div>
+                  <div>
+                    <span class="d-block fw-semibold">AI Tender Support Desk</span>
+                    <span>Direct Platform Support Line</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="col-12">
+              <div class="rounded-5 form-wrapper mt-5" data-aos="fade-up">
+                <h4 class="mb-4">Add Keyword or Trigger On-Demand Crawl Job</h4>
+                <form id="contactForm">
+                  <div class="row gap-3 mb-3">
+                    <div class="col-md-12">
+                      <label class="mb-2" for="subject">Search Keyword / Category Title</label>
+                      <input class="form-control" id="subject" type="text" placeholder="e.g. Floating Solar EPC, 400kV Substation" required>
+                    </div>
+                    <div class="col-md-12">
+                      <label class="mb-2" for="message">Crawl Execution Note / Special Filters</label>
+                      <textarea class="form-control" id="message" rows="5" placeholder="Specify state preferences, budget thresholds, or agency restrictions..." required></textarea>
+                    </div>
+                  </div>
+                  <button class="btn btn-primary w-100 fw-semibold" type="submit">Submit Crawl Job Request</button>
+                </form>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+{% endblock %}

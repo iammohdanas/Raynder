@@ -1,0 +1,114 @@
+# SQLite
+db.sqlite3
+
+# Python cache
+__pycache__/
+*.py[cod]
+
+# Django migrations
+*/migrations/*
+!*/migrations/__init__.py
+
+# Specific cache folders
+authenticator/__pycache__/
+core/__pycache__/
+rays_land_tracker/__pycache__/
+mainapp/__pycache__/
+
+# Virtual environment
+venv/
+.env
+
+# Static & media generated files
+media/
+staticfiles/
+
+# IDE / Editor
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# =========================
+# Python
+# =========================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# =========================
+# Virtual Environment
+# =========================
+venv/
+env/
+.venv/
+.env
+.env.*
+
+# =========================
+# Django
+# =========================
+*.log
+db.sqlite3
+db.sqlite3-journal
+media/
+staticfiles/
+
+# =========================
+# Django migrations
+# =========================
+# Do NOT ignore migrations.
+# migrations/*.py should normally be committed.
+
+# =========================
+# IDE / Editor
+# =========================
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# =========================
+# OS
+# =========================
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# =========================
+# Testing / Coverage
+# =========================
+.pytest_cache/
+.coverage
+htmlcov/
+coverage.xml
+
+# =========================
+# Build / Distribution
+# =========================
+build/
+dist/
+*.egg-info/
+
+# =========================
+# Temporary files
+# =========================
+*.tmp
+*.temp
+*.bak
+
+# =========================
+# Generated crawler/search data
+# =========================
+search_result.json
+
+# =========================
+# Local secrets / credentials
+# =========================
+*.pem
+*.key
+credentials.json
+secrets.json

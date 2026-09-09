@@ -1,0 +1,479 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+
+<!-- Dependencies -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+<style>
+    :root {
+        --app-bg: #f8fafc;
+        --surface-card: #ffffff;
+        --border-subtle: #e2e8f0;
+        --border-strong: #cbd5e1;
+        --text-primary: #0f172a;
+        --text-secondary: #475569;
+        --text-muted: #94a3b8;
+        --brand-accent: #2563eb;
+        --brand-accent-subtle: #eff6ff;
+    }
+
+    body {
+        background-color: var(--app-bg);
+        color: var(--text-primary);
+        font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+        letter-spacing: -0.01em;
+    }
+
+    /* Clearance for fixed navbar */
+    .dashboard-container {
+        max-width: 1080px;
+        margin: 0 auto;
+        padding-top: 96px !important;
+    }
+
+    /* Page Reveal Animation */
+    .fade-in-up {
+        animation: fadeInUp 0.45s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+
+    @keyframes fadeInUp {
+        0% {
+            opacity: 0;
+            transform: translateY(16px);
+        }
+        100% {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    /* Enterprise Cards */
+    .detail-card {
+        background: var(--surface-card);
+        border: 1px solid var(--border-subtle);
+        border-radius: 16px;
+        box-shadow: 0 1px 3px 0 rgba(15, 23, 42, 0.03), 0 6px 16px -4px rgba(15, 23, 42, 0.04);
+        transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .detail-card:hover {
+        border-color: var(--border-strong);
+    }
+
+    .section-heading {
+        font-size: 0.9375rem;
+        font-weight: 700;
+        color: var(--text-primary);
+        margin-bottom: 1.25rem;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    /* Form Fields */
+    .form-label {
+        font-size: 0.75rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--text-secondary);
+        margin-bottom: 6px;
+    }
+
+    .form-control,
+    .form-select {
+        border: 1px solid var(--border-subtle);
+        border-radius: 10px;
+        padding: 10px 14px;
+        font-size: 0.875rem;
+        color: var(--text-primary);
+        background-color: #ffffff;
+        transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    .form-control:focus,
+    .form-select:focus {
+        border-color: var(--brand-accent);
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+        outline: none;
+    }
+
+    .form-control::placeholder {
+        color: var(--text-muted);
+        font-size: 0.875rem;
+    }
+
+    textarea.form-control {
+        min-height: 120px;
+        resize: vertical;
+        line-height: 1.6;
+    }
+
+    .required::after {
+        content: " *";
+        color: #ef4444;
+    }
+
+    /* Styled Checkbox Box */
+    .custom-checkbox-panel {
+        background-color: #f8fafc;
+        border: 1px solid var(--border-subtle);
+        border-radius: 12px;
+        padding: 1rem 1.25rem;
+        transition: all 0.15s ease;
+        cursor: pointer;
+    }
+
+    .custom-checkbox-panel:hover {
+        background-color: #f1f5f9;
+        border-color: var(--border-strong);
+    }
+
+    .form-check-input {
+        width: 1.15rem;
+        height: 1.15rem;
+        margin-top: 0.15rem;
+        border-radius: 6px;
+        border: 1px solid var(--border-strong);
+        cursor: pointer;
+    }
+
+    .form-check-input:checked {
+        background-color: var(--brand-accent);
+        border-color: var(--brand-accent);
+    }
+
+    /* Back Navigation Button */
+    .btn-back {
+        color: var(--text-secondary);
+        font-size: 0.875rem;
+        font-weight: 600;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 6px 12px;
+        border-radius: 8px;
+        transition: all 0.15s ease;
+    }
+
+    .btn-back:hover {
+        background-color: #f1f5f9;
+        color: var(--text-primary);
+        transform: translateX(-3px);
+    }
+
+    /* Modern Floating Alert Pills */
+    .alert-custom {
+        border-radius: 12px;
+        font-size: 0.875rem;
+        font-weight: 500;
+        padding: 12px 16px;
+        display: none;
+        animation: fadeIn 0.3s ease;
+    }
+
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(-6px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+</style>
+
+<div class="dashboard-container pb-5 px-3 px-md-4 fade-in-up">
+
+    <!-- Top Navigation / Header -->
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-4 gap-3">
+        <div>
+            <div class="d-flex align-items-center gap-2 mb-2">
+                <a href="/tenders/" class="btn-back ps-0">
+                    <i class="fa-solid fa-arrow-left"></i>
+                    <span>Back to Pipeline</span>
+                </a>
+                <span class="text-muted small">/</span>
+                <span class="text-secondary small fw-medium">Create Manual Entry</span>
+            </div>
+            <h3 class="fw-bold mb-1 text-dark">Create New Tender</h3>
+            <p class="text-secondary small mb-0">
+                Register a tender record directly into the intelligence assessment queue.
+            </p>
+        </div>
+    </div>
+
+    <!-- Feedback Alerts -->
+    <div id="successAlert" class="alert alert-success alert-custom border-success-subtle mb-4" role="alert">
+        <div class="d-flex align-items-center gap-2">
+            <i class="fa-solid fa-circle-check text-success fs-5"></i>
+            <span id="successMessage">Tender created successfully.</span>
+        </div>
+    </div>
+
+    <div id="errorAlert" class="alert alert-danger alert-custom border-danger-subtle mb-4" role="alert">
+        <div class="d-flex align-items-start gap-2">
+            <i class="fa-solid fa-circle-exclamation text-danger fs-5 mt-1"></i>
+            <div id="errorMessage" style="white-space: pre-line;">Unable to create tender.</div>
+        </div>
+    </div>
+
+    <!-- Form -->
+    <form id="createTenderForm">
+
+        <!-- Basic Information -->
+        <div class="detail-card p-4 mb-4">
+            <div class="section-heading">
+                <i class="fa-solid fa-file-lines text-primary"></i>
+                <span>Basic Tender Information</span>
+            </div>
+
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label class="form-label required">Tender Reference Number</label>
+                    <input type="text" class="form-control" name="tender_ref_no" placeholder="e.g., GEM/2026/B/891234">
+                </div>
+
+                <div class="col-md-6">
+                    <label class="form-label">TC Number</label>
+                    <input type="text" class="form-control" name="tcno" placeholder="e.g., TC-90214">
+                </div>
+
+                <div class="col-12">
+                    <label class="form-label required">Tender Title</label>
+                    <input type="text" class="form-control" name="title" placeholder="e.g., Design, Engineering, Procurement & Supply of 50MW Solar Power Plant">
+                </div>
+
+                <div class="col-12">
+                    <label class="form-label">Description & Scope</label>
+                    <textarea class="form-control" name="description" placeholder="Provide full scope details, eligibility criteria, or project milestones..."></textarea>
+                </div>
+            </div>
+        </div>
+
+        <!-- Authority Information -->
+        <div class="detail-card p-4 mb-4">
+            <div class="section-heading">
+                <i class="fa-solid fa-building text-primary"></i>
+                <span>Authority Information</span>
+            </div>
+
+            <div class="row g-3">
+                <div class="col-md-8">
+                    <label class="form-label">Company / Procuring Authority</label>
+                    <input type="text" class="form-control" name="company_name" placeholder="e.g., NTPC Renewable Energy Limited">
+                </div>
+            </div>
+        </div>
+
+        <!-- Location Details -->
+        <div class="detail-card p-4 mb-4">
+            <div class="section-heading">
+                <i class="fa-solid fa-location-dot text-primary"></i>
+                <span>Execution Location</span>
+            </div>
+
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <label class="form-label">State</label>
+                    <input type="text" class="form-control" name="state" placeholder="e.g., Rajasthan">
+                </div>
+
+                <div class="col-md-4">
+                    <label class="form-label">City / District</label>
+                    <input type="text" class="form-control" name="city" placeholder="e.g., Bikaner">
+                </div>
+
+                <div class="col-md-4">
+                    <label class="form-label">Detailed Address</label>
+                    <input type="text" class="form-control" name="address" placeholder="e.g., Sector 4, Solar Park Area">
+                </div>
+            </div>
+        </div>
+
+        <!-- Financial Overview -->
+        <div class="detail-card p-4 mb-4">
+            <div class="section-heading">
+                <i class="fa-solid fa-indian-rupee-sign text-primary"></i>
+                <span>Financial Metrics</span>
+            </div>
+
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label class="form-label">Estimated Tender Value (INR)</label>
+                    <input type="number" step="0.01" class="form-control" name="tender_value" placeholder="0.00">
+                </div>
+
+                <div class="col-md-6">
+                    <label class="form-label">Earnest Money Deposit / EMD (INR)</label>
+                    <input type="number" step="0.01" class="form-control" name="earnest_money" placeholder="0.00">
+                </div>
+            </div>
+        </div>
+
+        <!-- Important Dates -->
+        <div class="detail-card p-4 mb-4">
+            <div class="section-heading">
+                <i class="fa-regular fa-calendar text-primary"></i>
+                <span>Milestone Dates</span>
+            </div>
+
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <label class="form-label">Tender Publication Date</label>
+                    <input type="date" class="form-control" name="tender_date">
+                </div>
+
+                <div class="col-md-4">
+                    <label class="form-label">Technical Opening Date</label>
+                    <input type="date" class="form-control" name="opening_date">
+                </div>
+
+                <div class="col-md-4">
+                    <label class="form-label">Submission Deadline</label>
+                    <input type="date" class="form-control" name="closing_date">
+                </div>
+            </div>
+        </div>
+
+        <!-- Source Information -->
+        <div class="detail-card p-4 mb-4">
+            <div class="section-heading">
+                <i class="fa-solid fa-link text-primary"></i>
+                <span>Source Links</span>
+            </div>
+
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label class="form-label">TenderTiger / Aggregator URL</label>
+                    <input type="url" class="form-control" name="description_url" placeholder="https://www.tendertiger.com/...">
+                </div>
+
+                <div class="col-md-6">
+                    <label class="form-label">Original Portal URL</label>
+                    <input type="url" class="form-control" name="original_source" placeholder="https://eprocure.gov.in/...">
+                </div>
+            </div>
+        </div>
+
+        <!-- Documentation Availability -->
+        <div class="detail-card p-4 mb-4">
+            <div class="section-heading">
+                <i class="fa-solid fa-file-arrow-down text-primary"></i>
+                <span>Documentation</span>
+            </div>
+
+            <label class="custom-checkbox-panel d-flex align-items-center gap-3 mb-0" for="documentAvailable">
+                <input class="form-check-input mb-0" type="checkbox" name="document_available" id="documentAvailable">
+                <div>
+                    <span class="fw-semibold text-dark d-block" style="font-size: 0.875rem;">Tender documentation is available</span>
+                    <span class="text-secondary small">Check if official NIT, BoQ, and specification sheets are accessible for automated parsing.</span>
+                </div>
+            </label>
+        </div>
+
+        <!-- Form Actions -->
+        <div class="d-flex justify-content-end align-items-center gap-2 mb-5">
+            <a href="/tenders/" class="btn btn-white border bg-white px-4 py-2 rounded-3 text-secondary fw-semibold shadow-sm">
+                Cancel
+            </a>
+            <button type="submit" id="createTenderBtn" class="btn btn-primary px-4 py-2 rounded-3 fw-semibold shadow-sm d-inline-flex align-items-center gap-2" style="background-color: var(--brand-accent); border-color: var(--brand-accent);">
+                <i class="fa-solid fa-plus fs-7"></i>
+                <span>Create Tender</span>
+            </button>
+        </div>
+
+    </form>
+</div>
+
+<script>
+document.getElementById("createTenderForm").addEventListener("submit", async function (event) {
+    event.preventDefault();
+
+    const form = this;
+    const button = document.getElementById("createTenderBtn");
+    const originalButtonHtml = button.innerHTML;
+
+    document.getElementById("successAlert").style.display = "none";
+    document.getElementById("errorAlert").style.display = "none";
+
+    const formData = new FormData(form);
+    const data = {};
+
+    formData.forEach((value, key) => {
+        data[key] = value;
+    });
+
+    data.document_available = document.getElementById("documentAvailable").checked;
+
+    Object.keys(data).forEach(key => {
+        if (data[key] === "" && key !== "title") {
+            data[key] = null;
+        }
+    });
+
+    button.disabled = true;
+    button.innerHTML = '<i class="fa-solid fa-spinner fa-spin fs-7"></i> <span>Creating Tender...</span>';
+
+    try {
+        const response = await fetch("/api/tenders/create/", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Accept": "application/json",
+                "X-CSRFToken": getCookie("csrftoken")
+            },
+            credentials: "same-origin",
+            body: JSON.stringify(data)
+        });
+
+        const result = await response.json();
+
+        if (!response.ok || !result.success) {
+            let errorMessage = result.error || "Unable to create tender.";
+            if (result.errors) {
+                errorMessage = Object.entries(result.errors)
+                    .map(([field, errors]) => `${field}: ${errors.join(", ")}`)
+                    .join("\n");
+            }
+            throw new Error(errorMessage);
+        }
+
+        document.getElementById("successMessage").textContent = result.message || "Tender created successfully.";
+        document.getElementById("successAlert").style.display = "block";
+
+        const createdTender = result.data;
+        if (createdTender && createdTender.id) {
+            setTimeout(() => {
+                window.location.href = `/tenders/${createdTender.id}/`;
+            }, 800);
+        }
+
+    } catch (error) {
+        console.error("Create tender error:", error);
+        document.getElementById("errorMessage").textContent = error.message;
+        document.getElementById("errorAlert").style.display = "block";
+    } finally {
+        button.disabled = false;
+        button.innerHTML = originalButtonHtml;
+    }
+});
+
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== "") {
+        const cookies = document.cookie.split(";");
+        for (let cookie of cookies) {
+            cookie = cookie.trim();
+            if (cookie.startsWith(name + "=")) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+</script>
+
+{% endblock %}

@@ -1,0 +1,90 @@
+<style>
+   
+    .input-filled {
+        position: relative;
+    }
+</style>
+
+  
+<div class="signup-from-bx" id="BoxLogin">
+        <div id="dv_successmsg" class="alert alert-success" role="alert" style="display:none">
+
+        </div>
+    <div id="dv_errorsmsg" class="alert alert-danger" role="alert" style="display:none">
+
+    </div>
+    <img class="register-icon d-none" src="/assets/images/user-login.png">
+    <form id="frmUserLogin" method="post">
+        <fieldset>
+
+            <legend><h1 class="h4 m-0 p-1">Login</h1></legend>
+            <div class="Register-bx">
+                <div class="form-group mb-2">
+                    <input type="text" class="form-control" id="" placeholder="Enter Email ID" required data-val="true" data-val-email="Please enter valid email" data-val-required="Please enter email" name="Email" value="">
+                    <span class="text-danger field-validation-valid" data-valmsg-for="Email" data-valmsg-replace="true"></span>
+                </div>
+                <div class="form-group  mb-0">
+                    <div class="password-filed">
+                        <input type="Password" class="form-control" id="" placeholder="Enter Password " required data-val="true" data-val-required="Please enter password" name="Password">
+                        <i class="toggle-password fa fa-fw fa-eye-slash"></i>
+                    </div>
+                    <span class="text-danger field-validation-valid" data-valmsg-for="Password" data-valmsg-replace="true"></span>
+                </div>
+                <a  id="model_forgotPassword" class="forgotPassword">Forgot Password ?</a>
+                <a onclick="forgotPassword()" id="formodel_forgotPassword" class="forgotPassword d-none">Forgot Password ?</a>
+                <button id="btnlogin" type="submit" class="btn btn-default register-sub mt-3" value="Login" onclick="PostLogin()">Login, Let's win Tenders  </button>
+
+            </div>
+        </fieldset>
+
+        <p class="mt-3" id="Registag">New to Tender Tiger,  <a  id="registration_id" class="login"> Sign up, it's Free.</a></p>
+        <p class="mt-3 d-none" id="modalRegistag">Don't have a TenderTiger account?  <a onclick="RegistrationPopup()"  class="login">Register now </a></p>
+    <input name="__RequestVerificationToken" type="hidden" value="CfDJ8NpgDLUDnZxLrF3xcb51JMxbaPQWlv7DOn2v6AsHFh3NCoU75Hl0FiNlbIgSOp8P3mqYGOhoieEXW-84ML-eS2mEevow7PZ__6gYAho1YEKT7XrOiUzwBwCjnztsGfnHYbbsv9ImMABQul2HIChVs24" /></form>
+</div>
+   
+
+
+
+<script src="/assets/js/jquery.validate.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-validation-unobtrusive/3.2.11/jquery.validate.unobtrusive.min.js"></script>
+
+<script>
+
+    $(document).ready(function () {
+
+        Cookies.remove('maintabindex');
+        $("#btnlogin").click(function (event) {
+            event.preventDefault();
+        });
+
+        $("#registration_id").on("click", function (e) {
+        e.preventDefault();
+            var inquiryValue = getUrlParameter('inquiry');
+
+            if (inquiryValue !== '') {
+                Registration();
+
+            } else {
+                window.location.href = "/User/Account" + "?" + "Registration";
+            }
+
+    });
+        $("#model_forgotPassword").on("click", function (e) {
+
+            var dlink = window.location.href;
+            var newHref = "/User/Account" + "?" + "forgotpassword";
+            window.location.href = newHref;
+
+    });
+    $(".toggle-password").click(function () {
+        $(this).toggleClass("fa-eye fa-eye-slash");
+        input = $(this).parent().find("input");
+        if (input.attr("type") == "password") {
+            input.attr("type", "text");
+        } else {
+            input.attr("type", "password");
+        }
+    });
+    });
+</script>
+

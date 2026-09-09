@@ -1,0 +1,108 @@
+{% extends "base_auth.html" %}
+{% load static %}
+{% block title %}Create Account | Rays Power Infra{% endblock %}
+
+{% block content %}
+<section class="py-5">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-xxl-5 col-xl-6 col-lg-7 col-md-9 col-sm-11">
+                <div class="text-center mb-4 animate__animated animate__fadeInDown">
+                    <img src="{% static 'images/rays_logo.png' %}" alt="logo" style="width: 160px; filter: drop-shadow(0 4px 8px rgba(0,0,0,0.2));">
+                </div>
+
+                <div class="card animate__animated animate__fadeInUp">
+                    {% include '_sys_notifications.html' %}
+                    <div class="card-body p-4 p-md-5">
+                        <h1 class="fs-3 fw-bold mb-1">Create Account</h1>
+                        <p class="text-muted mb-4">Join the Rays Power Infra Platform</p>
+
+                        <form method="POST" class="needs-validation" id="register-form" novalidate="" autocomplete="off">
+                            {% csrf_token %}
+
+                            <div class="row">
+                                <div class="col-md-6 mb-3 animate__animated animate__fadeInLeft stagger-1">
+                                    <label class="form-label" for="first_name">First Name</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text"><i class="fas fa-user-circle"></i></span>
+                                        <input type="text" id="first_name" name="first_name" class="form-control" placeholder="John" required>
+                                    </div>
+                                </div>
+                                <div class="col-md-6 mb-3 animate__animated animate__fadeInRight stagger-1">
+                                    <label class="form-label" for="last_name">Last Name</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text"><i class="fas fa-user-circle"></i></span>
+                                        <input type="text" id="last_name" name="last_name" class="form-control" placeholder="Doe" required>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="mb-3 animate__animated animate__fadeInUp stagger-2">
+                                <label class="form-label" for="username">Username</label>
+                                <div class="input-group">
+                                    <span class="input-group-text"><i class="fas fa-at"></i></span>
+                                    <input type="text" id="username" name="username" class="form-control" placeholder="johndoe123" required>
+                                </div>
+                            </div>
+
+                            <div class="mb-3 animate__animated animate__fadeInUp stagger-2">
+                                <label class="form-label" for="email">Email Address</label>
+                                <div class="input-group">
+                                    <span class="input-group-text"><i class="fas fa-envelope"></i></span>
+                                    <input type="email" id="email" name="email" class="form-control" placeholder="name@example.com" required>
+                                </div>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-md-6 mb-3 animate__animated animate__fadeInUp stagger-3">
+                                    <label class="form-label" for="password">Password</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text"><i class="fas fa-lock"></i></span>
+                                        <input type="password" id="password" name="password" class="form-control" placeholder="••••••••" required>
+                                    </div>
+                                </div>
+                                <div class="col-md-6 mb-3 animate__animated animate__fadeInUp stagger-3">
+                                    <label class="form-label" for="confirm_password">Confirm</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text"><i class="fas fa-shield-alt"></i></span>
+                                        <input type="password" id="confirm_password" name="confirm_password" class="form-control" placeholder="••••••••" required>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="mb-3 animate__animated animate__fadeInUp stagger-4">
+                                <label class="form-label" for="mobile_number">Mobile Number</label>
+                                <div class="input-group">
+                                    <span class="input-group-text"><i class="fas fa-phone"></i></span>
+                                    <input type="text" id="mobile_number" name="mobile_number" class="form-control" placeholder="+91 00000 00000" required>
+                                </div>
+                            </div>
+
+                            <div class="mb-4 animate__animated animate__fadeInUp stagger-4">
+                                <div class="form-check">
+                                    <input type="checkbox" id="terms_accepted" name="terms_accepted" class="form-check-input" required>
+                                    <label for="terms_accepted" class="form-check-label text-muted small">I agree to the <a href="#" class="text-primary">Terms & Conditions</a></label>
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <button type="submit" id="signup" class="btn btn-primary w-100 shadow-sm">
+                                    Create Account <i class="fas fa-arrow-right ms-2"></i>
+                                </button>
+                            </div>
+
+                            <div class="text-center text-muted small animate__animated animate__fadeIn animate__delay-1s">
+                                Already have an account? <a href="{% url 'login' %}" class="text-primary fw-bold">Log in</a>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <div class="text-center mt-5 footer-text animate__animated animate__fadeIn">
+                    &copy; <script>document.write(new Date().getFullYear());</script> Rays Power Infra Land Platform.
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}
