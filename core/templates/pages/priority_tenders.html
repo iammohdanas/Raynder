@@ -2,8 +2,6 @@
 {% load static %}
 
 {% block content %}
-
-<!-- Dependencies -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link
@@ -12,6 +10,7 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css">
 
+<!-- Your same CSS -->
 <link rel="stylesheet" href="{% static 'css/tender_data_table.css' %}">
 
 <div class="dashboard-container pb-5 px-3 px-md-4">
@@ -96,10 +95,9 @@
             </div>
         </div>
     </div>
-    {% include "partial_pages/_tender_table.html" with table_api_url="/api/tenders/" %}
-</div>
+    {% include "partial_pages/_tender_table.html" with table_api_url="/api/priority-tenders-list/" %}
 
-<!-- Dependencies -->
+</div>
 <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
 <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
 <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>

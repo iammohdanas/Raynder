@@ -1,4 +1,5 @@
 import json
+from django.db.models.aggregates import Sum
 from dotenv import load_dotenv
 from rest_framework import status
 from rest_framework.decorators import api_view
@@ -41,7 +42,7 @@ def sync_tenders(request):
         total_fetched = 0
 
         for keyword in keywords:
-            search_result = search.search(keyword=keyword, rescount=100)
+            search_result = search.search(keyword=keyword, rescount=60)
             tenders_list = search_result.get("TenderList", [])
             total_fetched += len(tenders_list)
 
@@ -127,6 +128,9 @@ def get_tenders(request):
         search_value = request.GET.get("search[value]", "").strip()
         queryset = Tender.objects.all()
         records_total = queryset.count()
+        # Only tenders which exist in TenderPriority
+        recommended_tender_queryset = TenderPriority.objects.select_related("tender")
+        recommended_tenders = recommended_tender_queryset.count()
 
         if search_value:
             queryset = queryset.filter(
@@ -176,7 +180,7 @@ def get_tenders(request):
                 "data": data,
                 "stats": {
                     "total_tenders": records_total,
-                    "recommended_count": 0,
+                    "recommended_count": recommended_tenders,
                     "total_capacity_mw": 0,
                     "last_sync": None,
                 },
@@ -278,9 +282,7 @@ def get_priority_tenders(request):
                 "recommendation": None,
                 "view_url": f"/tenders/{tender.id}/",
             })
-
         # Statistics
-        total_capacity = TenderPriority.objects.aggregate(total=Sum("capacity_mw")).get("total") or 0
 
         return Response(
             {
@@ -291,7 +293,7 @@ def get_priority_tenders(request):
                 "stats": {
                     "total_tenders": records_total,
                     "recommended_count": records_total,
-                    "total_capacity_mw": float(total_capacity),
+                    "total_capacity_mw": 0,
                     "last_sync": None,
                 },
             },

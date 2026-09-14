@@ -1,0 +1,499 @@
+<!-- Table Card -->
+<div class="premium-card p-3 p-md-4">
+    <div class="table-responsive">
+        <table id="tenderTable" class="table align-middle w-100 mb-0">
+            <thead>
+                <tr>
+                    <th>Tender Title & Reference</th>
+                    <th>Authority & Location</th>
+                    <th>Capacity</th>
+                    <th>Access</th>
+                    <th>Fit Score</th>
+                    <th>AI Verdict</th>
+                    <th class="text-end">Actions</th>
+                </tr>
+            </thead>
+
+            <tbody></tbody>
+        </table>
+    </div>
+</div>
+
+
+<!-- DataTables Dependencies -->
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
+
+
+<script>
+    $(document).ready(function () {
+
+        const table = $('#tenderTable').DataTable({
+
+            processing: true,
+            serverSide: true,
+
+            ajax: {
+                url: '{{ table_api_url }}',
+                type: 'GET',
+
+                dataSrc: function (json) {
+
+                    if (json.stats) {
+
+                        $('#stat-total-tenders').text(
+                            json.stats.total_tenders || 0
+                        );
+
+                        $('#stat-recommended').text(
+                            json.stats.recommended_count || 0
+                        );
+
+                        $('#stat-capacity').text(
+                            (json.stats.total_capacity_mw || 0) + ' MW'
+                        );
+
+                        $('#stat-last-sync').text(
+                            json.stats.last_sync || 'Just now'
+                        );
+                    }
+
+                    return json.data;
+                },
+
+                error: function (xhr) {
+
+                    console.error(
+                        'Tender API error:',
+                        xhr.responseText
+                    );
+                }
+            },
+
+            responsive: true,
+
+            pageLength: 10,
+
+            lengthMenu: [
+                [10, 25, 50, 100],
+                [10, 25, 50, 100]
+            ],
+
+            dom:
+                '<"dt-controls-wrapper"l f>' +
+                'rt' +
+                '<"d-flex flex-column flex-md-row justify-content-between align-items-center pt-3 gap-3"i p>',
+
+            language: {
+
+                search: "",
+
+                searchPlaceholder:
+                    "Search keywords, tender IDs, locations...",
+
+                lengthMenu:
+                    "Show _MENU_ entries",
+
+                info:
+                    "Showing _START_ to _END_ of _TOTAL_ tenders",
+
+                processing:
+                    "Loading tenders...",
+
+                paginate: {
+
+                    next:
+                        '<i class="fa-solid fa-chevron-right fs-7"></i>',
+
+                    previous:
+                        '<i class="fa-solid fa-chevron-left fs-7"></i>'
+                }
+            },
+
+            columns: [
+
+                {
+                    data: 'title',
+
+                    render: function (data, type, row) {
+
+                        const fullTitle =
+                            data || 'Untitled Tender';
+
+                        const maxChars = 60;
+
+                        const displayTitle =
+                            fullTitle.length > maxChars
+                                ? fullTitle.substring(0, maxChars) + '...'
+                                : fullTitle;
+
+                        return `
+                            <div class="d-flex flex-column">
+
+                                <a href="${row.view_url || '#'}"
+                                   class="fw-semibold text-dark text-decoration-none mb-1"
+                                   title="${fullTitle}">
+
+                                    ${displayTitle}
+
+                                </a>
+
+                                <div class="d-flex align-items-center gap-2">
+
+                                    <span class="badge-code">
+                                        ${row.tender_id || 'ID Pending'}
+                                    </span>
+
+                                    <span class="text-muted small">
+
+                                        <i class="fa-regular fa-clock me-1 text-secondary"></i>
+
+                                        Due: ${row.due_date || 'N/A'}
+
+                                    </span>
+
+                                </div>
+
+                            </div>
+                        `;
+                    }
+                },
+
+                {
+                    data: 'authority',
+
+                    render: function (data, type, row) {
+
+                        return `
+                            <div class="fw-medium text-dark">
+                                ${data || 'TenderTiger Sourced'}
+                            </div>
+
+                            <div class="text-muted small">
+
+                                <i class="fa-solid fa-location-dot me-1 text-secondary"></i>
+
+                                ${row.location || 'Pan India'}
+
+                            </div>
+                        `;
+                    }
+                },
+
+                {
+                    data: 'capacity_mw',
+
+                    render: function (data) {
+
+                        if (!data) {
+                            return `<span class="text-muted">—</span>`;
+                        }
+
+                        return `
+                            <span class="fw-bold text-dark">
+
+                                <i class="fa-solid fa-bolt text-warning me-1"></i>
+
+                                ${data} MW
+
+                            </span>
+                        `;
+                    }
+                },
+
+                {
+                    data: 'is_paid',
+
+                    render: function (data) {
+
+                        if (data === null || data === undefined) {
+                            return `<span class="text-muted">—</span>`;
+                        }
+
+                        return data
+                            ? `
+                                <span class="badge-paid">
+
+                                    <i class="fa-solid fa-lock me-1"></i>
+
+                                    Paid Tender
+
+                                </span>
+                            `
+                            : `
+                                <span class="badge-free">
+
+                                    <i class="fa-solid fa-file-arrow-down me-1"></i>
+
+                                    Free Docs
+
+                                </span>
+                            `;
+                    }
+                },
+
+                {
+                    data: 'fit_score',
+
+                    render: function (data) {
+
+                        if (!data) {
+                            return `<span class="text-muted">—</span>`;
+                        }
+
+                        const score = data;
+
+                        let scoreClass = 'score-low';
+
+                        if (score >= 75) {
+                            scoreClass = 'score-high';
+                        }
+                        else if (score >= 50) {
+                            scoreClass = 'score-mid';
+                        }
+
+                        return `
+                            <span class="badge ${scoreClass}
+                                         fw-bold px-2 py-1 rounded-pill"
+                                  style="font-size: 0.75rem;">
+
+                                <i class="fa-solid fa-brain me-1"></i>
+
+                                ${score}% Fit
+
+                            </span>
+                        `;
+                    }
+                },
+
+                {
+                    data: 'recommendation',
+
+                    render: function (data) {
+
+                        if (data === 'BUY') {
+
+                            return `
+                                <span class="badge bg-success-subtle
+                                             text-success
+                                             border border-success-subtle
+                                             rounded-pill px-2 py-1">
+
+                                    <i class="fa-solid fa-thumbs-up me-1"></i>
+
+                                    Recommended
+
+                                </span>
+                            `;
+                        }
+
+                        if (data === 'SKIP') {
+
+                            return `
+                                <span class="badge bg-danger-subtle
+                                             text-danger
+                                             border border-danger-subtle
+                                             rounded-pill px-2 py-1">
+
+                                    <i class="fa-solid fa-thumbs-down me-1"></i>
+
+                                    Not Recommended
+
+                                </span>
+                            `;
+                        }
+
+                        return `
+                            <span class="badge bg-secondary-subtle
+                                         text-secondary
+                                         rounded-pill px-2 py-1">
+
+                                <i class="fa-solid fa-hourglass me-1"></i>
+
+                                Pending Review
+
+                            </span>
+                        `;
+                    }
+                },
+
+                {
+                    data: 'id',
+
+                    orderable: false,
+
+                    render: function (data, type, row) {
+
+                        return `
+                            <div class="d-flex align-items-center gap-2">
+
+                                <a href="${row.view_url || '#'}"
+                                   class="btn btn-light btn-sm border rounded-2"
+                                   title="View Tender">
+
+                                    <i class="fa-solid fa-eye text-secondary"></i>
+
+                                </a>
+
+                                <button
+                                    onclick="submitFeedback('${data}', 'BID')"
+                                    class="btn btn-outline-success btn-sm rounded-2"
+                                    title="Mark as Bid">
+
+                                    <i class="fa-solid fa-check"></i>
+
+                                </button>
+
+                                <button
+                                    onclick="submitFeedback('${data}', 'NO_BID')"
+                                    class="btn btn-outline-danger btn-sm rounded-2"
+                                    title="Mark as No-Bid">
+
+                                    <i class="fa-solid fa-xmark"></i>
+
+                                </button>
+
+                            </div>
+                        `;
+                    }
+                }
+            ]
+        });
+
+
+        // Make table available globally
+        window.tenderTable = table;
+
+
+        // Manual Celery Task Call
+        $('#btnTriggerCrawl').click(function () {
+
+            const btn = $(this);
+
+            btn.prop('disabled', true)
+                .html(
+                    '<i class="fa-solid fa-spinner fa-spin fs-7"></i> Syncing...'
+                );
+
+
+            function getCookie(name) {
+
+                let cookieValue = null;
+
+                if (document.cookie && document.cookie !== '') {
+
+                    const cookies = document.cookie.split(';');
+
+                    for (let cookie of cookies) {
+
+                        cookie = cookie.trim();
+
+                        if (cookie.startsWith(name + '=')) {
+
+                            cookieValue = decodeURIComponent(
+                                cookie.substring(name.length + 1)
+                            );
+
+                            break;
+                        }
+                    }
+                }
+
+                return cookieValue;
+            }
+
+
+            const csrftoken = getCookie('csrftoken');
+
+
+            fetch('/api/tendertiger/sync-tender/', {
+
+                method: 'POST',
+
+                headers: {
+                    'X-CSRFToken': csrftoken,
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
+
+                credentials: 'same-origin'
+
+            })
+
+            .then(async response => {
+
+                const data = await response.json();
+
+                if (!response.ok) {
+
+                    throw new Error(
+                        data.error ||
+                        'Unable to start tender sync.'
+                    );
+                }
+
+                return data;
+            })
+
+            .then(data => {
+
+                alert(
+                    data.message ||
+                    'Tender sync completed.'
+                );
+
+                table.ajax.reload(null, false);
+
+            })
+
+            .catch(error => {
+
+                console.error(
+                    'Tender sync error:',
+                    error
+                );
+
+                alert(
+                    error.message ||
+                    'Unable to start tender sync.'
+                );
+
+            })
+
+            .finally(() => {
+
+                btn.prop('disabled', false)
+                    .html(
+                        '<i class="fa-solid fa-arrows-rotate fs-7"></i> Sync TenderTiger'
+                    );
+            });
+
+        });
+
+    });
+
+
+    function submitFeedback(tenderId, decision) {
+
+        $.ajax({
+
+            url: `/api/tenders/${tenderId}/feedback/`,
+
+            type: 'POST',
+
+            data: JSON.stringify({
+                decision: decision
+            }),
+
+            contentType: 'application/json',
+
+            success: function () {
+
+                alert(
+                    `Decision recorded as ${decision}. AI heuristic parameters updated.`
+                );
+            }
+        });
+    }
+</script>

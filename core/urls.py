@@ -7,4 +7,6 @@ urlpatterns = [
     path("tenders/", views.tender_list_page, name="tender_list"),
     path("tenders/<int:tender_id>/", views.tender_detail_page, name="tender-detail-page"),
     path("tenders/create/", views.create_tender_page,name="create_tender_page"),
+    path("create-project/", views.create_project_page, name="create_project_page"),
+    path("priority-tenders/", views.priority_tenders_list_page, name="priority_tenders_list"),
 ]

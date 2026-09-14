@@ -39,3 +39,9 @@ def create_tender_page(request):
         request,
         "pages/create_tender.html"
     )
+
+@login_required
+@admin_required
+@role_required(['admin', 'manager'])
+def priority_tenders_list_page(request):
+    return render(request, "pages/priority_tenders.html")
