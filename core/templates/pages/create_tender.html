@@ -6,7 +6,9 @@
 <!-- Dependencies -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link
+    href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap"
+    rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
 <style>
@@ -46,6 +48,7 @@
             opacity: 0;
             transform: translateY(16px);
         }
+
         100% {
             opacity: 1;
             transform: translateY(0);
@@ -179,8 +182,15 @@
     }
 
     @keyframes fadeIn {
-        from { opacity: 0; transform: translateY(-6px); }
-        to { opacity: 1; transform: translateY(0); }
+        from {
+            opacity: 0;
+            transform: translateY(-6px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
     }
 </style>
 
@@ -242,12 +252,14 @@
 
                 <div class="col-12">
                     <label class="form-label required">Tender Title</label>
-                    <input type="text" class="form-control" name="title" placeholder="e.g., Design, Engineering, Procurement & Supply of 50MW Solar Power Plant">
+                    <input type="text" class="form-control" name="title"
+                        placeholder="e.g., Design, Engineering, Procurement & Supply of 50MW Solar Power Plant">
                 </div>
 
                 <div class="col-12">
                     <label class="form-label">Description & Scope</label>
-                    <textarea class="form-control" name="description" placeholder="Provide full scope details, eligibility criteria, or project milestones..."></textarea>
+                    <textarea class="form-control" name="description"
+                        placeholder="Provide full scope details, eligibility criteria, or project milestones..."></textarea>
                 </div>
             </div>
         </div>
@@ -262,7 +274,8 @@
             <div class="row g-3">
                 <div class="col-md-8">
                     <label class="form-label">Company / Procuring Authority</label>
-                    <input type="text" class="form-control" name="company_name" placeholder="e.g., NTPC Renewable Energy Limited">
+                    <input type="text" class="form-control" name="company_name"
+                        placeholder="e.g., NTPC Renewable Energy Limited">
                 </div>
             </div>
         </div>
@@ -287,7 +300,8 @@
 
                 <div class="col-md-4">
                     <label class="form-label">Detailed Address</label>
-                    <input type="text" class="form-control" name="address" placeholder="e.g., Sector 4, Solar Park Area">
+                    <input type="text" class="form-control" name="address"
+                        placeholder="e.g., Sector 4, Solar Park Area">
                 </div>
             </div>
         </div>
@@ -347,38 +361,51 @@
             <div class="row g-3">
                 <div class="col-md-6">
                     <label class="form-label">TenderTiger / Aggregator URL</label>
-                    <input type="url" class="form-control" name="description_url" placeholder="https://www.tendertiger.com/...">
+                    <input type="url" class="form-control" name="description_url"
+                        placeholder="https://www.tendertiger.com/...">
                 </div>
 
                 <div class="col-md-6">
                     <label class="form-label">Original Portal URL</label>
-                    <input type="url" class="form-control" name="original_source" placeholder="https://eprocure.gov.in/...">
+                    <input type="url" class="form-control" name="original_source"
+                        placeholder="https://eprocure.gov.in/...">
                 </div>
             </div>
         </div>
 
         <!-- Documentation Availability -->
+        <!-- Tender Documents -->
         <div class="detail-card p-4 mb-4">
             <div class="section-heading">
-                <i class="fa-solid fa-file-arrow-down text-primary"></i>
-                <span>Documentation</span>
+                <i class="fa-solid fa-file-arrow-up text-primary"></i>
+                <span>Tender Documents</span>
             </div>
 
-            <label class="custom-checkbox-panel d-flex align-items-center gap-3 mb-0" for="documentAvailable">
-                <input class="form-check-input mb-0" type="checkbox" name="document_available" id="documentAvailable">
-                <div>
-                    <span class="fw-semibold text-dark d-block" style="font-size: 0.875rem;">Tender documentation is available</span>
-                    <span class="text-secondary small">Check if official NIT, BoQ, and specification sheets are accessible for automated parsing.</span>
+            <div class="mb-3">
+                <label for="tenderDocuments" class="form-label fw-semibold">
+                    Upload Documents
+                </label>
+
+                <input type="file" class="form-control" id="tenderDocuments" name="documents" multiple>
+
+                <div class="form-text">
+                    You can upload multiple tender documents such as NIT, BOQ,
+                    specifications, corrigendum, drawings, etc.
                 </div>
-            </label>
+            </div>
+
+            <div id="selectedDocuments" class="mt-3"></div>
         </div>
 
         <!-- Form Actions -->
         <div class="d-flex justify-content-end align-items-center gap-2 mb-5">
-            <a href="/tenders/" class="btn btn-white border bg-white px-4 py-2 rounded-3 text-secondary fw-semibold shadow-sm">
+            <a href="/tenders/"
+                class="btn btn-white border bg-white px-4 py-2 rounded-3 text-secondary fw-semibold shadow-sm">
                 Cancel
             </a>
-            <button type="submit" id="createTenderBtn" class="btn btn-primary px-4 py-2 rounded-3 fw-semibold shadow-sm d-inline-flex align-items-center gap-2" style="background-color: var(--brand-accent); border-color: var(--brand-accent);">
+            <button type="submit" id="createTenderBtn"
+                class="btn btn-primary px-4 py-2 rounded-3 fw-semibold shadow-sm d-inline-flex align-items-center gap-2"
+                style="background-color: var(--brand-accent); border-color: var(--brand-accent);">
                 <i class="fa-solid fa-plus fs-7"></i>
                 <span>Create Tender</span>
             </button>
@@ -388,92 +415,164 @@
 </div>
 
 <script>
-document.getElementById("createTenderForm").addEventListener("submit", async function (event) {
-    event.preventDefault();
+    document.getElementById("createTenderForm").addEventListener("submit", async function (event) {
+        event.preventDefault();
 
-    const form = this;
-    const button = document.getElementById("createTenderBtn");
-    const originalButtonHtml = button.innerHTML;
+        const form = this;
+        const button = document.getElementById("createTenderBtn");
+        const originalButtonHtml = button.innerHTML;
 
-    document.getElementById("successAlert").style.display = "none";
-    document.getElementById("errorAlert").style.display = "none";
+        document.getElementById("successAlert").style.display = "none";
+        document.getElementById("errorAlert").style.display = "none";
 
-    const formData = new FormData(form);
-    const data = {};
+        const formData = new FormData(form);
 
-    formData.forEach((value, key) => {
-        data[key] = value;
-    });
+        // Remove document_available.
+        // Backend calculates it from actual uploaded documents.
+        formData.delete("document_available");
 
-    data.document_available = document.getElementById("documentAvailable").checked;
+        // Remove empty fields.
+        // This prevents empty date/number fields from causing validation issues.
+        for (const [key, value] of [...formData.entries()]) {
 
-    Object.keys(data).forEach(key => {
-        if (data[key] === "" && key !== "title") {
-            data[key] = null;
+            // Never remove uploaded files
+            if (value instanceof File) {
+                if (!value.name) {
+                    formData.delete(key);
+                }
+                continue;
+            }
+
+            if (value === "" && key !== "title") {
+                formData.delete(key);
+            }
+        }
+
+        button.disabled = true;
+        button.innerHTML = '<i class="fa-solid fa-spinner fa-spin fs-7"></i> <span>Creating Tender...</span>';
+
+        try {
+            const response = await fetch("/api/tenders/create/", {
+                method: "POST",
+                headers: {
+                    "Accept": "application/json",
+                    "X-CSRFToken": getCookie("csrftoken")
+                },
+                credentials: "same-origin",
+                body: formData
+            });
+
+            const result = await response.json();
+
+            if (!response.ok || !result.success) {
+                let errorMessage = result.error || "Unable to create tender.";
+                if (result.errors) {
+                    errorMessage = Object.entries(result.errors)
+                        .map(([field, errors]) => `${field}: ${errors.join(", ")}`)
+                        .join("\n");
+                }
+                throw new Error(errorMessage);
+            }
+
+            document.getElementById("successMessage").textContent = result.message || "Tender created successfully.";
+            document.getElementById("successAlert").style.display = "block";
+
+            const createdTender = result.data;
+            if (createdTender && createdTender.id) {
+                setTimeout(() => {
+                    window.location.href = `/tenders/${createdTender.id}/`;
+                }, 800);
+            }
+
+        } catch (error) {
+            console.error("Create tender error:", error);
+            document.getElementById("errorMessage").textContent = error.message;
+            document.getElementById("errorAlert").style.display = "block";
+        } finally {
+            button.disabled = false;
+            button.innerHTML = originalButtonHtml;
         }
     });
 
-    button.disabled = true;
-    button.innerHTML = '<i class="fa-solid fa-spinner fa-spin fs-7"></i> <span>Creating Tender...</span>';
+    const documentInput = document.getElementById("tenderDocuments");
+    const selectedDocuments = document.getElementById("selectedDocuments");
 
-    try {
-        const response = await fetch("/api/tenders/create/", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                "Accept": "application/json",
-                "X-CSRFToken": getCookie("csrftoken")
-            },
-            credentials: "same-origin",
-            body: JSON.stringify(data)
+    documentInput.addEventListener("change", function () {
+
+        selectedDocuments.innerHTML = "";
+
+        if (!this.files.length) {
+            return;
+        }
+
+        const list = document.createElement("div");
+        list.className = "list-group";
+
+        Array.from(this.files).forEach((file) => {
+
+            const item = document.createElement("div");
+
+            item.className =
+                "list-group-item d-flex justify-content-between align-items-center";
+
+            item.innerHTML = `
+            <div class="d-flex align-items-center gap-2">
+                <i class="fa-solid fa-file text-primary"></i>
+                <span>${file.name}</span>
+            </div>
+
+            <small class="text-secondary">
+                ${formatFileSize(file.size)}
+            </small>
+        `;
+
+            list.appendChild(item);
         });
 
-        const result = await response.json();
+        selectedDocuments.appendChild(list);
+    });
 
-        if (!response.ok || !result.success) {
-            let errorMessage = result.error || "Unable to create tender.";
-            if (result.errors) {
-                errorMessage = Object.entries(result.errors)
-                    .map(([field, errors]) => `${field}: ${errors.join(", ")}`)
-                    .join("\n");
-            }
-            throw new Error(errorMessage);
+
+    function formatFileSize(bytes) {
+
+        if (bytes === 0) {
+            return "0 Bytes";
         }
 
-        document.getElementById("successMessage").textContent = result.message || "Tender created successfully.";
-        document.getElementById("successAlert").style.display = "block";
+        const units = [
+            "Bytes",
+            "KB",
+            "MB",
+            "GB"
+        ];
 
-        const createdTender = result.data;
-        if (createdTender && createdTender.id) {
-            setTimeout(() => {
-                window.location.href = `/tenders/${createdTender.id}/`;
-            }, 800);
-        }
+        const index = Math.floor(
+            Math.log(bytes) / Math.log(1024)
+        );
 
-    } catch (error) {
-        console.error("Create tender error:", error);
-        document.getElementById("errorMessage").textContent = error.message;
-        document.getElementById("errorAlert").style.display = "block";
-    } finally {
-        button.disabled = false;
-        button.innerHTML = originalButtonHtml;
+        return (
+            parseFloat(
+                (bytes / Math.pow(1024, index)).toFixed(2)
+            ) +
+            " " +
+            units[index]
+        );
     }
-});
 
-function getCookie(name) {
-    let cookieValue = null;
-    if (document.cookie && document.cookie !== "") {
-        const cookies = document.cookie.split(";");
-        for (let cookie of cookies) {
-            cookie = cookie.trim();
-            if (cookie.startsWith(name + "=")) {
-                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                break;
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== "") {
+            const cookies = document.cookie.split(";");
+            for (let cookie of cookies) {
+                cookie = cookie.trim();
+                if (cookie.startsWith(name + "=")) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
             }
         }
+        return cookieValue;
     }
-    return cookieValue;
-}
 </script>
 
 {% endblock %}

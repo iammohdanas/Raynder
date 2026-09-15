@@ -1,6 +1,9 @@
 from datetime import date
+import os
 import random
 from django.db import models
+
+from api_gateway.utils.utils import tender_document_upload_path
 
 
 class Tender(models.Model):
@@ -87,3 +90,21 @@ class TenderPriority(models.Model):
     )
     def __str__(self):
         return f"{self.tender.tender_id} - {self.tender.title}"
+
+
+
+class TenderDocument(models.Model):
+    tender = models.ForeignKey(Tender, on_delete=models.CASCADE, related_name="documents",)
+    file = models.FileField(
+        upload_to=tender_document_upload_path
+    )
+    original_filename = models.CharField(
+        max_length=255,
+        blank=True,
+    )
+    uploaded_at = models.DateTimeField(
+        auto_now_add=True
+    )
+
+    def __str__(self):
+        return f"{self.tender.tender_id} - {self.original_filename}"

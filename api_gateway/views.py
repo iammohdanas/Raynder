@@ -4,8 +4,9 @@ from dotenv import load_dotenv
 from rest_framework import status
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
-
-from api_gateway.models import Tender
+from django.db.models.aggregates import Sum
+from api_gateway.models import Tender, TenderDocument
+from api_gateway.serializers import TenderDocumentSerializer, TenderSerializer
 from api_gateway.utils.filter_keywords import get_search_keywords
 from authenticator.services.tendertiger_auth_manager import TenderTigerAuthManager
 from api_gateway.services.tendertiger_mapper import TenderTigerMapper
@@ -17,10 +18,10 @@ from django.core.paginator import Paginator
 from rest_framework import status
 from django.shortcuts import get_object_or_404
 from api_gateway.models import Tender
-from .serializers import TenderSerializer
 from api_gateway.models import Tender, TenderPriority
 from api_gateway.services.tender_priority import TenderPriorityService
-
+from django.db import transaction
+from uuid import uuid4
 
 load_dotenv()
 
@@ -42,7 +43,7 @@ def sync_tenders(request):
         total_fetched = 0
 
         for keyword in keywords:
-            search_result = search.search(keyword=keyword, rescount=60)
+            search_result = search.search(keyword=keyword, rescount=1)
             tenders_list = search_result.get("TenderList", [])
             total_fetched += len(tenders_list)
 
@@ -53,6 +54,7 @@ def sync_tenders(request):
                 processed_tender_ids.add(tender_id)
 
                 tender_data = mapper.map(tender)
+                print(tender_data)
                 existing_tender = Tender.objects.filter(
                     source="tendertiger",
                     source_tender_id=tender_id,
@@ -200,16 +202,32 @@ def get_tenders(request):
 @api_view(["GET"])
 def get_tender_detail(request, tender_id):
     try:
-        tender = get_object_or_404(Tender, id=tender_id)
-        serializer = TenderSerializer(tender)
-        print("Tender Detail:", json.dumps(serializer.data))
+        tender = get_object_or_404(
+            Tender.objects.prefetch_related("documents"),
+            id=tender_id,
+        )
+
+        tender_serializer = TenderSerializer(tender)
+
+        document_serializer = TenderDocumentSerializer(
+            tender.documents.all(),
+            many=True,
+            context={"request": request},
+        )
+
+        data = tender_serializer.data
+
+        # Add documents to tender response
+        data["documents"] = document_serializer.data
+
         return Response(
             {
                 "success": True,
-                "data": serializer.data,
+                "data": data,
             },
             status=status.HTTP_200_OK,
         )
+
     except Exception as e:
         return Response(
             {
@@ -306,34 +324,127 @@ def get_priority_tenders(request):
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )       
         
+
+
 @api_view(["POST"])
 def create_tender(request):
     """
-    Create a tender manually.
+    Create a tender manually with optional multiple documents.
     """
     try:
-        tender_data = request.data.copy()
-        tender_data["source"] = "other"
-        tender_data["source_tender_id"] = f"manual-{tender_data.get('tender_id', '')}"
-        
-        serializer = TenderSerializer(data=tender_data)
-        if serializer.is_valid():
+        with transaction.atomic():
+
+            tender_data = request.data.copy()
+            tender_data["source"] = "other"
+            tender_data.pop("document_available", None)
+            tender_data.pop("documents", None)
+            tender_data["source_tender_id"] = f"manual-{uuid4().hex}"
+            serializer = TenderSerializer(data=tender_data)
+            if not serializer.is_valid():
+                return Response(
+                    {
+                        "success": False,
+                        "errors": serializer.errors,
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
             tender = serializer.save()
+            documents = [
+                document
+                for document in request.FILES.getlist("documents")
+                if document and document.name
+            ]
+
+            created_documents = []
+
+            for document in documents:
+                tender_document = TenderDocument.objects.create(
+                    tender=tender,
+                    file=document,
+                    original_filename=document.name,
+                )
+
+                created_documents.append(tender_document)
+
+            tender.document_available = bool(created_documents)
+            tender.save(update_fields=["document_available", "updated_at"])
+
             return Response(
                 {
                     "success": True,
                     "message": "Tender created successfully.",
                     "data": TenderSerializer(tender).data,
+                    "documents_count": len(created_documents),
                 },
                 status=status.HTTP_201_CREATED,
             )
-
+    except Exception as e:
         return Response(
             {
                 "success": False,
-                "errors": serializer.errors,
+                "error": str(e),
             },
-            status=status.HTTP_400_BAD_REQUEST,
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+
+@api_view(["POST"])
+def upload_tender_documents(request, tender_id):
+    try:
+        tender = get_object_or_404(Tender, id=tender_id)
+
+        documents = [
+            document
+            for document in request.FILES.getlist("documents")
+            if document and document.name
+        ]
+
+        if not documents:
+            return Response(
+                {
+                    "success": False,
+                    "error": "No documents were uploaded.",
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        with transaction.atomic():
+            created_documents = []
+
+            for document in documents:
+                tender_document = TenderDocument.objects.create(
+                    tender=tender,
+                    file=document,
+                    original_filename=document.name,
+                )
+
+                created_documents.append(tender_document)
+
+            # document_available is derived from actual documents
+            tender.document_available = TenderDocument.objects.filter(
+                tender=tender
+            ).exists()
+
+            tender.save(
+                update_fields=[
+                    "document_available",
+                    "updated_at",
+                ]
+            )
+
+        document_serializer = TenderDocumentSerializer(
+            created_documents,
+            many=True,
+            context={"request": request},
+        )
+
+        return Response(
+            {
+                "success": True,
+                "message": f"{len(created_documents)} document(s) uploaded successfully.",
+                "documents": document_serializer.data,
+            },
+            status=status.HTTP_201_CREATED,
         )
 
     except Exception as e:
@@ -344,4 +455,48 @@ def create_tender(request):
             },
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
-        
+
+
+@api_view(["DELETE"])
+def delete_tender_document(request, document_id):
+    try:
+        document = get_object_or_404(
+            TenderDocument.objects.select_related("tender"),
+            id=document_id,
+        )
+
+        tender = document.tender
+
+        with transaction.atomic():
+            document.delete()
+            tender.document_available = TenderDocument.objects.filter(
+                tender=tender
+            ).exists()
+
+            tender.save(
+                update_fields=[
+                    "document_available",
+                    "updated_at",
+                ]
+            )
+
+        return Response(
+            {
+                "success": True,
+                "message": "Document deleted successfully.",
+                "document_id": document_id,
+                "document_available": tender.document_available,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+    except Exception as e:
+        return Response(
+            {
+                "success": False,
+                "error": str(e),
+            },
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+
+

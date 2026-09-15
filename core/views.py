@@ -45,3 +45,4 @@ def create_tender_page(request):
 @role_required(['admin', 'manager'])
 def priority_tenders_list_page(request):
     return render(request, "pages/priority_tenders.html")
+
