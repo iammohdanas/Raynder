@@ -9,4 +9,5 @@ urlpatterns = [
     path("priority-tenders-list/", views.get_priority_tenders, name="get_priority_tenders"),
     path("tenders/<int:tender_id>/documents/", views.upload_tender_documents, name="upload_tender_documents"),
     path("tender-documents/<int:document_id>/", views.delete_tender_document, name="delete_tender_document"),
+    path("tenders/<int:tender_id>/update/", views.update_tender, name="update_tender",),
 ]

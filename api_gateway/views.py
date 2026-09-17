@@ -8,6 +8,7 @@ from django.db.models.aggregates import Sum
 from api_gateway.models import Tender, TenderDocument
 from api_gateway.serializers import TenderDocumentSerializer, TenderSerializer
 from api_gateway.utils.filter_keywords import get_search_keywords
+from authenticator.decorators import role_required, role_required_api
 from authenticator.services.tendertiger_auth_manager import TenderTigerAuthManager
 from api_gateway.services.tendertiger_mapper import TenderTigerMapper
 from crawlers.tendertiger.crawler.auth import TenderTigerAuth
@@ -456,7 +457,7 @@ def upload_tender_documents(request, tender_id):
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
 
-
+@role_required_api(["admin", "manager"])
 @api_view(["DELETE"])
 def delete_tender_document(request, document_id):
     try:
@@ -464,9 +465,7 @@ def delete_tender_document(request, document_id):
             TenderDocument.objects.select_related("tender"),
             id=document_id,
         )
-
         tender = document.tender
-
         with transaction.atomic():
             document.delete()
             tender.document_available = TenderDocument.objects.filter(
@@ -479,7 +478,6 @@ def delete_tender_document(request, document_id):
                     "updated_at",
                 ]
             )
-
         return Response(
             {
                 "success": True,
@@ -489,7 +487,6 @@ def delete_tender_document(request, document_id):
             },
             status=status.HTTP_200_OK,
         )
-
     except Exception as e:
         return Response(
             {
@@ -499,4 +496,58 @@ def delete_tender_document(request, document_id):
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
 
+@api_view(["PATCH"])
+@role_required(["admin", "manager"])
+def update_tender(request, tender_id):
+    try:
+        tender = get_object_or_404(Tender, id=tender_id)
+        editable_fields = {
+            "tender_ref_no", "tcno", "title", "description", "company_name",
+            "state", "city", "address", "tender_value", "earnest_money",
+            "tender_date", "opening_date", "closing_date", "description_url",
+            "original_source",
+        }
 
+        submitted_fields = set(request.data.keys())
+        invalid_fields = submitted_fields - editable_fields
+
+        if not submitted_fields:
+            return Response(
+                {"success": False, "error": "No fields were provided for update."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if invalid_fields:
+            return Response(
+                {
+                    "success": False,
+                    "error": "These fields cannot be edited.",
+                    "fields": sorted(invalid_fields),
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        serializer = TenderSerializer(tender, data=request.data, partial=True)
+        if not serializer.is_valid():
+            return Response(
+                {"success": False, "errors": serializer.errors},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        with transaction.atomic():
+            tender = serializer.save()
+
+        return Response(
+            {
+                "success": True,
+                "message": "Tender updated successfully.",
+                "data": TenderSerializer(tender).data,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+    except Exception as e:
+        return Response(
+            {"success": False, "error": str(e)},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )

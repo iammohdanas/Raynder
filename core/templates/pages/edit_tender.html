@@ -1,0 +1,739 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<div class="container-fluid py-4">
+
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+
+        <div>
+            <h2 class="fw-bold mb-1">
+                Edit Tender
+            </h2>
+
+            <div class="text-secondary">
+                Update tender information
+            </div>
+        </div>
+
+        <a
+            href="/tenders/{{ tender_id }}/"
+            class="btn btn-light border"
+        >
+            <i class="fa-solid fa-arrow-left me-1"></i>
+            Back
+        </a>
+
+    </div>
+
+
+    <!-- Loading -->
+    <div id="loadingState" class="text-center py-5">
+
+        <div
+            class="spinner-border text-primary"
+            role="status"
+        ></div>
+
+        <div class="text-secondary mt-3">
+            Loading tender...
+        </div>
+
+    </div>
+
+
+    <!-- Form -->
+    <form
+        id="editTenderForm"
+        style="display:none;"
+    >
+
+        <!-- Basic Information -->
+        <div class="detail-card p-4 mb-4">
+
+            <div class="section-heading mb-4">
+                <i class="fa-solid fa-file-lines text-primary"></i>
+                <span>Basic Information</span>
+            </div>
+
+
+            <div class="row g-4">
+
+                <!-- Reference Number -->
+                <div class="col-md-6">
+
+                    <label
+                        for="tender_ref_no"
+                        class="form-label fw-semibold"
+                    >
+                        Tender Reference No.
+                    </label>
+
+                    <input
+                        type="text"
+                        class="form-control"
+                        id="tender_ref_no"
+                        name="tender_ref_no"
+                    >
+
+                </div>
+
+
+                <!-- TCNO -->
+                <div class="col-md-6">
+
+                    <label
+                        for="tcno"
+                        class="form-label fw-semibold"
+                    >
+                        TCNO
+                    </label>
+
+                    <input
+                        type="text"
+                        class="form-control"
+                        id="tcno"
+                        name="tcno"
+                    >
+
+                </div>
+
+
+                <!-- Title -->
+                <div class="col-12">
+
+                    <label
+                        for="title"
+                        class="form-label fw-semibold"
+                    >
+                        Tender Title
+                    </label>
+
+                    <input
+                        type="text"
+                        class="form-control"
+                        id="title"
+                        name="title"
+                    >
+
+                </div>
+
+
+                <!-- Description -->
+                <div class="col-12">
+
+                    <label
+                        for="description"
+                        class="form-label fw-semibold"
+                    >
+                        Description
+                    </label>
+
+                    <textarea
+                        class="form-control"
+                        id="description"
+                        name="description"
+                        rows="6"
+                    ></textarea>
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <!-- Company / Location -->
+        <div class="detail-card p-4 mb-4">
+
+            <div class="section-heading mb-4">
+                <i class="fa-solid fa-building text-primary"></i>
+                <span>Company & Location</span>
+            </div>
+
+
+            <div class="row g-4">
+
+                <div class="col-md-6">
+
+                    <label
+                        for="company_name"
+                        class="form-label fw-semibold"
+                    >
+                        Company Name
+                    </label>
+
+                    <input
+                        type="text"
+                        class="form-control"
+                        id="company_name"
+                        name="company_name"
+                    >
+
+                </div>
+
+
+                <div class="col-md-6">
+
+                    <label
+                        for="state"
+                        class="form-label fw-semibold"
+                    >
+                        State
+                    </label>
+
+                    <input
+                        type="text"
+                        class="form-control"
+                        id="state"
+                        name="state"
+                    >
+
+                </div>
+
+
+                <div class="col-md-6">
+
+                    <label
+                        for="city"
+                        class="form-label fw-semibold"
+                    >
+                        City
+                    </label>
+
+                    <input
+                        type="text"
+                        class="form-control"
+                        id="city"
+                        name="city"
+                    >
+
+                </div>
+
+
+                <div class="col-md-6">
+
+                    <label
+                        for="address"
+                        class="form-label fw-semibold"
+                    >
+                        Address
+                    </label>
+
+                    <textarea
+                        class="form-control"
+                        id="address"
+                        name="address"
+                        rows="3"
+                    ></textarea>
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <!-- Financial Information -->
+        <div class="detail-card p-4 mb-4">
+
+            <div class="section-heading mb-4">
+                <i class="fa-solid fa-indian-rupee-sign text-primary"></i>
+                <span>Financial Information</span>
+            </div>
+
+
+            <div class="row g-4">
+
+                <div class="col-md-6">
+
+                    <label
+                        for="tender_value"
+                        class="form-label fw-semibold"
+                    >
+                        Tender Value
+                    </label>
+
+                    <input
+                        type="number"
+                        step="0.01"
+                        class="form-control"
+                        id="tender_value"
+                        name="tender_value"
+                    >
+
+                </div>
+
+
+                <div class="col-md-6">
+
+                    <label
+                        for="earnest_money"
+                        class="form-label fw-semibold"
+                    >
+                        Earnest Money
+                    </label>
+
+                    <input
+                        type="number"
+                        step="0.01"
+                        class="form-control"
+                        id="earnest_money"
+                        name="earnest_money"
+                    >
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <!-- Dates -->
+        <div class="detail-card p-4 mb-4">
+
+            <div class="section-heading mb-4">
+                <i class="fa-solid fa-calendar-days text-primary"></i>
+                <span>Tender Dates</span>
+            </div>
+
+
+            <div class="row g-4">
+
+                <div class="col-md-4">
+
+                    <label
+                        for="tender_date"
+                        class="form-label fw-semibold"
+                    >
+                        Tender Date
+                    </label>
+
+                    <input
+                        type="date"
+                        class="form-control"
+                        id="tender_date"
+                        name="tender_date"
+                    >
+
+                </div>
+
+
+                <div class="col-md-4">
+
+                    <label
+                        for="opening_date"
+                        class="form-label fw-semibold"
+                    >
+                        Opening Date
+                    </label>
+
+                    <input
+                        type="date"
+                        class="form-control"
+                        id="opening_date"
+                        name="opening_date"
+                    >
+
+                </div>
+
+
+                <div class="col-md-4">
+
+                    <label
+                        for="closing_date"
+                        class="form-label fw-semibold"
+                    >
+                        Closing Date
+                    </label>
+
+                    <input
+                        type="date"
+                        class="form-control"
+                        id="closing_date"
+                        name="closing_date"
+                    >
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <!-- Links -->
+        <div class="detail-card p-4 mb-4">
+
+            <div class="section-heading mb-4">
+                <i class="fa-solid fa-link text-primary"></i>
+                <span>Source Links</span>
+            </div>
+
+
+            <div class="row g-4">
+
+                <div class="col-12">
+
+                    <label
+                        for="description_url"
+                        class="form-label fw-semibold"
+                    >
+                        Description URL
+                    </label>
+
+                    <input
+                        type="url"
+                        class="form-control"
+                        id="description_url"
+                        name="description_url"
+                    >
+
+                </div>
+
+
+                <div class="col-12">
+
+                    <label
+                        for="original_source"
+                        class="form-label fw-semibold"
+                    >
+                        Original Source
+                    </label>
+
+                    <input
+                        type="url"
+                        class="form-control"
+                        id="original_source"
+                        name="original_source"
+                    >
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <!-- Actions -->
+        <div class="d-flex justify-content-end gap-2 mb-5">
+
+            <a
+                href="/tenders/{{ tender_id }}/"
+                class="btn btn-light border"
+            >
+                Cancel
+            </a>
+
+            <button
+                type="submit"
+                id="saveTenderBtn"
+                class="btn btn-primary"
+            >
+                <i class="fa-solid fa-floppy-disk me-1"></i>
+                Save Changes
+            </button>
+
+        </div>
+
+    </form>
+
+</div>
+
+
+<script>
+
+const tenderId = "{{ tender_id }}";
+
+
+document.addEventListener(
+    "DOMContentLoaded",
+    loadTender
+);
+
+
+async function loadTender() {
+
+    try {
+
+        const response = await fetch(
+            `/api/tenders/${tenderId}/`,
+            {
+                method: "GET",
+                headers: {
+                    "Accept": "application/json"
+                },
+                credentials: "same-origin"
+            }
+        );
+
+
+        const result = await response.json();
+
+
+        if (!response.ok || !result.success) {
+            throw new Error(
+                result.error ||
+                "Unable to load tender."
+            );
+        }
+
+
+        populateForm(result.data);
+
+
+        document.getElementById(
+            "loadingState"
+        ).style.display = "none";
+
+
+        document.getElementById(
+            "editTenderForm"
+        ).style.display = "block";
+
+
+    } catch (error) {
+
+        console.error(
+            "Edit tender error:",
+            error
+        );
+
+        document.getElementById(
+            "loadingState"
+        ).innerHTML = `
+            <div class="text-danger">
+                ${escapeHtml(
+                    error.message ||
+                    "Unable to load tender."
+                )}
+            </div>
+        `;
+    }
+}
+
+
+function populateForm(tender) {
+
+    const fields = [
+        "tender_ref_no",
+        "tcno",
+        "title",
+        "description",
+        "company_name",
+        "state",
+        "city",
+        "address",
+        "tender_value",
+        "earnest_money",
+        "tender_date",
+        "opening_date",
+        "closing_date",
+        "description_url",
+        "original_source"
+    ];
+
+
+    fields.forEach(function (field) {
+
+        const element =
+            document.getElementById(field);
+
+        if (!element) {
+            return;
+        }
+
+        element.value =
+            tender[field] ?? "";
+
+    });
+}
+
+
+document
+    .getElementById("editTenderForm")
+    .addEventListener(
+        "submit",
+        saveTender
+    );
+
+
+async function saveTender(event) {
+
+    event.preventDefault();
+
+
+    const form =
+        event.target;
+
+    const saveButton =
+        document.getElementById(
+            "saveTenderBtn"
+        );
+
+
+    const payload = {};
+
+
+    const fields = [
+        "tender_ref_no",
+        "tcno",
+        "title",
+        "description",
+        "company_name",
+        "state",
+        "city",
+        "address",
+        "tender_value",
+        "earnest_money",
+        "tender_date",
+        "opening_date",
+        "closing_date",
+        "description_url",
+        "original_source"
+    ];
+
+
+    fields.forEach(function (field) {
+
+        const element =
+            document.getElementById(field);
+
+        if (!element) {
+            return;
+        }
+
+        payload[field] =
+            element.value;
+
+    });
+
+
+    try {
+
+        saveButton.disabled = true;
+
+        saveButton.innerHTML = `
+            <span
+                class="spinner-border spinner-border-sm"
+                role="status"
+                aria-hidden="true"
+            ></span>
+            Saving...
+        `;
+
+
+        const response = await fetch(
+            `/api/tenders/${tenderId}/update/`,
+            {
+                method: "PATCH",
+
+                headers: {
+                    "Accept": "application/json",
+                    "Content-Type": "application/json",
+                    "X-CSRFToken": getCookie("csrftoken")
+                },
+
+                credentials: "same-origin",
+
+                body: JSON.stringify(payload)
+            }
+        );
+
+
+        const result =
+            await response.json();
+
+
+        if (!response.ok || !result.success) {
+            throw new Error(
+                result.error ||
+                "Unable to update tender."
+            );
+        }
+
+
+        window.location.href =
+            `/tenders/${tenderId}/`;
+
+
+    } catch (error) {
+
+        console.error(
+            "Tender update error:",
+            error
+        );
+
+        alert(
+            error.message ||
+            "Unable to update tender."
+        );
+
+
+        saveButton.disabled = false;
+
+        saveButton.innerHTML = `
+            <i class="fa-solid fa-floppy-disk me-1"></i>
+            Save Changes
+        `;
+    }
+}
+
+
+function getCookie(name) {
+
+    let cookieValue = null;
+
+    if (
+        document.cookie &&
+        document.cookie !== ""
+    ) {
+
+        const cookies =
+            document.cookie.split(";");
+
+        for (
+            let i = 0;
+            i < cookies.length;
+            i++
+        ) {
+
+            const cookie =
+                cookies[i].trim();
+
+            if (
+                cookie.substring(
+                    0,
+                    name.length + 1
+                ) === name + "="
+            ) {
+
+                cookieValue =
+                    decodeURIComponent(
+                        cookie.substring(
+                            name.length + 1
+                        )
+                    );
+
+                break;
+            }
+        }
+    }
+
+    return cookieValue;
+}
+
+
+function escapeHtml(value) {
+
+    const div =
+        document.createElement("div");
+
+    div.textContent = value;
+
+    return div.innerHTML;
+}
+
+</script>
+
+{% endblock %}

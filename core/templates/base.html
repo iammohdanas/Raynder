@@ -21,6 +21,7 @@
     <link href="{% static 'vendors/swiper/swiper-bundle.min.css' %}" rel="stylesheet">
     <link href="{% static 'vendors/aos/aos.css' %}" rel="stylesheet">
     <link href="{% static 'css/onepage.css' %}" rel="stylesheet">
+    <link href="{% static 'css/index.css' %}" rel="stylesheet">
 
     <script>
         (function () {
@@ -66,7 +67,8 @@
                             {% if not user.is_authenticated %}
                             <!-- Displayed on the main navbar ONLY when user is NOT authenticated -->
                             <li class="nav-item"><a class="nav-link scroll-link active" href="#home">Dashboard</a></li>
-                            <li class="nav-item"><a class="nav-link scroll-link" href="{% url 'tender_list' %}">Active Tenders</a></li>
+                            <li class="nav-item"><a class="nav-link scroll-link" href="{% url 'tender_list' %}">Active
+                                    Tenders</a></li>
                             <li class="nav-item"><a class="nav-link scroll-link" href="#analytics">AI Analytics</a></li>
                             <li class="nav-item"><a class="nav-link scroll-link" href="#crawlers">Crawl Status</a></li>
                             <li class="nav-item"><a class="nav-link scroll-link" href="#search">Semantic Search</a></li>
@@ -104,8 +106,10 @@
 
                                 <ul class="dropdown-menu">
                                     <li><a class="dropdown-item" href="{% url 'tender_list' %}">All Tenders</a></li>
-                                    <li><a class="dropdown-item" href="{% url 'create_tender_page' %}">Create Tenders</a></li>
-                                    <li><a class="dropdown-item" href="{% url 'priority_tenders_list' %}">Recommended Tenders</a></li>
+                                    <li><a class="dropdown-item" href="{% url 'create_tender_page' %}">Create
+                                            Tenders</a></li>
+                                    <li><a class="dropdown-item" href="{% url 'priority_tenders_list' %}">Recommended
+                                            Tenders</a></li>
                                     <li><a class="dropdown-item" href="#">Purchase Recommendations</a></li>
                                     <li><a class="dropdown-item" href="#">Keyword Management</a></li>
                                 </ul>
@@ -180,15 +184,64 @@
         </header>
 
         <main>
-            {% block content %}{% endblock %}
-        </main>
+    {% if messages %}
+    <div class="premium-toast-wrapper" aria-live="polite" aria-atomic="true">
+        {% for message in messages %}
+        <div class="premium-toast toast-{{ message.tags|default:'info' }}" role="alert">
+            <!-- Left accent border & Icon -->
+            <div class="toast-icon-wrapper">
+                {% if message.tags == 'success' %}
+                    <svg viewBox="0 0 20 20" fill="currentColor" class="toast-icon">
+                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clip-rule="evenodd" />
+                    </svg>
+                {% elif message.tags == 'error' %}
+                    <svg viewBox="0 0 20 20" fill="currentColor" class="toast-icon">
+                        <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd" />
+                    </svg>
+                {% elif message.tags == 'warning' %}
+                    <svg viewBox="0 0 20 20" fill="currentColor" class="toast-icon">
+                        <path fill-rule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd" />
+                    </svg>
+                {% else %}
+                    <svg viewBox="0 0 20 20" fill="currentColor" class="toast-icon">
+                        <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a.75.75 0 000 1.5h.253a.25.25 0 01.244.304l-.459 2.066A1.75 1.75 0 0010.747 15H11a.75.75 0 000-1.5h-.253a.25.25 0 01-.244-.304l.459-2.066A1.75 1.75 0 009.253 9H9z" clip-rule="evenodd" />
+                    </svg>
+                {% endif %}
+            </div>
 
+            <!-- Content Area -->
+            <div class="toast-content">
+                <p class="toast-title">
+                    {% if message.tags == 'error' %}Action Failed
+                    {% elif message.tags == 'success' %}Success
+                    {% elif message.tags == 'warning' %}Notice
+                    {% else %}Info{% endif %}
+                </p>
+                <div class="toast-message">{{ message }}</div>
+            </div>
+
+            <!-- Single, working Close Button -->
+            <button type="button" class="toast-dismiss-btn" onclick="dismissToast(this)" aria-label="Close">
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="2" y1="2" x2="12" y2="12"></line>
+                    <line x1="12" y1="2" x2="2" y2="12"></line>
+                </svg>
+            </button>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    {% block content %}{% endblock %}
+</main>
         <footer class="footer pt-5 pb-5">
             <div class="container">
                 <div class="row justify-content-between mb-5 g-xl-5">
                     <div class="col-md-4 mb-5 mb-lg-0">
                         <h3 class="mb-3 fw-bold">Rays Power Infra</h3>
-                        <p class="mb-4">An automated AI-powered Tender Intelligence Platform for crawling TenderTiger, discovering high-value EPC opportunities, executing smart document analysis, and predicting bid decisions.</p>
+                        <p class="mb-4">An automated AI-powered Tender Intelligence Platform for crawling TenderTiger,
+                            discovering high-value EPC opportunities, executing smart document analysis, and predicting
+                            bid decisions.</p>
                     </div>
                     <div class="col-md-7">
                         <div class="row g-2">
@@ -214,7 +267,8 @@
                 <div class="row credits pt-3">
                     <div class="col-xl-8 text-center text-xl-start mb-3 mb-xl-0">
                         &copy;
-                        <script>document.write(new Date().getFullYear());</script> Rays Power Infra AI Tender Intelligence Platform.
+                        <script>document.write(new Date().getFullYear());</script> Rays Power Infra AI Tender
+                        Intelligence Platform.
                     </div>
                 </div>
             </div>
@@ -223,7 +277,6 @@
         <button id="back-to-top"><i class="bi bi-arrow-up-short"></i></button>
 
     </div>
-
     <script src="{% static 'vendors/bootstrap/bootstrap.bundle.min.js' %}"></script>
     <script src="{% static 'vendors/gsap/gsap.min.js' %}"></script>
     <script src="{% static 'vendors/imagesloaded/imagesloaded.pkgd.min.js' %}"></script>
@@ -233,7 +286,7 @@
     <script src="{% static 'vendors/aos/aos.js' %}"></script>
     <script src="{% static 'vendors/purecounter/purecounter.js' %}"></script>
     <script src="{% static 'js/custom.js' %}"></script>
-
+    <script src="{% static 'js/base.js' %}"></script>
     {% block extra_js %}{% endblock %}
 </body>
 

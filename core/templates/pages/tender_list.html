@@ -19,6 +19,13 @@
     <!-- Header Section -->
     <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center mb-4 gap-3">
         <div>
+            {% if messages %}
+                {% for message in messages %}
+                    <div class="alert alert-{{ message.tags }}">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            {% endif %}
             <div class="d-flex align-items-center gap-2 mb-1 flex-wrap">
                 <h4 class="fw-bold mb-0 text-dark">Tender Intelligence</h4>
                 <span class="ai-badge">
