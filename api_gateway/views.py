@@ -44,7 +44,7 @@ def sync_tenders(request):
         total_fetched = 0
 
         for keyword in keywords:
-            search_result = search.search(keyword=keyword, rescount=1)
+            search_result = search.search(keyword=keyword, rescount=60)
             tenders_list = search_result.get("TenderList", [])
             total_fetched += len(tenders_list)
 
@@ -55,7 +55,6 @@ def sync_tenders(request):
                 processed_tender_ids.add(tender_id)
 
                 tender_data = mapper.map(tender)
-                print(tender_data)
                 existing_tender = Tender.objects.filter(
                     source="tendertiger",
                     source_tender_id=tender_id,

@@ -1,4 +1,5 @@
 
+    
     document.addEventListener("DOMContentLoaded", async function () {
         const pathParts = window.location.pathname.split("/").filter(Boolean);
         const tenderId = pathParts[pathParts.length - 1];
@@ -41,24 +42,131 @@
     }
 
     if (canUpload) {
+    const uploadButton = document.getElementById("uploadDocumentsBtn");
+    const documentInput = document.getElementById("documentInput");
 
-        const uploadButton = document.getElementById("uploadDocumentsBtn");
-        const documentInput = document.getElementById("documentInput");
+    if (uploadButton && documentInput) {
 
-        if (uploadButton && documentInput) {
+        // Open file picker
+        uploadButton.addEventListener("click", function () {
+            documentInput.click();
+        });
 
-            uploadButton.addEventListener("click", function () {
-                documentInput.click();
-            });
+        // Upload selected documents
+        documentInput.addEventListener("change", async function () {
 
-            documentInput.addEventListener("change", async function () {
+            const files = Array.from(documentInput.files || []);
 
-                // Your existing upload code here
+            if (!files.length) {
+                return;
+            }
 
-            });
+            const pathParts = window.location.pathname
+                .split("/")
+                .filter(Boolean);
 
-        }
+            const tenderId = pathParts[pathParts.length - 1];
+
+            if (!tenderId) {
+                alert("Invalid tender ID.");
+                return;
+            }
+
+            try {
+
+                uploadButton.disabled = true;
+
+                uploadButton.innerHTML = `
+                    <span class="spinner-border spinner-border-sm me-1"
+                          role="status"
+                          aria-hidden="true"></span>
+                    Uploading...
+                `;
+
+                const formData = new FormData();
+
+                // IMPORTANT:
+                // Backend expects request.FILES.getlist("documents")
+                files.forEach(function (file) {
+                    formData.append("documents", file);
+                });
+
+                const response = await fetch(
+                    `/api/tenders/${tenderId}/documents/`,
+                    {
+                        method: "POST",
+                        body: formData,
+                        credentials: "same-origin",
+                        headers: {
+                            "X-CSRFToken": getCookie("csrftoken")
+                        }
+                    }
+                );
+
+                const result = await response.json();
+
+                if (!response.ok || !result.success) {
+                    throw new Error(
+                        result.error || "Unable to upload documents."
+                    );
+                }
+
+                console.log("Upload successful:", result);
+
+                // Clear file input
+                documentInput.value = "";
+
+                // Refresh tender details
+                const tenderResponse = await fetch(
+                    `/api/tenders/${tenderId}/`,
+                    {
+                        method: "GET",
+                        headers: {
+                            "Accept": "application/json"
+                        },
+                        credentials: "same-origin"
+                    }
+                );
+
+                const tenderResult = await tenderResponse.json();
+
+                if (!tenderResponse.ok || !tenderResult.success) {
+                    throw new Error(
+                        tenderResult.error ||
+                        "Documents uploaded, but tender could not be refreshed."
+                    );
+                }
+
+                // Re-render documents
+                populateTender(tenderResult.data);
+
+                alert(
+                    result.message ||
+                    "Documents uploaded successfully."
+                );
+
+            } catch (error) {
+
+                console.error("Document upload error:", error);
+
+                alert(
+                    error.message ||
+                    "Unable to upload documents."
+                );
+
+            } finally {
+
+                uploadButton.disabled = false;
+
+                uploadButton.innerHTML = `
+                    <i class="fa-solid fa-cloud-arrow-up"
+                       style="font-size: 0.95rem;"></i>
+                    <span>Upload Attachment</span>
+                `;
+            }
+        });
     }
+}
     // Helper to get file type details (icon, color, extension)
     function getFileTypeDetails(fileName) {
         const ext = (fileName || "").split('.').pop().toLowerCase();
