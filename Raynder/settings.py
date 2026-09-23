@@ -41,7 +41,8 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'core',
     'authenticator',
-    'api_gateway'
+    'api_gateway',
+    'ai',
 ]
 
 MIDDLEWARE = [
@@ -144,3 +145,7 @@ TENDERTIGER_PASSWORD = os.getenv("TENDERTIGER_PASSWORD")
 
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
+
+AZURE_OPENAI_API_KEY = os.getenv("AZURE_OPENAI_API_KEY")
+AZURE_OPENAI_ENDPOINT = os.getenv("AZURE_OPENAI_ENDPOINT")
+AZURE_OPENAI_DEPLOYMENT_NAME = os.getenv("AZURE_OPENAI_DEPLOYMENT_NAME")

@@ -7,13 +7,9 @@ from api_gateway.utils.utils import tender_document_upload_path
 
 
 class Tender(models.Model):
-    SOURCE_CHOICES = [
-        ("tendertiger", "TenderTiger"),
-        ("other", "Other"),
-    ]
-
+    
     tender_id = models.CharField(max_length=20, unique=True, editable=False, null=True, blank=True)
-    source = models.CharField(max_length=50, choices=SOURCE_CHOICES)
+    source=models.CharField(max_length=100)
     source_tender_id = models.CharField(max_length=100)
     tender_ref_no = models.CharField(max_length=255, blank=True, null=True)
     tcno = models.CharField(max_length=100, blank=True, null=True)
