@@ -1,5 +1,6 @@
 from ai.services.tender_discovery import TenderDiscoveryService
 from urllib.parse import urlparse
+from concurrent.futures import ThreadPoolExecutor,as_completed
 
 KEYWORDS = [
     "solar","wind","BESS","Green Hydrogen",
@@ -50,33 +51,76 @@ class TenderResearchService:
     def __init__(self):
         self.discovery = TenderDiscoveryService()
 
-    def research(self, location="India"):
-        all_tenders = []
+    # def research(self, location="India"):
+    #     all_tenders = []
 
-        for track in RESEARCH_TRACKS:
-            scope = (
-                f"Research specifically these organizations: "
-                f"{', '.join(track['organizations'])}. "
-                f"Search for tender opportunities matching these Raynder "
-                f"keywords: {', '.join(KEYWORDS)}. "
-                "Use multiple targeted web searches across the organizations "
-                "and keywords. Look for actual tender opportunities and "
-                "official or reliable source evidence."
-            )
+    #     for track in RESEARCH_TRACKS:
+    #         scope = (
+    #             f"Research specifically these organizations: "
+    #             f"{', '.join(track['organizations'])}. "
+    #             f"Search for tender opportunities matching these Raynder "
+    #             f"keywords: {', '.join(KEYWORDS)}. "
+    #             "Use multiple targeted web searches across the organizations "
+    #             "and keywords. Look for actual tender opportunities and "
+    #             "official or reliable source evidence."
+    #         )
 
-            result = self.discovery.discover(
-                keywords=KEYWORDS + track["organizations"],
-                location=location,
-                research_scope=scope,
-            )
+    #         result = self.discovery.discover(
+    #             keywords=KEYWORDS + track["organizations"],
+    #             location=location,
+    #             research_scope=scope,
+    #         )
 
-            print(f"[{track['name']}] discovered: {len(result.tenders)}")
-            all_tenders.extend(result.tenders)
+    #         print(f"[{track['name']}] discovered: {len(result.tenders)}")
+    #         all_tenders.extend(result.tenders)
+
+    #     print(f"RAW TOTAL: {len(all_tenders)}")
+    #     unique = self._deduplicate(all_tenders)
+    #     print(f"UNIQUE AFTER DEDUPLICATION: {len(unique)}")
+    #     return unique
+
+    def research(self,location="India"):
+        all_tenders=[]
+
+        with ThreadPoolExecutor(max_workers=5) as executor:
+            futures=[
+                executor.submit(self._research_track,track,location)
+                for track in RESEARCH_TRACKS
+            ]
+
+            for future in as_completed(futures):
+                try:
+                    result=future.result()
+                    print(f"[AI Track] discovered: {len(result.tenders)}")
+                    all_tenders.extend(result.tenders)
+                except Exception as e:
+                    print(f"[AI Track] failed: {e}")
 
         print(f"RAW TOTAL: {len(all_tenders)}")
-        unique = self._deduplicate(all_tenders)
+
+        unique=self._deduplicate(all_tenders)
+
         print(f"UNIQUE AFTER DEDUPLICATION: {len(unique)}")
         return unique
+
+    def _research_track(self,track,location):
+        scope=(
+            f"Research specifically these organizations: "
+            f"{', '.join(track['organizations'])}. "
+            f"Search for tender opportunities matching these Raynder "
+            f"keywords: {', '.join(KEYWORDS)}. "
+            "Use multiple targeted web searches across the organizations "
+            "and keywords. Look for actual tender opportunities and "
+            "official or reliable source evidence."
+        )
+
+        result=self.discovery.discover(
+            keywords=KEYWORDS+track["organizations"],
+            location=location,
+            research_scope=scope,
+        )
+        print(f"[{track['name']}] discovered: {len(result.tenders)}")
+        return result
 
     def _deduplicate(self, tenders):
         unique = []

@@ -8,19 +8,23 @@ from api_gateway.models import Tender
 from api_gateway.models import Tender, TenderPriority
 from api_gateway.services.tender_priority import TenderPriorityService
 from django.db import transaction
+import time
 
 
 class AllTenderSyncService:
-
     def sync(self):
         tenders=[]
-
-        # tendertiger=fetch_tendertiger_tenders()
-        # print(f"TenderTiger tenders: {len(tendertiger['tenders'])}")
-        # tenders.extend(tendertiger["tenders"])
+        start_time = time.perf_counter()
+        tendertiger=fetch_tendertiger_tenders()
+        elapsed = time.perf_counter() - start_time
+        print(f"TenderTiger tenders: {len(tendertiger['tenders'])}")
+        print(f"time taken: {elapsed}")
+        tenders.extend(tendertiger["tenders"])
 
         print("Fetching AI Discovery tenders...")
         ai=fetch_ai_tenders()
+        elapsed = time.perf_counter() - start_time
+        print(f"time taken: {elapsed}")
         print(f"AI Discovery tenders: {len(ai['tenders'])}")
         tenders.extend(ai["tenders"])
 

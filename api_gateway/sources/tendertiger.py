@@ -1,7 +1,13 @@
+from concurrent.futures import ThreadPoolExecutor,as_completed
 from api_gateway.utils.filter_keywords import get_search_keywords
 from authenticator.services.tendertiger_auth_manager import TenderTigerAuthManager
 from api_gateway.services.tendertiger_mapper import TenderTigerMapper
 from crawlers.tendertiger.crawler.search import TenderTigerSearch
+import threading
+from dotenv import load_dotenv
+import os
+
+load_dotenv()
 
 KEYWORDS=[
     "solar","wind","BESS","Green Hydrogen",
@@ -10,27 +16,82 @@ KEYWORDS=[
     "765/400 KV","Substations","Transmission Lines","VRFB"
 ]
 
+# def fetch_tendertiger_tenders():
+#     auth=TenderTigerAuthManager().get_auth()
+#     search=TenderTigerSearch(auth)
+#     mapper=TenderTigerMapper()
+#     keywords=get_search_keywords(KEYWORDS)
+
+#     tenders=[]
+#     processed_ids=set()
+#     total_fetched=0
+
+#     for keyword in keywords:
+#         result=search.search(keyword=keyword,rescount=6)
+#         tender_list=result.get("TenderList",[])
+#         total_fetched+=len(tender_list)
+
+#         for tender in tender_list:
+#             tender_id=tender.get("tenderprocid")
+#             if not tender_id or tender_id in processed_ids:
+#                 continue
+#             processed_ids.add(tender_id)
+#             tenders.append(mapper.map(tender))
+
+#     return {
+#         "source":"tendertiger",
+#         "tenders":tenders,
+#         "keywords":keywords,
+#         "total_fetched":total_fetched,
+#         "unique_tenders":len(tenders),
+#     }
+MAX_WORKERS=8
+RESCOUNT=6
+
+def _fetch_keyword(keyword,auth):
+    try:
+        search=TenderTigerSearch(auth)
+        result=search.search(keyword=keyword,rescount=RESCOUNT)
+        return keyword,result.get("TenderList",[]),None
+    except Exception as e:
+        return keyword,[],str(e)
+
 def fetch_tendertiger_tenders():
     auth=TenderTigerAuthManager().get_auth()
-    search=TenderTigerSearch(auth)
     mapper=TenderTigerMapper()
     keywords=get_search_keywords(KEYWORDS)
 
     tenders=[]
     processed_ids=set()
     total_fetched=0
+    failed_keywords=[]
 
-    for keyword in keywords:
-        result=search.search(keyword=keyword,rescount=6)
-        tender_list=result.get("TenderList",[])
-        total_fetched+=len(tender_list)
+    with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
+        futures=[
+            executor.submit(_fetch_keyword,keyword,auth)
+            for keyword in keywords
+        ]
 
-        for tender in tender_list:
-            tender_id=tender.get("tenderprocid")
-            if not tender_id or tender_id in processed_ids:
+        for future in as_completed(futures):
+            keyword,tender_list,error=future.result()
+
+            if error:
+                failed_keywords.append({
+                    "keyword":keyword,
+                    "error":error,
+                })
                 continue
-            processed_ids.add(tender_id)
-            tenders.append(mapper.map(tender))
+
+            total_fetched+=len(tender_list)
+
+            for tender in tender_list:
+                tender_id=tender.get("tenderprocid")
+
+                if not tender_id or tender_id in processed_ids:
+                    continue
+
+                processed_ids.add(tender_id)
+                tenders.append(mapper.map(tender))
 
     return {
         "source":"tendertiger",
@@ -38,4 +99,5 @@ def fetch_tendertiger_tenders():
         "keywords":keywords,
         "total_fetched":total_fetched,
         "unique_tenders":len(tenders),
+        "failed_keywords":failed_keywords,
     }

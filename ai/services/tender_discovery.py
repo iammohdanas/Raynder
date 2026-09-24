@@ -1,5 +1,4 @@
 from pathlib import Path
-
 from openai import OpenAI
 
 from Raynder.settings import (
