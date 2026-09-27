@@ -1,3 +1,5 @@
+import time
+
 from ai.services.tender_discovery import TenderDiscoveryService
 from urllib.parse import urlparse
 from concurrent.futures import ThreadPoolExecutor,as_completed
@@ -36,6 +38,33 @@ RESEARCH_TRACKS = [
         "organizations": [
             "Adani Green Energy","ReNew","JSW Energy",
             "Tata Power","Greenko","Avaada","ACME","AM Green"
+        ]
+    },
+    {
+        "name": "state_eprocurement_portals",
+        "organizations": [
+            "etenders.hry.nic.in",
+            "eproc.punjab.gov.in",
+            "etender.up.nic.in",
+            "eproc.rajasthan.gov.in",
+            "mahatenders.gov.in",
+            "eproc.karnataka.gov.in",
+            "tntenders.gov.in",
+            "etenders.kerala.gov.in",
+            "apeprocurement.gov.in",
+            "tenders.telangana.gov.in",
+            "mptenders.gov.in",
+            "cgtenders.gov.in",
+            "wbtenders.gov.in",
+            "tendersodisha.gov.in",
+            "assamtenders.gov.in",
+            "eproc.bihar.gov.in",
+            "jharkhandtenders.gov.in",
+            "uketenders.gov.in",
+            "hptenders.gov.in",
+            "jktenders.gov.in",
+            "govtprocurement.delhi.gov.in",
+            "nprocure.com"
         ]
     },
     {
@@ -82,7 +111,7 @@ class TenderResearchService:
     def research(self,location="India"):
         all_tenders=[]
 
-        with ThreadPoolExecutor(max_workers=5) as executor:
+        with ThreadPoolExecutor(max_workers=6) as executor:
             futures=[
                 executor.submit(self._research_track,track,location)
                 for track in RESEARCH_TRACKS
@@ -91,7 +120,7 @@ class TenderResearchService:
             for future in as_completed(futures):
                 try:
                     result=future.result()
-                    print(f"[AI Track] discovered: {len(result.tenders)}")
+                    # print(f"[AI Track] discovered: {len(result.tenders)}")
                     all_tenders.extend(result.tenders)
                 except Exception as e:
                     print(f"[AI Track] failed: {e}")
@@ -104,6 +133,11 @@ class TenderResearchService:
         return unique
 
     def _research_track(self,track,location):
+        start=time.perf_counter()
+        print(f"[START] {track['name']}")
+
+        discovery=TenderDiscoveryService()
+
         scope=(
             f"Research specifically these organizations: "
             f"{', '.join(track['organizations'])}. "
@@ -114,12 +148,15 @@ class TenderResearchService:
             "official or reliable source evidence."
         )
 
-        result=self.discovery.discover(
+        result=discovery.discover(
             keywords=KEYWORDS+track["organizations"],
             location=location,
             research_scope=scope,
         )
-        print(f"[{track['name']}] discovered: {len(result.tenders)}")
+
+        elapsed=time.perf_counter()-start
+        print(f"[END] {track['name']} -> {len(result.tenders)} tenders | {elapsed:.2f}s")
+
         return result
 
     def _deduplicate(self, tenders):

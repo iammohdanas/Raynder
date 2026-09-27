@@ -26,18 +26,34 @@ from api_gateway.models import Tender, TenderPriority
 from api_gateway.services.tender_priority import TenderPriorityService
 from django.db import transaction
 from uuid import uuid4
+from Raynder import settings
+from rest_framework.response import Response
+from rest_framework import status
+from api_gateway.services.all_tenders_sync import AllTenderSyncService
+from api_gateway.tasks import sync_all_sources
 
 load_dotenv()
 
 @api_view(["POST"])
 def sync_tenders(request):
     try:
-        tenders=AllTenderSyncService().sync()
-        print(len(tenders))
+        if settings.CELERY_ENABLED:
+            task=sync_all_sources()
+
+            return Response({
+                "success":True,
+                "message":"Tender synchronization started.",
+                "task_id":task.id,
+                "mode":"celery",
+            },status=status.HTTP_202_ACCEPTED)
+
+        result=AllTenderSyncService().sync()
+
         return Response({
             "success":True,
-            "total_tenders":len(tenders),
-            "tenders":tenders,
+            "message":"Tender synchronization completed.",
+            "mode":"synchronous",
+            "result":result,
         },status=status.HTTP_200_OK)
 
     except Exception as e:
@@ -45,87 +61,6 @@ def sync_tenders(request):
             "success":False,
             "error":str(e),
         },status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-# @api_view(["POST"])
-# def sync_tenders(request):
-#     try:
-#         auth_manager = TenderTigerAuthManager()
-#         auth = auth_manager.get_auth()
-#         search = TenderTigerSearch(auth)
-
- 
-#         keywords = ["solar", "wind", "BESS", "Green Hydrogen", "33 KV", "66 KV", "132 KV", "110 KV", "765 KV", "800 KV", "220 KV", "400 KV", "765/400 KV", "Substations", "Transmission Lines", "VRFB"]
-#         keywords = get_search_keywords(keywords)
-#         created_count = 0
-#         updated_count = 0
-#         mapper = TenderTigerMapper()
-#         processed_tender_ids = set()
-#         total_fetched = 0
-
-#         for keyword in keywords:
-#             search_result = search.search(keyword=keyword, rescount=60)
-#             tenders_list = search_result.get("TenderList", [])
-#             total_fetched += len(tenders_list)
-
-#             for tender in tenders_list:
-#                 tender_id = tender.get("tenderprocid")
-#                 if tender_id in processed_tender_ids:
-#                     continue
-#                 processed_tender_ids.add(tender_id)
-
-#                 tender_data = mapper.map(tender)
-#                 existing_tender = Tender.objects.filter(
-#                     source="tendertiger",
-#                     source_tender_id=tender_id,
-#                 ).first()
-
-#                 serializer = (
-#                     TenderSerializer(existing_tender, data=tender_data)
-#                     if existing_tender
-#                     else TenderSerializer(data=tender_data)
-#                 )
-
-#                 if serializer.is_valid():
-#                     tender_obj = serializer.save()
-#                     priority_data = TenderPriorityService.analyze(tender)
-#                     if priority_data["is_high_priority"]:
-#                         TenderPriority.objects.update_or_create(
-#                             tender=tender_obj,
-#                             defaults={"capacity_mw": priority_data["capacity_mw"], "amount_crore": priority_data["amount_crore"]},
-#                         )
-#                     else:
-#                         TenderPriority.objects.filter(tender=tender_obj).delete()
-#                     if existing_tender:
-#                         updated_count += 1
-#                     else:
-#                         created_count += 1
-#                 else:
-#                     print(
-#                         f"Tender validation failed for keyword '{keyword}':",
-#                         serializer.errors,
-#                     )
-
-#         return Response(
-#             {
-#                 "success": True,
-#                 "source": "tendertiger",
-#                 "keywords": keywords,
-#                 "total_fetched": total_fetched,
-#                 "unique_tenders_processed": len(processed_tender_ids),
-#                 "created": created_count,
-#                 "updated": updated_count,
-#             },
-#             status=status.HTTP_200_OK,
-#         )
-
-#     except Exception as e:
-#         return Response(
-#             {
-#                 "success": False,
-#                 "error": str(e),
-#             },
-#             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-#         )
 
 
 @api_view(["GET"])

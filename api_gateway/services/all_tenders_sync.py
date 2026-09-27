@@ -14,20 +14,23 @@ import time
 class AllTenderSyncService:
     def sync(self):
         tenders=[]
-        start_time = time.perf_counter()
+        start_time=time.perf_counter()
+
         tendertiger=fetch_tendertiger_tenders()
-        elapsed = time.perf_counter() - start_time
         print(f"TenderTiger tenders: {len(tendertiger['tenders'])}")
-        print(f"time taken: {elapsed}")
+        print(f"time taken: {time.perf_counter()-start_time}")
         tenders.extend(tendertiger["tenders"])
 
         print("Fetching AI Discovery tenders...")
+        ai_start=time.perf_counter()
         ai=fetch_ai_tenders()
-        elapsed = time.perf_counter() - start_time
-        print(f"time taken: {elapsed}")
         print(f"AI Discovery tenders: {len(ai['tenders'])}")
+        print(f"time taken: {time.perf_counter()-ai_start}")
         tenders.extend(ai["tenders"])
 
+        return self.process(tenders)
+    
+    def process(self,tenders):
         return self._process_tenders(tenders)
 
     @transaction.atomic

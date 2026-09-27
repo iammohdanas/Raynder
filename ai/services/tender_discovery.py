@@ -180,19 +180,19 @@ Return the structured result using the provided schema.
                     "tender discovery result."
                 )
 
-            print(
-                "\n========== RAW PARSED RESULT =========="
-            )
+            # print(
+            #     "\n========== RAW PARSED RESULT =========="
+            # )
 
-            print(
-                result.model_dump_json(
-                    indent=2
-                )
-            )
+            # print(
+            #     result.model_dump_json(
+            #         indent=2
+            #     )
+            # )
 
-            print(
-                "=======================================\n"
-            )
+            # print(
+            #     "=======================================\n"
+            # )
 
             # -------------------------------------------------
             # 5. Return discovery result
