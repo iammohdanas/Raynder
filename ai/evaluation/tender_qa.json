@@ -1,0 +1,58 @@
+
+[
+  {
+    "question": "What is the minimum turnover requirement?",
+    "expected_answer": "Average annual turnover of at least Rs. 74 crore over the last five financial years, with specified weightages.",
+    "required_terms": ["74.00 crore", "average annual turnover"],
+    "expected_sources": [
+      {"document": "Volume-I.pdf", "pages": [47]}
+    ]
+  },
+  {
+  "question": "What is the project completion period?",
+  "expected_answer": "18 months, including the rainy season, from the date of the contract agreement.",
+  "required_terms": ["18 months", "rainy season"],
+  "expected_sources": [
+    {
+      "document": "Volume-I.pdf",
+      "pages": [15]
+    },
+    {
+      "document": "Volume-II.pdf",
+      "pages": [26]
+    }
+    ]
+  },
+  {
+    "question": "What is the EMD amount?",
+    "expected_answer": "Rs. 50 lakh.",
+    "required_terms": ["50 lakh"],
+    "expected_sources": [
+      {"document": "Volume-I.pdf", "pages": [27]}
+    ]
+  },
+  {
+    "question": "What are the eligibility criteria for a joint venture?",
+    "expected_answer": "The joint venture must satisfy applicable qualification criteria and comply with JV agreement and authorization requirements.",
+    "required_terms": ["joint venture", "pre qualification", "power of attorney"],
+    "expected_sources": [
+      {"document": "Volume-I.pdf", "pages": [18, 41, 43, 61]}
+    ]
+  },
+  
+  {
+    "question": "What is the project manager's date of birth?",
+    "expected_answer": "The tender documents do not establish the project manager's date of birth.",
+    "required_terms": [],
+    "expected_sources": [],
+    "expected_insufficient_evidence": true
+  },
+  {
+    "question": "What is the contractor's office Wi-Fi password?",
+    "expected_answer": "The tender documents do not establish the contractor's office Wi-Fi password.",
+    "required_terms": [],
+    "expected_sources": [],
+    "expected_insufficient_evidence": true
+  }
+
+]

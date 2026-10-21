@@ -1,0 +1,56 @@
+﻿question,expected_answer,actual_answer,answer_pass,missing_terms,citation_pass,insufficient_evidence,insufficient_evidence_pass,overall_pass,citations,error
+What is the minimum turnover requirement?,"Average annual turnover of at least Rs. 74 crore over the last five financial years, with specified weightages.","The tender specifies a minimum **average annual turnover** requirement:
+
+- The bidder must have an **Average Annual Turnover equal to or more than Rs. 74.00 Crore** in the last 5 financial years (2021‑22 to 2025‑26), with specified year-wise weightages to bring values to 2025‑26 price level. In case of a Joint Venture, at least one partner must meet this criterion. [S2]
+
+There is no separate “minimum turnover” stated other than this average annual turnover requirement; the bid capacity formula uses maximum turnover but does not set an additional explicit minimum outside the bid capacity requirement itself.
+",True,,True,False,True,True,"[{""source_id"": ""S2"", ""document"": ""Volume-I.pdf"", ""page"": 47, ""chunk_id"": 827, ""quote"": ""1.1 Average annual turnover- The bidder should have Average Annual Turnover equal to or more than Rs. 74.00 Crore (50% of PAC) in last 5 financial years.""}]",
+What is the project completion period?,"18 months, including the rainy season, from the date of the contract agreement.","The stipulated project completion period is 18 months (including the rainy season) from the date of signing the contract agreement/date of agreement.
+
+- Volume I: “shall not exceed 18 Months including rainy seasons from the date of signing of contract agreement.” [S3]
+- Volume II: “Shall not exceed 18 months including rainy season from the date of agreement.” [S4]",True,,True,False,True,True,"[{""source_id"": ""S3"", ""document"": ""Volume-I.pdf"", ""page"": 15, ""chunk_id"": 770, ""quote"": ""shall not exceed 18 Months including rainy seasons from the date of signing of contract agreement.""}, {""source_id"": ""S4"", ""document"": ""Volume-II.pdf"", ""page"": 26, ""chunk_id"": 959, ""quote"": ""Shall not exceed 18 months including rainy season from the date of agreement.""}]",
+What is the EMD amount?,Rs. 50 lakh.,The Earnest Money Deposit (EMD) amount for this tender is Rs. 50 Lakh (Rupees Fifty Lakhs only).,True,,True,False,True,True,"[{""source_id"": ""S3"", ""document"": ""Volume-I.pdf"", ""page"": 27, ""chunk_id"": 793, ""quote"": ""The tenderer shall submit the earnest money of Rs 50 Lakhs (Rupees fifty lakhs only) in Envelop “A” Only e-EMD will be accepted.""}]",
+What are the eligibility criteria for a joint venture?,The joint venture must satisfy applicable qualification criteria and comply with JV agreement and authorization requirements.,"Based on the supplied passages, the eligibility criteria for a joint venture are as follows:
+
+1. **Must meet all pre-qualification (P.Q.)/minimum qualifying criteria collectively**  
+- The bidder (including a joint venture) must meet the qualifying criteria stipulated in the tender document’s P.Q. criteria. For a JV, the figures for each partner are added together and all partners collectively must meet the criteria in full; otherwise the JV bid is rejected.  
+- ""The Bidder should meet qualifying criteria as stipulated in the tender document P.Q. criteria. Failure to comply with this requirement will result in rejection of the joint venture’s bid."" [S1]  
+- ""The figures for each of the partners of a joint venture shall be added together to determine the Bidder’s compliance with the minimum qualifying criteria required for the bid. All the partners collectively must meet the criteria specified in full. Failure to comply with this requirement will result in rejection of the joint venture’s bid."" [S3]
+
+2. **Competence and experience**  
+- Joint ventures must be competent and experienced contractors and must qualify on financial, physical, and experience criteria detailed in the tender’s pre-qualification section.  
+- ""Bidders including joint ventures should be competent & experienced contractor qualifying on the financial, Physical and experience criteria detailed hereinafter."" [S5]
+
+3. **No active debarment/blacklisting by MPSEB or its successor companies**  
+- Each partner in the JV must not be under an active debarment or contract termination by MPSEB or its six successor companies at the bid opening date. The eligibility factor table specifies that the requirement for historical poor performance must be met by all partners.  
+- ""Bidder should not have been debarred or contract terminated by MPSEB, its six successor companies during the last five years counted up to the date of opening of Bid… It inter alia means that debarring/blacklisting should not be alive / active on the date of opening of tender."" [S2]  
+- Under the ‘Joint Venture… All Partners’ column this is marked as ""must meet requirement"" [S2]
+
+4. **Legally valid, registered joint venture agreement with defined roles and active participation**  
+- The JV agreement must:
+  - Indicate precisely the role of all members in planning, design, construction equipment, key personnel, work execution, and financing.
+  - Ensure all members have active participation in execution during the contract period.
+  - Not be varied/modified without prior approval of the employer.
+  - Be registered and legally valid and binding on all partners.
+  - Be submitted with the bid.
+- ""The joint venture agreement should indicate precisely the role of all members of J.V. in respect of planning, design, construction equipment, key personnel, work execution, and financing of the project. All members of JV should have active participation in execution during the currency of the contract. This should not be varied/modified subsequently without prior approval of the employer;"" [S3]
+- ""The joint venture agreement should be registered, so as to be legally valid and binding on all partners;"" [S3]
+- ""a copy of the Joint Venture Agreement entered into by the partners shall be submitted with the bid."" [S3]
+
+5. **Submission of required JV documentation with the bid**  
+- The JV must submit:
+  - A copy of the JV agreement.
+  - Power of attorney from all partners authorizing the bid signatory(ies).
+  - An agreement among all partners that is legally binding and shows the requirements indicated in the Instructions to Bidders.
+  - Details of participation proposed in the JV (financial, banker(s), planning, construction equipment, key personnel, and execution of work/contribution of each partner).
+- ""a copy of the Joint Venture Agreement entered into by the partners shall be submitted with the bid."" [S1]
+- ""Attach the power of attorney of the partners authorizing the Bid signatory (ies) on behalf of the joint venture."" [S1]
+- ""Attach the agreement among all partners of the joint venture [and which is legally binding on all partners], which shows the requirements as indicated in the Instructions to Bidders’."" [S1]
+- ""Furnish details of participation proposed in the joint venture as below: DETAILS OF PARTICIPATION IN THE JOINT VENTURE"" [S1]
+
+These passages define the main eligibility-related requirements specifically applicable to joint ventures in this tender. Other detailed financial/technical thresholds are referenced but not included in the provided text, so they are part of the P.Q. criteria mentioned but not fully specified here.
+",True,,True,False,True,True,"[{""source_id"": ""S1"", ""document"": ""Volume-I.pdf"", ""page"": 18, ""chunk_id"": 776, ""quote"": ""The Bidder should meet qualifying criteria as stipulated in the tender document P.Q. criteria. Failure to comply with this requirement will result in rejection of the joint venture’s bid.""}, {""source_id"": ""S3"", ""document"": ""Volume-I.pdf"", ""page"": 61, ""chunk_id"": 858, ""quote"": ""The figures for each of the partners of a joint venture shall be added together to determine the Bidder’s compliance with the minimum qualifying criteria required for the bid. All the partners collectively must meet the criteria specified in full. Failure to comply with this requirement will result in rejection of the joint venture’s bid.""}, {""source_id"": ""S5"", ""document"": ""Volume-I.pdf"", ""page"": 41, ""chunk_id"": 817, ""quote"": ""Bidders including joint ventures should be competent & experienced contractor qualifying on the financial, Physical and experience criteria detailed hereinafter.""}, {""source_id"": ""S3"", ""document"": ""Volume-I.pdf"", ""page"": 61, ""chunk_id"": 858, ""quote"": ""The joint venture agreement should indicate precisely the role of all members of J.V. in respect of planning, design, construction equipment, key personnel, work execution, and financing of the project. All members of JV should have active participation in execution during the currency of the contract. This should not be varied/modified subsequently without prior approval of the employer;""}, {""source_id"": ""S3"", ""document"": ""Volume-I.pdf"", ""page"": 61, ""chunk_id"": 858, ""quote"": ""The joint venture agreement should be registered, so as to be legally valid and binding on all partners;""}, {""source_id"": ""S3"", ""document"": ""Volume-I.pdf"", ""page"": 61, ""chunk_id"": 858, ""quote"": ""a copy of the Joint Venture Agreement entered into by the partners shall be submitted with the bid.""}, {""source_id"": ""S1"", ""document"": ""Volume-I.pdf"", ""page"": 18, ""chunk_id"": 776, ""quote"": ""a copy of the Joint Venture Agreement entered into by the partners shall be submitted with the bid.""}, {""source_id"": ""S1"", ""document"": ""Volume-I.pdf"", ""page"": 18, ""chunk_id"": 776, ""quote"": ""Attach the power of attorney of the partners authorizing the Bid signatory (ies) on behalf of the joint venture.""}, {""source_id"": ""S1"", ""document"": ""Volume-I.pdf"", ""page"": 18, ""chunk_id"": 776, ""quote"": ""Attach the agreement among all partners of the joint venture [and which is legally binding on all partners], which shows the requirements as indicated in the Instructions to Bidders’.""}, {""source_id"": ""S1"", ""document"": ""Volume-I.pdf"", ""page"": 18, ""chunk_id"": 776, ""quote"": ""Furnish details of participation proposed in the joint venture as below: \nDETAILS OF PARTICIPATION IN THE JOINT VENTURE""}]",
+What is the project manager's date of birth?,The tender documents do not establish the project manager's date of birth.,"The supplied tender documents do not state the project manager’s date of birth.
+
+None of the provided passages identify the project manager by name or give any personal details such as date of birth. Therefore, this information cannot be determined from the available sources.",True,,True,True,True,True,[],
+What is the contractor's office Wi-Fi password?,The tender documents do not establish the contractor's office Wi-Fi password.,"The supplied tender passages do not state or specify any Wi‑Fi password for the contractor’s office or site office. Based on these sources alone, the contractor’s office Wi‑Fi password cannot be determined.",True,,True,True,True,True,[],

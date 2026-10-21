@@ -104,3 +104,24 @@ class TenderDocument(models.Model):
 
     def __str__(self):
         return f"{self.tender.tender_id} - {self.original_filename}"
+
+class DocumentChunk(models.Model):
+    document=models.ForeignKey(
+        TenderDocument,
+        on_delete=models.CASCADE,
+        related_name="chunks"
+    )
+    chunk_index=models.PositiveIntegerField()
+    content=models.TextField()
+    page_number=models.PositiveIntegerField(null=True,blank=True)
+    section=models.CharField(max_length=255,blank=True,null=True)
+    metadata=models.JSONField(default=dict,blank=True)
+    created_at=models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints=[
+            models.UniqueConstraint(
+                fields=["document","chunk_index"],
+                name="unique_document_chunk"
+            )
+        ]
