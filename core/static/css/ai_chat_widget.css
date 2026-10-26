@@ -1,0 +1,335 @@
+/* Raynder AI widget styles are scoped to .rai-widget to avoid affecting the host site. */
+.rai-widget{--ink:#172947;--muted:#8290a5;--line:#e8edf5;--blue:#3268e8;font-family:Inter,"Segoe UI",system-ui,sans-serif;color:var(--ink);z-index:2000}.rai-widget *{box-sizing:border-box}.rai-widget button,.rai-widget input,.rai-widget textarea{font:inherit}.rai-widget button{cursor:pointer}.rai-widget button:focus-visible,.rai-widget input:focus-visible,.rai-widget textarea:focus-visible{outline:3px solid #3268e844;outline-offset:2px}
+.rai-launcher{position:fixed;right:25px;bottom:24px;width:63px;height:63px;border:0;border-radius:21px;display:grid;place-items:center;color:white;background:linear-gradient(145deg,#4380ff,#214fc4);box-shadow:0 12px 32px #2452c359;z-index:2002;transition:.2s}.rai-launcher:hover{transform:translateY(-3px)}.rai-launcher svg{width:29px;height:29px;fill:currentColor;z-index:1}.rai-launcher-glow{position:absolute;inset:-5px;border:1px solid #3268e833;border-radius:25px}.rai-launcher i{position:absolute;right:7px;top:7px;width:10px;height:10px;background:#42d99c;border:2px solid white;border-radius:50%}
+.rai-panel{position:fixed;right:25px;bottom:100px;width:min(780px,calc(100vw - 34px));height:min(650px,calc(100vh - 125px));min-height:420px;display:flex;flex-direction:column;overflow:hidden;background:#fff;border:1px solid #dfe6f1;border-radius:22px;box-shadow:0 28px 90px #12233f38;z-index:2001;opacity:0;visibility:hidden;pointer-events:none;transform:translateY(14px) scale(.985);transform-origin:bottom right;transition:opacity .2s,transform .24s,visibility .2s}.rai-widget.rai-open .rai-panel{opacity:1;visibility:visible;pointer-events:auto;transform:none}.rai-widget.rai-open .rai-launcher{opacity:0;visibility:hidden;pointer-events:none}.rai-widget.rai-expanded .rai-panel{right:24px;bottom:24px;width:min(1120px,calc(100vw - 48px));height:min(820px,calc(100vh - 48px))}
+.rai-header{height:70px;flex:0 0 70px;display:flex;align-items:center;justify-content:space-between;padding:0 18px;color:#fff;background:radial-gradient(circle at 10% -80%,#649bff6b,transparent 45%),linear-gradient(110deg,#172e58,#244d91)}.rai-brand{display:flex;align-items:center;gap:10px}.rai-brand-mark{width:39px;height:39px;display:grid;place-items:center;border-radius:13px;background:#ffffff20;border:1px solid #ffffff25;font-size:25px}.rai-brand-title{font-size:14px;font-weight:750}.rai-brand-title small{margin-left:6px;padding:3px 5px;border-radius:5px;background:#ffffff20;color:#dbe8ff;font-size:8px;letter-spacing:.08em}.rai-brand-status{margin-top:4px;color:#c5d5f0;font-size:10px}.rai-brand-status i{display:inline-block;width:6px;height:6px;margin-right:5px;border-radius:50%;background:#47e0a3}.rai-header-actions{display:flex;gap:5px}.rai-icon-btn{width:32px;height:32px;border:0;border-radius:9px;background:transparent;color:#e7efff;font-size:21px}.rai-icon-btn:hover{background:#ffffff20}
+.rai-body{display:flex;flex:1;min-height:0;background:#fff}.rai-sidebar{width:230px;flex:0 0 230px;display:flex;flex-direction:column;min-height:0;padding:16px 12px 12px;background:#f8faff;border-right:1px solid #edf0f6}.rai-new-chat{display:flex;align-items:center;gap:9px;padding:10px 11px;border:1px solid #dfe7f6;border-radius:11px;background:white;color:#24416f;font-size:12px;font-weight:700}.rai-new-chat b{color:#3268e8;font-size:18px}.rai-new-chat kbd{margin-left:auto;padding:2px 4px;border:1px solid #e4e9f1;border-radius:4px;color:#8996aa;font-size:9px}.rai-history-heading{margin:22px 8px 9px;color:#96a2b5;font-size:9px;font-weight:800;letter-spacing:.12em}.rai-history-search{display:flex;align-items:center;gap:7px;padding:8px 9px;border:1px solid #e7ebf3;border-radius:9px;background:white}.rai-history-search span{color:#9aa6b8;font-size:20px}.rai-history-search input{width:100%;min-width:0;border:0;outline:0;background:transparent;font-size:11px}.rai-history-list{overflow:auto;flex:1;margin-top:10px}.rai-history-item{display:flex;gap:8px;align-items:center;width:100%;padding:10px 9px;border:0;border-radius:9px;background:transparent;text-align:left;color:#5a6880;font-size:11px}.rai-history-item:hover,.rai-history-item.active{background:#eaf0ff;color:#244d9c}.rai-history-item span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.rai-history-empty{padding:12px 9px;color:#a0aabd;font-size:11px;line-height:1.6}.rai-sidebar-footer{display:flex;align-items:center;gap:9px;padding:12px 5px 2px;border-top:1px solid #e8edf5}.rai-avatar{width:29px;height:29px;display:grid;place-items:center;border-radius:10px;background:#e1eaff;color:#315ec5;font-size:12px;font-weight:800}.rai-sidebar-footer strong,.rai-sidebar-footer small{display:block}.rai-sidebar-footer strong{font-size:10px;color:#34445f}.rai-sidebar-footer small{margin-top:3px;font-size:9px;color:#9aa5b6}
+.rai-main{position:relative;display:flex;flex:1;flex-direction:column;min-width:0;min-height:0;background:linear-gradient(#fff,#fcfdff)}.rai-welcome{overflow:auto;flex:1;padding:27px clamp(18px,4vw,45px) 14px}.rai-welcome-icon{width:48px;height:48px;display:grid;place-items:center;border-radius:16px;background:linear-gradient(145deg,#edf3ff,#dce8ff);box-shadow:inset 0 0 0 1px #d7e3ff;color:#3268e8;font-size:28px}.rai-eyebrow{margin-top:22px;color:#3268e8;font-size:9px;font-weight:850;letter-spacing:.15em}.rai-welcome h2{margin:8px 0;color:#152746;font-size:clamp(22px,3vw,29px);font-weight:750;letter-spacing:-.05em}.rai-welcome p{max-width:440px;margin:0;color:#7c899e;font-size:12px;line-height:1.75}.rai-suggestions{display:grid;gap:8px;max-width:520px;margin-top:22px}.rai-suggestion{display:flex;align-items:center;gap:11px;width:100%;padding:11px;border:1px solid #e9edf5;border-radius:12px;background:#ffffffed;text-align:left;transition:.16s}.rai-suggestion:hover{transform:translateY(-1px);border-color:#cbd9f8;box-shadow:0 5px 14px #2246870f}.rai-suggestion-icon{width:32px;height:32px;display:grid;place-items:center;border-radius:10px;font-size:16px;flex:0 0 auto}.rai-suggestion-icon.blue{background:#eaf1ff;color:#3568d9}.rai-suggestion-icon.violet{background:#f0ecff;color:#7c61d5}.rai-suggestion-icon.green{background:#e4f9ef;color:#26966a}.rai-suggestion strong,.rai-suggestion small{display:block}.rai-suggestion strong{font-size:11px;color:#2d3d58}.rai-suggestion small{margin-top:4px;font-size:10px;color:#929db0}.rai-suggestion>b{margin-left:auto;color:#a6b1c2}.rai-demo-note{margin-top:19px;color:#a0aabd;font-size:9px}.rai-messages{display:none;overflow:auto;flex:1;padding:22px clamp(16px,3vw,36px) 12px;scroll-behavior:smooth}.rai-messages.rai-visible{display:block}.rai-message{display:flex;gap:9px;align-items:flex-start;margin-bottom:17px;animation:rai-in .22s ease both}.rai-message.user{flex-direction:row-reverse}.rai-message-avatar{width:27px;height:27px;flex:0 0 27px;display:grid;place-items:center;border-radius:9px;background:#e8efff;color:#3268e8;font-size:10px;font-weight:800}.rai-message.user .rai-message-avatar{background:#e9f5ef;color:#27835e}.rai-message-content{max-width:min(88%,520px);padding:11px 13px;border:1px solid #e9edf5;border-radius:4px 13px 13px;background:white;color:#3d4b63;font-size:12px;line-height:1.75;white-space:pre-wrap;overflow-wrap:anywhere}.rai-message.user .rai-message-content{border-color:#dce7ff;border-radius:13px 4px 13px 13px;background:#edf3ff;color:#254577}.rai-message-meta{margin-top:5px;color:#a1aaba;font-size:9px}.rai-typing{display:flex;align-items:center;gap:8px;padding:0 28px 10px;color:#97a2b3}.rai-typing small{font-size:10px}.rai-dots{display:flex;gap:3px}.rai-dots i{width:4px;height:4px;border-radius:50%;background:#6b8fe4;animation:rai-dot 1s infinite}.rai-dots i:nth-child(2){animation-delay:.15s}.rai-dots i:nth-child(3){animation-delay:.3s}
+.rai-composer-wrap{padding:10px clamp(12px,2.5vw,26px) 12px;border-top:1px solid #f0f2f7;background:#fffffff2}.rai-composer{padding:10px 11px 8px;border:1px solid #dfe5ef;border-radius:15px;background:white;box-shadow:0 4px 14px #182f530a;transition:.15s}.rai-composer:focus-within{border-color:#a9c0f8;box-shadow:0 0 0 3px #3268e812,0 5px 18px #182f530d}.rai-composer textarea{display:block;width:100%;min-height:32px;max-height:105px;resize:none;border:0;outline:0;background:transparent;color:#243550;font-size:12px;line-height:1.55}.rai-composer textarea::placeholder{color:#a0aabd}.rai-composer-bottom{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:6px}.rai-composer-tools{display:flex;align-items:center;gap:9px;min-width:0}.rai-scope{display:flex;align-items:center;gap:6px;padding:6px 7px;border:0;border-radius:8px;background:#f4f7fd;color:#5f7190;font-size:10px;white-space:nowrap}.rai-scope:hover{background:#eaf0ff;color:#315ec5}.rai-shortcut{overflow:hidden;color:#a2acbc;font-size:9px;text-overflow:ellipsis;white-space:nowrap}.rai-send{width:32px;height:32px;flex:0 0 auto;display:grid;place-items:center;border:0;border-radius:10px;background:#3268e8;color:white;font-size:20px;transition:.15s}.rai-send:hover:not(:disabled){background:#2454cb;transform:translateY(-1px)}.rai-send:disabled{cursor:not-allowed;background:#dce4f5;color:#9aaccf}.rai-disclaimer{margin-top:8px;text-align:center;color:#a6afbe;font-size:9px;line-height:1.4}.rai-toast{position:fixed;right:28px;bottom:94px;z-index:2003;max-width:300px;padding:10px 13px;border-radius:10px;background:#152746;color:white;font-size:11px;box-shadow:0 10px 30px #12233f33;opacity:0;transform:translateY(7px);pointer-events:none;transition:.2s}.rai-toast.show{opacity:1;transform:none}
+@keyframes rai-in{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}@keyframes rai-dot{0%,60%,100%{transform:translateY(0);opacity:.45}30%{transform:translateY(-4px);opacity:1}}
+@media(max-width:680px){.rai-launcher{right:16px;bottom:16px;width:58px;height:58px;border-radius:20px}.rai-panel,.rai-widget.rai-expanded .rai-panel{inset:auto 0 0;width:100%;height:min(88dvh,780px);min-height:400px;border-radius:20px 20px 0 0;border-bottom:0}.rai-widget.rai-expanded .rai-panel{height:100dvh;border-radius:0}.rai-sidebar{display:none;width:210px;flex-basis:210px}.rai-widget.rai-history-open .rai-sidebar{display:flex;position:absolute;inset:0 auto 0 0;z-index:3;box-shadow:12px 0 28px #12233f1f}.rai-widget.rai-expanded .rai-sidebar{display:flex}.rai-header{height:64px;flex-basis:64px;padding:0 13px}.rai-welcome{padding:24px 18px 12px}.rai-message-content{max-width:90%}.rai-shortcut{display:none}.rai-toast{right:12px;bottom:82px}}
+@media(prefers-reduced-motion:reduce){.rai-widget *{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
+/* 1. Ensure the root widget container doesn't inherit parent layout constraints */
+.rai-widget {
+  --ink: #172947;
+  --muted: #8290a5;
+  --line: #e8edf5;
+  --blue: #3268e8;
+  font-family: Inter, "Segoe UI", system-ui, sans-serif;
+  color: var(--ink);
+  position: static;
+  box-sizing: border-box;
+}
+
+.rai-widget * {
+  box-sizing: border-box;
+}
+
+/* 2. Anchor the panel firmly to the bottom-right of the screen with highest priority z-index */
+.rai-panel {
+  position: fixed !important;
+  right: 25px;
+  bottom: 25px; /* was 100px; 25-30px keeps it cleanly anchored near the bottom edge */
+  top: auto !important;
+  left: auto !important;
+  width: min(780px, calc(100vw - 34px));
+  height: min(650px, calc(100vh - 50px));
+  min-height: 420px;
+  max-height: calc(100vh - 40px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: #fff;
+  border: 1px solid #dfe6f1;
+  border-radius: 22px;
+  box-shadow: 0 28px 90px rgba(18, 35, 63, 0.28);
+  z-index: 999999 !important; /* Prevents slipping behind the navbar */
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform: translateY(14px) scale(0.985);
+  transform-origin: bottom right;
+  transition: opacity .2s, transform .24s, visibility .2s;
+}
+
+/* 3. Ensure full visibility when opened */
+.rai-widget.rai-open .rai-panel {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transform: none;
+}
+
+
+.rai-history-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.rai-history-row .rai-history-item {
+  flex: 1;
+  min-width: 0;
+}
+
+.rai-history-delete {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  opacity: 0.65;
+  cursor: pointer;
+  padding: 6px 10px;
+  border-radius: 6px;
+}
+
+.rai-history-delete:hover {
+  opacity: 1;
+  background: rgba(128, 128, 128, 0.15);
+}
+
+
+
+
+
+.rai-tender-selector {
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--rai-border, #e5e7eb);
+}
+
+.rai-tender-selector[hidden] {
+    display: none !important;
+}
+
+.rai-tender-selector label {
+    display: block;
+    margin-bottom: 6px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.rai-tender-selector select {
+    width: 100%;
+    padding: 9px 10px;
+    border: 1px solid var(--rai-border, #d1d5db);
+    border-radius: 8px;
+    background: var(--rai-surface, #fff);
+    color: inherit;
+    font-size: 13px;
+}
+
+.rai-message-body {
+    min-width: 0;
+    flex: 1;
+}
+
+.rai-citations {
+    margin-top: 10px;
+    padding: 10px;
+    border: 1px solid var(--rai-border, #e5e7eb);
+    border-radius: 10px;
+    font-size: 12px;
+}
+
+.rai-citations-heading {
+    margin-bottom: 8px;
+    font-weight: 700;
+}
+
+.rai-citation + .rai-citation {
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid var(--rai-border, #e5e7eb);
+}
+
+.rai-citation-title {
+    font-weight: 600;
+    overflow-wrap: anywhere;
+}
+
+.rai-citation blockquote {
+    margin: 5px 0 0;
+    padding-left: 9px;
+    border-left: 3px solid #94a3b8;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    opacity: 0.85;
+}
+
+.rai-evidence-note {
+    margin-top: 8px;
+    font-size: 12px;
+    opacity: 0.8;
+}
+
+/* Compact tender picker */
+.rai-widget .rai-composer-wrap {
+    position: relative;
+    flex-shrink: 0;
+    min-width: 0;
+}
+
+.rai-widget .rai-tender-selector {
+    position: relative;
+    padding: 0 0 10px;
+    border: 0;
+    min-width: 0;
+}
+
+.rai-widget .rai-tender-selector label {
+    display: block;
+    margin-bottom: 6px;
+    font-size: 11px;
+    font-weight: 700;
+}
+
+.rai-widget #rai-tender-search {
+    display: block;
+    width: 100%;
+    min-width: 0;
+    padding: 9px 11px;
+    border: 1px solid #dfe5ef;
+    border-radius: 9px;
+    background: #fff;
+    color: #243550;
+    font-size: 12px;
+}
+
+.rai-widget .rai-tender-results[hidden],
+.rai-widget .rai-selected-tender[hidden],
+.rai-widget .rai-tender-selector[hidden] {
+    display: none !important;
+}
+
+.rai-widget .rai-tender-results {
+    position: absolute;
+    z-index: 20;
+    right: 0;
+    bottom: calc(100% + 5px);
+    left: 0;
+    max-height: 220px;
+    overflow-y: auto;
+    border: 1px solid #dfe5ef;
+    border-radius: 10px;
+    background: #fff;
+    box-shadow: 0 10px 28px #12233f20;
+}
+
+.rai-widget .rai-tender-result {
+    display: block;
+    width: 100%;
+    padding: 10px 12px;
+    border: 0;
+    border-bottom: 1px solid #eef1f6;
+    background: #fff;
+    color: #243550;
+    text-align: left;
+}
+
+.rai-widget .rai-tender-result:hover {
+    background: #edf3ff;
+}
+
+.rai-widget .rai-tender-result strong,
+.rai-widget .rai-tender-result small {
+    display: block;
+    overflow-wrap: anywhere;
+}
+
+.rai-widget .rai-tender-result strong {
+    font-size: 12px;
+}
+
+.rai-widget .rai-tender-result small {
+    margin-top: 3px;
+    color: #8290a5;
+    font-size: 10px;
+}
+
+.rai-widget .rai-selected-tender {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-top: 8px;
+    padding: 9px 10px;
+    border: 1px solid #dce7ff;
+    border-radius: 9px;
+    background: #f3f7ff;
+}
+
+.rai-widget .rai-selected-tender span,
+.rai-widget .rai-selected-tender strong {
+    display: block;
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+.rai-widget .rai-selected-tender strong {
+    margin-bottom: 3px;
+    font-size: 10px;
+}
+
+.rai-widget .rai-selected-tender span span {
+    font-size: 11px;
+}
+
+.rai-widget #rai-change-tender {
+    flex-shrink: 0;
+    padding: 5px 8px;
+    border: 1px solid #d6e1f8;
+    border-radius: 7px;
+    background: #fff;
+    color: #315ec5;
+    font-size: 10px;
+}
+
+.rai-widget #rai-tender-status {
+    display: block;
+    margin-top: 6px;
+    color: #8290a5;
+    font-size: 10px;
+    line-height: 1.4;
+}
+
+.rai-widget .rai-message-body {
+    flex: 1;
+    min-width: 0;
+}
+
+.rai-widget .rai-message-content {
+    max-width: 100%;
+}
+
+/* Tender page context and non-tender-page notice */
+.rai-widget .rai-page-context {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 8px;
+  padding: 8px 10px;
+  border: 1px solid #dce7ff;
+  border-radius: 9px;
+  background: #f3f7ff;
+  color: #526887;
+  font-size: 11px;
+  line-height: 1.4;
+}
+.rai-widget .rai-page-context[hidden],
+.rai-widget .rai-page-notice[hidden] { display: none !important; }
+.rai-widget .rai-page-context strong { color: #254577; font-weight: 700; }
+.rai-widget .rai-page-context-dot {
+  width: 7px; height: 7px; flex: 0 0 7px;
+  border-radius: 50%; background: #2ca879;
+}
+.rai-widget .rai-page-notice {
+  margin-bottom: 8px;
+  padding: 9px 10px;
+  border: 1px solid #f1dfb2;
+  border-radius: 9px;
+  background: #fff9e9;
+  color: #7a5b1b;
+  font-size: 11px;
+  line-height: 1.5;
+}
+.rai-widget .rai-message-body { flex: 1; min-width: 0; }
+.rai-widget .rai-message-content { max-width: 100%; }

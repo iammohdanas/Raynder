@@ -31,6 +31,14 @@ from rest_framework.response import Response
 from rest_framework import status
 from api_gateway.services.all_tenders_sync import AllTenderSyncService
 from api_gateway.tasks import sync_all_sources
+import uuid
+from django.db import transaction
+from django.utils import timezone
+from rest_framework.decorators import api_view
+from rest_framework.response import Response
+from rest_framework import status
+from api_gateway.models import Tender
+from ai.models import ChatConversation, ChatMessage
 
 load_dotenv()
 
@@ -503,4 +511,300 @@ def update_tender(request, tender_id):
         return Response(
             {"success": False, "error": str(e)},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+
+
+
+def _conversation_payload(conversation):
+    return {
+        "id": str(conversation.id),
+        "title": conversation.title,
+        "scope": conversation.scope,
+        "tender_id": conversation.tender_id,
+        "created_at": conversation.created_at.isoformat(),
+        "updated_at": conversation.updated_at.isoformat(),
+    }
+
+
+def _message_payload(message):
+    return {
+        "id": str(message.id),
+        "role": message.role,
+        "content": message.content,
+        "citations": message.citations,
+        "created_at": message.created_at.isoformat(),
+    }
+
+
+@api_view(["GET"])
+def chat_history(request):
+    if not request.user.is_authenticated:
+        return Response(
+            {"success": False, "error": "Authentication required."},
+            status=status.HTTP_401_UNAUTHORIZED,
+        )
+
+    conversations = ChatConversation.objects.filter(
+        user=request.user
+    ).select_related("tender").order_by("-updated_at")
+
+    return Response({
+        "success": True,
+        "conversations": [
+            _conversation_payload(item)
+            for item in conversations[:100]
+        ],
+    })
+
+
+@api_view(["GET"])
+def chat_conversation_detail(request, conversation_id):
+    if not request.user.is_authenticated:
+        return Response(
+            {"success": False, "error": "Authentication required."},
+            status=status.HTTP_401_UNAUTHORIZED,
+        )
+
+    try:
+        conversation_uuid = uuid.UUID(str(conversation_id))
+    except (ValueError, TypeError, AttributeError):
+        return Response(
+            {"success": False, "error": "Invalid conversation ID."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    conversation = ChatConversation.objects.filter(
+        id=conversation_uuid,
+        user=request.user,
+    ).first()
+
+    if conversation is None:
+        return Response(
+            {"success": False, "error": "Conversation not found."},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+    messages = conversation.messages.order_by("created_at")
+
+    return Response({
+        "success": True,
+        "conversation": _conversation_payload(conversation),
+        "messages": [
+            _message_payload(message)
+            for message in messages
+        ],
+    })
+
+
+@api_view(["DELETE"])
+def delete_chat_conversation(request, conversation_id):
+    if not request.user.is_authenticated:
+        return Response(
+            {"success": False, "error": "Authentication required."},
+            status=status.HTTP_401_UNAUTHORIZED,
+        )
+
+    try:
+        conversation_uuid = uuid.UUID(str(conversation_id))
+    except (ValueError, TypeError, AttributeError):
+        return Response(
+            {"success": False, "error": "Invalid conversation ID."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    deleted_count, _ = ChatConversation.objects.filter(
+        id=conversation_uuid,
+        user=request.user,
+    ).delete()
+
+    if not deleted_count:
+        return Response(
+            {"success": False, "error": "Conversation not found."},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+    return Response({
+        "success": True,
+        "message": "Conversation deleted.",
+    })
+
+
+
+
+@api_view(["POST"])
+def send_chat_message(request):
+    if not request.user.is_authenticated:
+        return Response(
+            {"success": False, "error": "Authentication required."},
+            status=status.HTTP_401_UNAUTHORIZED,
+        )
+
+    message_text = request.data.get("message", "")
+    conversation_id = request.data.get("conversation_id")
+    scope = request.data.get("scope", "all_tenders")
+    tender_pk = request.data.get("tender_pk")
+
+    if not isinstance(message_text, str) or not message_text.strip():
+        return Response(
+            {"success": False, "error": "Message cannot be empty."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    message_text = message_text.strip()
+
+    if len(message_text) > 10000:
+        return Response(
+            {"success": False, "error": "Message is too long."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    # Universal retrieval will be implemented separately.
+    if scope == "all_tenders":
+        return Response(
+            {
+                "success": False,
+                "error": (
+                    "Universal mode is not connected yet. "
+                    "Select a specific tender to ask document questions."
+                ),
+                "code": "UNIVERSAL_MODE_NOT_READY",
+            },
+            status=status.HTTP_501_NOT_IMPLEMENTED,
+        )
+
+    if scope != "tender":
+        return Response(
+            {"success": False, "error": "Invalid chat scope."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    if conversation_id:
+        try:
+            conversation_uuid = uuid.UUID(str(conversation_id))
+        except (ValueError, TypeError, AttributeError):
+            return Response(
+                {"success": False, "error": "Invalid conversation ID."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        conversation = ChatConversation.objects.filter(
+            id=conversation_uuid,
+            user=request.user,
+        ).first()
+
+        if conversation is None:
+            return Response(
+                {"success": False, "error": "Conversation not found."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        if conversation.scope != ChatConversation.Scope.TENDER:
+            return Response(
+                {"success": False, "error": "This conversation is not tender-scoped."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        tender = conversation.tender
+        if tender is None:
+            return Response(
+                {"success": False, "error": "The linked tender no longer exists."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if tender_pk and str(tender_pk) != str(tender.pk):
+            return Response(
+                {"success": False, "error": "Tender does not match this conversation."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+    else:
+        if not tender_pk:
+            return Response(
+                {
+                    "success": False,
+                    "error": "tender_pk is required for tender-specific chat.",
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        tender = Tender.objects.filter(pk=tender_pk).first()
+        if tender is None:
+            return Response(
+                {"success": False, "error": "Tender not found."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        conversation = ChatConversation.objects.create(
+            user=request.user,
+            title=message_text[:200],
+            scope=ChatConversation.Scope.TENDER,
+            tender=tender,
+        )
+
+    # Save the user's message before calling the AI service.
+    user_message = ChatMessage.objects.create(
+        conversation=conversation,
+        role=ChatMessage.Role.USER,
+        content=message_text,
+    )
+
+    try:
+        # Import lazily so existing endpoints do not load the AI model.
+        from ai.services.documents.answer_generation_service import (
+            AnswerGenerationService,
+        )
+
+        service = AnswerGenerationService()
+        result = service.answer(
+            tender_id=tender.tender_id,
+            question=message_text,
+        )
+
+        answer_text = result.get(
+            "answer",
+            "I couldn't generate an answer for this question.",
+        )
+        citations = result.get("citations", [])
+        insufficient_evidence = result.get(
+            "insufficient_evidence",
+            False,
+        )
+
+        assistant_message = ChatMessage.objects.create(
+            conversation=conversation,
+            role=ChatMessage.Role.ASSISTANT,
+            content=answer_text,
+            citations=citations,
+            metadata={
+                "insufficient_evidence": insufficient_evidence,
+            },
+        )
+
+        conversation.updated_at = timezone.now()
+        conversation.save(update_fields=["updated_at"])
+
+        return Response(
+            {
+                "success": True,
+                "conversation": _conversation_payload(conversation),
+                "user_message": _message_payload(user_message),
+                "assistant_message": _message_payload(assistant_message),
+                "insufficient_evidence": insufficient_evidence,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+    except Exception:
+        # Log the full exception server-side before production deployment.
+        return Response(
+            {
+                "success": False,
+                "error": (
+                    "The message was saved, but the AI service "
+                    "could not generate a response. Please try again."
+                ),
+                "conversation_id": str(conversation.id),
+                "user_message_id": str(user_message.id),
+            },
+            status=status.HTTP_502_BAD_GATEWAY,
         )

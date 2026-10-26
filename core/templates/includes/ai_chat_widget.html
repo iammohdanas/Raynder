@@ -1,0 +1,84 @@
+{% load static %}
+<link rel="stylesheet" href="{% static 'css/ai_chat_widget.css' %}">
+<div
+  id="raynder-ai-widget"
+  class="rai-widget"
+  data-tender-id="{{ tender.tender_id|default:'' }}"
+  data-tender-title="{{ tender.title|default:'' }}"
+>
+  <button id="rai-launcher" class="rai-launcher" aria-label="Open Raynder AI Assistant" aria-expanded="false" type="button">
+    <span class="rai-launcher-glow"></span>
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 14.2 9.8 21 12l-6.8 2.2L12 21l-2.2-6.8L3 12l6.8-2.2L12 3Z"/></svg><i></i>
+  </button>
+
+  <section id="rai-panel" class="rai-panel" aria-hidden="true" aria-label="Raynder AI Assistant">
+    <header class="rai-header">
+      <div class="rai-brand">
+        <div class="rai-brand-mark">✦</div>
+        <div>
+          <div class="rai-brand-title">Raynder AI <small>BETA</small></div>
+          <div class="rai-brand-status"><i></i> Tender intelligence assistant</div>
+        </div>
+      </div>
+      <div class="rai-header-actions">
+        <button id="rai-expand" class="rai-icon-btn" type="button" title="Expand chat" aria-label="Expand chat">⛶</button>
+        <button id="rai-minimize" class="rai-icon-btn" type="button" title="Minimize" aria-label="Minimize">−</button>
+        <button id="rai-close" class="rai-icon-btn" type="button" title="Close" aria-label="Close">×</button>
+      </div>
+    </header>
+
+    <div class="rai-body">
+      <aside id="rai-sidebar" class="rai-sidebar">
+        <button id="rai-new-chat" class="rai-new-chat" type="button"><b>＋</b> New chat <kbd>Ctrl K</kbd></button>
+        <div class="rai-history-heading">RECENT CONVERSATIONS</div>
+        <label class="rai-history-search"><span>⌕</span><input id="rai-history-filter" type="search" placeholder="Search chats…"></label>
+        <div id="rai-history-list" class="rai-history-list"><div class="rai-history-empty">Your conversations will appear here.</div></div>
+        <div class="rai-sidebar-footer">
+          <div class="rai-avatar">R</div>
+          <div><strong>Raynder Assistant</strong><small>Built for tender intelligence</small></div>
+        </div>
+      </aside>
+
+      <main class="rai-main">
+        <div id="rai-welcome" class="rai-welcome">
+          <div class="rai-welcome-icon">✦</div>
+          <div class="rai-eyebrow">YOUR TENDER COPILOT</div>
+          <h2 id="rai-welcome-title">Good to have you here.</h2>
+          <p id="rai-welcome-description">Explore opportunities, understand tender documents, and get to the important details faster.</p>
+          <div class="rai-suggestions">
+            <button class="rai-suggestion" type="button" data-prompt="Summarize the key eligibility criteria for this tender."><span class="rai-suggestion-icon blue">↗</span><span><strong>Understand eligibility</strong><small>Summarize qualification criteria</small></span><b>↗</b></button>
+            <button class="rai-suggestion" type="button" data-prompt="What are the key submission deadlines in this tender?"><span class="rai-suggestion-icon violet">◷</span><span><strong>Track deadlines</strong><small>Review dates in the tender documents</small></span><b>↗</b></button>
+            <button class="rai-suggestion" type="button" data-prompt="What financial requirements are mentioned in this tender?"><span class="rai-suggestion-icon green">▤</span><span><strong>Review requirements</strong><small>Find key financial conditions</small></span><b>↗</b></button>
+          </div>
+          <div class="rai-demo-note">● Answers are grounded in indexed tender documents</div>
+        </div>
+
+        <div id="rai-messages" class="rai-messages" aria-live="polite"></div>
+        <div id="rai-typing" class="rai-typing" hidden><span class="rai-message-avatar">R</span><span class="rai-dots"><i></i><i></i><i></i></span><small>Raynder AI is thinking…</small></div>
+
+        <div class="rai-composer-wrap">
+          <div id="rai-page-context" class="rai-page-context" hidden>
+            <span class="rai-page-context-dot"></span>
+            <span>Chatting about: <strong id="rai-page-tender-title"></strong></span>
+          </div>
+          <div id="rai-page-notice" class="rai-page-notice" hidden>
+            Tender-specific AI chat is available only on a Tender Details page. Open a tender's details to ask questions about its documents.
+          </div>
+          <form id="rai-composer" class="rai-composer">
+            <textarea id="rai-input" rows="1" maxlength="4000" placeholder="Ask about a tender…" aria-label="Message Raynder AI"></textarea>
+            <div class="rai-composer-bottom">
+              <div class="rai-composer-tools">
+                <button id="rai-scope" class="rai-scope" type="button" aria-label="Switch chat scope">◎ <span id="rai-scope-label">Specific tender</span>⌄</button>
+                <span class="rai-shortcut">Enter to send · Shift + Enter for newline</span>
+              </div>
+              <button id="rai-send" class="rai-send" type="submit" aria-label="Send message" disabled>↑</button>
+            </div>
+          </form>
+          <div class="rai-disclaimer">Raynder AI can make mistakes. Verify important tender details against source documents.</div>
+        </div>
+      </main>
+    </div>
+  </section>
+  <div id="rai-toast" class="rai-toast" role="status" aria-live="polite"></div>
+</div>
+<script src="{% static 'js/ai_chat_widget.js' %}" defer></script>
