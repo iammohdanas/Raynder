@@ -11,7 +11,9 @@ from Raynder.settings import (
     AZURE_OPENAI_DEPLOYMENT_NAME,
     BASE_DIR,
 )
+import logging
 
+logger = logging.getLogger(__name__)
 
 class SourceCitation(BaseModel):
     source_id: str
@@ -42,19 +44,93 @@ class AnswerGenerationService:
     def normalize(text):
         return re.sub(r"\s+"," ",text).strip().lower()
 
-    def answer(self,tender_id,question,limit=5):
-        results=self.retrieval.search(
-            tender_id=tender_id,
-            query=question,
-            limit=limit
+    def contextualize_question(self, question, conversation_history):
+        """Resolve follow-up questions into standalone retrieval queries."""
+        if not conversation_history:
+            return question
+
+        history_text = "\n".join(
+            f"{message['role']}: {message['content']}"
+            for message in conversation_history
+            if message.get("role") in ("user", "assistant")
+            and message.get("content")
         )
 
+        try:
+            response = self.client.responses.create(
+                model=self.deployment,
+                input=[
+                    {
+                        "role": "system",
+                        "content": (
+                            "Rewrite the latest user question as a standalone "
+                            "search query for retrieving tender-document evidence. "
+                            "Use conversation history only to resolve references "
+                            "such as 'it', 'that', or 'what about the deadline'. "
+                            "Do not answer the question. Do not add facts that "
+                            "are not present in the question or history. "
+                            "Return only the rewritten query. If no clarification "
+                            "is needed, return the original question."
+                        ),
+                    },
+                    {
+                        "role": "user",
+                        "content": (
+                            f"Conversation history:\n{history_text}\n\n"
+                            f"Latest question:\n{question}"
+                        ),
+                    },
+                ],
+            )
+            return response.output_text.strip() or question
+
+        except Exception:
+            # Retrieval should still work if query contextualization fails.
+            return question
+
+
+    def answer(self,tender_id,question,limit=5, conversation_history=None,):
+        conversation_history = conversation_history or []
+        retrieval_query = self.contextualize_question(question, conversation_history,)
+        results=self.retrieval.search(
+            tender_id=tender_id,
+            query=retrieval_query,
+            limit=limit
+        )
+        logger.info(
+            "RAG RETRIEVAL | tender_id=%s | original_question=%r "
+            "| retrieval_query=%r | result_count=%d",
+            tender_id,
+            question,
+            retrieval_query,
+            len(results),
+        )
+
+        for rank, item in enumerate(results, start=1):
+            logger.info(
+                "RAG RESULT #%d | document=%s | page=%s "
+                "| chunk_id=%s | score=%s | text=%r",
+                rank,
+                item.get("document"),
+                item.get("page"),
+                item.get("chunk_id"),
+                item.get("score"),
+                item.get("text", "")[:500],
+            )
+                
         if not results:
             return {
-                "answer":"I could not find relevant evidence in this tender's indexed documents.",
-                "citations":[],
-                "insufficient_evidence":True
+                "answer": (
+                    "I could not find relevant evidence in this "
+                    "tender's indexed documents."
+                ),
+                "citations": [],
+                "insufficient_evidence": True,
+                "citation_debug": [],
+                "retrieved_contexts": [],
+                "retrieved_sources": [],
             }
+
 
         sources={}
         source_text=[]
@@ -86,21 +162,38 @@ class AnswerGenerationService:
             " If insufficient_evidence is true, return an empty citations list. "
             "Do not cite passages that merely discuss a related topic but do not "
             "establish the requested fact. "
+            "Use conversation history to interpret follow-up questions. "
+            "Conversation history is context, not evidence. "
+            "Only the supplied source passages may support factual answers. "
         )
 
         response=self.client.responses.parse(
             model=self.deployment,
-            input=[
-                {"role":"system","content":instructions},
+            
+        input=[
+            {
+                "role": "system",
+                "content": instructions,
+            },
+            *[
                 {
-                    "role":"user",
-                    "content":(
-                        f"Tender ID: {tender_id}\n"
-                        f"Question: {question}\n\n"
-                        f"Source passages:\n\n"+"\n\n".join(source_text)
-                    )
+                    "role": message["role"],
+                    "content": message["content"],
                 }
+                for message in conversation_history
+                if message.get("role") in ("user", "assistant")
+                and message.get("content")
             ],
+            {
+                "role": "user",
+                "content": (
+                    f"Tender ID: {tender_id}\n"
+                    f"Current question: {question}\n\n"
+                    f"Source passages:\n\n" + "\n\n".join(source_text)
+                ),
+            },
+        ],
+
             text_format=GroundedAnswer
         )
 
@@ -165,4 +258,15 @@ class AnswerGenerationService:
             "citations": citations,
             "insufficient_evidence": parsed.insufficient_evidence,
             "citation_debug": citation_debug,
+            "retrieved_contexts": [
+                result["text"] for result in results
+            ],
+            "retrieved_sources": [
+                {
+                    "document": result["document"],
+                    "page": result["page"],
+                    "chunk_id": result["chunk_id"],
+                }
+                for result in results
+            ],
         }

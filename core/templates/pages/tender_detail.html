@@ -232,18 +232,27 @@
     <div id="tenderContent" style="display: none;" class="fade-in-up">
 
         <!-- Top Navigation -->
+
         <div class="d-flex justify-content-between align-items-center mb-3">
             <a href="/tenders/" class="btn-back">
                 <i class="fa-solid fa-arrow-left"></i>
                 <span>Back to Pipeline</span>
             </a>
+
             <div class="d-flex align-items-center gap-2">
+                <button type="button" id="runRagEvaluationBtn" class="btn btn-primary">
+                    <i class="fa-solid fa-flask me-1"></i>
+                    <span>Evaluate RAG</span>
+                </button>
+
                 <span class="status-pill badge-source">
                     <i class="fa-solid fa-database"></i>
                     <span id="source">—</span>
                 </span>
+
                 <span id="documentBadge" class="status-pill badge-doc-available" style="display: none;">
-                    <i class="fa-solid fa-file-lines"></i> Docs Available
+                    <i class="fa-solid fa-file-lines"></i>
+                    Docs Available
                 </span>
             </div>
         </div>
@@ -271,6 +280,79 @@
                 </div>
             </div>
         </div>
+        
+<!-- RAG Evaluation Panel -->
+<div id="ragEvaluationPanel" class="detail-card p-4 mb-4" hidden>
+    <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-4">
+        <div>
+            <h5 class="fw-bold mb-1">
+                <i class="fa-solid fa-flask text-primary me-2"></i>
+                RAG Evaluation
+            </h5>
+            <p class="text-secondary small mb-0">
+                Evaluate answer quality, evidence citations, and unsupported answers.
+            </p>
+        </div>
+
+        <span id="ragEvaluationStatus" class="status-pill badge-source">
+            Ready
+        </span>
+    </div>
+
+    <div id="ragEvaluationError"
+         class="alert alert-danger small"
+         role="alert"
+         hidden></div>
+
+    <div id="ragEvaluationProgressSection" hidden>
+        <div class="d-flex justify-content-between align-items-center mb-2">
+            <span class="small fw-semibold">Evaluation progress</span>
+            <span id="ragEvaluationProgressText" class="small text-secondary">
+                0 / 0 questions
+            </span>
+        </div>
+
+        <div class="progress mb-3" style="height: 8px;">
+            <div id="ragEvaluationProgressBar"
+                 class="progress-bar"
+                 role="progressbar"
+                 style="width: 0%;"
+                 aria-valuemin="0"
+                 aria-valuemax="100"
+                 aria-valuenow="0">
+            </div>
+        </div>
+
+        <div class="row g-3 mb-4">
+            <div class="col-6 col-md-4">
+                <div class="border rounded-3 p-3">
+                    <div class="small text-secondary">Passed</div>
+                    <div id="ragPassedCount" class="fs-4 fw-bold text-success">0</div>
+                </div>
+            </div>
+
+            <div class="col-6 col-md-4">
+                <div class="border rounded-3 p-3">
+                    <div class="small text-secondary">Failed</div>
+                    <div id="ragFailedCount" class="fs-4 fw-bold text-danger">0</div>
+                </div>
+            </div>
+
+            <div class="col-12 col-md-4">
+                <div class="border rounded-3 p-3">
+                    <div class="small text-secondary">Pass rate</div>
+                    <div id="ragPassRate" class="fs-4 fw-bold">—</div>
+                </div>
+            </div>
+        </div>
+
+        <div id="ragEvaluationResultsSection" hidden>
+            <h6 class="fw-bold mb-3">Question results</h6>
+            <div id="ragEvaluationResults" class="d-flex flex-column gap-3"></div>
+        </div>
+    </div>
+</div>
+<!-- End RAG Evaluation Panel -->
 
         <!-- Financial & Authority Metrics -->
         <div class="row g-3 mb-4">
@@ -497,4 +579,5 @@
     const canUpload = {% if can_upload %}true{% else %} false{% endif %};
 </script>
 <script src="{% static 'js/tender_detail.js' %}"></script>
+<script src="{% static 'js/rag/rag_evaluation.js' %}"></script>
 {% endblock %}

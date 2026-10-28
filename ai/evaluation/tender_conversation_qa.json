@@ -1,0 +1,44 @@
+
+[
+  {
+    "name": "Follow-up uses previous topic",
+    "history": [
+      {
+        "role": "user",
+        "content": "What are the eligibility criteria for this tender?"
+      },
+      {
+        "role": "assistant",
+        "content": "The tender specifies its eligibility criteria in the relevant qualification section."
+      }
+    ],
+    "question": "What documents are required to prove it?",
+    "expected_answer": "Documents required to establish the eligibility criteria.",
+    "required_terms": [],
+    "expected_sources": [
+      {
+        "document": "REPLACE_WITH_ACTUAL_DOCUMENT_NAME",
+        "pages": [1]
+      }
+    ],
+    "expected_insufficient_evidence": false
+  },
+  {
+    "name": "Unsupported follow-up",
+    "history": [
+      {
+        "role": "user",
+        "content": "What is the tender's eligibility criteria?"
+      },
+      {
+        "role": "assistant",
+        "content": "The eligibility criteria are described in the tender documents."
+      }
+    ],
+    "question": "What is the name of the procurement officer's pet?",
+    "expected_answer": "",
+    "required_terms": [],
+    "expected_sources": [],
+    "expected_insufficient_evidence": true
+  }
+]

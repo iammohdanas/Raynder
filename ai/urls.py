@@ -16,9 +16,10 @@ urlpatterns = [
         views.conversation_detail,
         name="chat_conversation_detail",
     ),
-    path(
-        "chat/conversations/<uuid:conversation_id>/messages/",
-        views.send_message,
-        name="chat_send_message",
-    ),
+    path("chat/conversations/<uuid:conversation_id>/messages/",views.send_message,name="chat_send_message",),
+    
+    path("evaluations/run/",views.start_rag_evaluation,name="start_rag_evaluation",),
+    path("evaluations/<uuid:run_id>/",views.rag_evaluation_status,name="rag_evaluation_status",),
+    path("evaluations/<uuid:run_id>/results/",views.rag_evaluation_results,name="rag_evaluation_results",),
+
 ]

@@ -80,33 +80,6 @@ class TenderResearchService:
     def __init__(self):
         self.discovery = TenderDiscoveryService()
 
-    # def research(self, location="India"):
-    #     all_tenders = []
-
-    #     for track in RESEARCH_TRACKS:
-    #         scope = (
-    #             f"Research specifically these organizations: "
-    #             f"{', '.join(track['organizations'])}. "
-    #             f"Search for tender opportunities matching these Raynder "
-    #             f"keywords: {', '.join(KEYWORDS)}. "
-    #             "Use multiple targeted web searches across the organizations "
-    #             "and keywords. Look for actual tender opportunities and "
-    #             "official or reliable source evidence."
-    #         )
-
-    #         result = self.discovery.discover(
-    #             keywords=KEYWORDS + track["organizations"],
-    #             location=location,
-    #             research_scope=scope,
-    #         )
-
-    #         print(f"[{track['name']}] discovered: {len(result.tenders)}")
-    #         all_tenders.extend(result.tenders)
-
-    #     print(f"RAW TOTAL: {len(all_tenders)}")
-    #     unique = self._deduplicate(all_tenders)
-    #     print(f"UNIQUE AFTER DEDUPLICATION: {len(unique)}")
-    #     return unique
 
     def research(self,location="India"):
         all_tenders=[]

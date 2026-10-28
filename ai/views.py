@@ -14,6 +14,16 @@ import logging
 from ai.services.documents.answer_generation_service import (
     AnswerGenerationService,
 )
+from ai.services.evaluation.ragas_evaluation_service import (RagasEvaluationService)
+import json
+
+from django.http import JsonResponse
+from django.views.decorators.http import require_http_methods
+
+from api_gateway.models import Tender
+from ai.models import EvaluationRun
+from ai.tasks import run_rag_evaluation
+
 
 logger = logging.getLogger(__name__)
 
@@ -193,6 +203,24 @@ def send_message(request, conversation_id):
     # Use the internal string ID, e.g. '220926-8218',
     # not the database's integer primary key.
     tender_id = conversation.tender.tender_id
+    # Load recent history before saving the current user message.
+    previous_messages = list(
+        ChatMessage.objects.filter(
+            conversation=conversation,
+        ).order_by("-created_at")[:10]
+    )
+    previous_messages.reverse()
+    conversation_history = [
+        {
+            "role": message.role,
+            "content": message.content,
+        }
+        for message in previous_messages
+        if message.role in (
+            ChatMessage.Role.USER,
+            ChatMessage.Role.ASSISTANT,
+        )
+    ]
 
     # Save the user's message first so it survives AI/API failures.
     with transaction.atomic():
@@ -219,7 +247,37 @@ def send_message(request, conversation_id):
             tender_id=tender_id,
             question=content,
             limit=5,
+            conversation_history=conversation_history,
         )
+        evaluation = {
+            "status": "failed",
+            "error": "Evaluation was not completed.",
+        }
+
+        evaluator = RagasEvaluationService()
+        try:
+            evaluation = evaluator.evaluate(
+                question=content,
+                answer=result["answer"],
+                retrieved_contexts=result.get("retrieved_contexts", []),
+            )
+            evaluation["status"] = "completed"
+        except Exception as exc:
+            logger.exception(
+                "Ragas evaluation failed for conversation %s. Error type: %s",
+                conversation_id,
+                type(exc).__name__,
+            )
+            evaluation = {
+                "status": "failed",
+                "error": type(exc).__name__,
+            }
+        finally:
+            try:
+                evaluator.close()
+            except Exception:
+                logger.exception("Failed to close Ragas evaluation client")
+
 
         assistant_content = result["answer"]
         citations = result.get("citations", [])
@@ -235,15 +293,15 @@ def send_message(request, conversation_id):
                 role=ChatMessage.Role.ASSISTANT,
                 content=assistant_content,
                 citations=citations,
-                metadata={
+                metadata={                    
                     "insufficient_evidence": insufficient_evidence,
                     "tender_id": tender_id,
+                    "ragas_evaluation": evaluation,
                 },
             )
 
             conversation.updated_at = timezone.now()
             conversation.save(update_fields=["updated_at"])
-
         return JsonResponse(
             {
                 "message": {
@@ -289,3 +347,144 @@ def send_message(request, conversation_id):
             },
             status=502,
         )
+
+
+
+
+@require_http_methods(["POST"])
+def start_rag_evaluation(request):
+    """Create an evaluation run and enqueue its Celery task."""
+
+    try:
+        body = json.loads(request.body or b"{}")
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        return JsonResponse(
+            {"error": "Invalid JSON request body."},
+            status=400,
+        )
+
+    tender_id = body.get("tender_id")
+
+    if not tender_id:
+        return JsonResponse(
+            {"error": "tender_id is required."},
+            status=400,
+        )
+
+    tender = Tender.objects.filter(tender_id=tender_id).first()
+
+    if tender is None:
+        return JsonResponse(
+            {"error": "Tender not found."},
+            status=404,
+        )
+
+    # Create the evaluation run even if validated test cases do not exist.
+    # The Celery task will generate and validate test cases when needed.
+    run = EvaluationRun.objects.create(tender=tender)
+
+    try:
+        task = run_rag_evaluation.delay(str(run.id))
+
+        run.celery_task_id = task.id or ""
+        run.save(update_fields=["celery_task_id"])
+
+    except Exception as exc:
+        run.status = EvaluationRun.Status.FAILED
+        run.error_message = str(exc)
+        run.finished_at = __import__(
+            "django.utils.timezone", fromlist=["now"]
+        ).now()
+        run.save(
+            update_fields=[
+                "status",
+                "error_message",
+                "finished_at",
+            ]
+        )
+
+        return JsonResponse(
+            {"error": "Could not enqueue evaluation task."},
+            status=503,
+        )
+
+    return JsonResponse(
+        {
+            "run_id": str(run.id),
+            "status": run.status,
+            "message": "Evaluation queued successfully.",
+        },
+        status=202,
+    )
+
+
+
+@require_http_methods(["GET"])
+def rag_evaluation_status(request, run_id):
+    """Return the current evaluation status and progress."""
+
+    run = EvaluationRun.objects.filter(id=run_id).first()
+
+    if run is None:
+        return JsonResponse(
+            {"error": "Evaluation run not found."},
+            status=404,
+        )
+
+    return JsonResponse({
+        "run_id": str(run.id),
+        "tender_id": run.tender.tender_id,
+        "status": run.status,
+        "total_cases": run.total_cases,
+        "completed_cases": run.completed_cases,
+        "passed_cases": run.passed_cases,
+        "failed_cases": run.failed_cases,
+        "pass_rate": run.pass_rate,
+        "error": run.error_message,
+        "created_at": run.created_at.isoformat(),
+        "started_at": (
+            run.started_at.isoformat() if run.started_at else None
+        ),
+        "finished_at": (
+            run.finished_at.isoformat() if run.finished_at else None
+        ),
+    })
+
+
+@require_http_methods(["GET"])
+def rag_evaluation_results(request, run_id):
+    """Return individual results for an evaluation run."""
+
+    run = EvaluationRun.objects.filter(id=run_id).first()
+
+    if run is None:
+        return JsonResponse(
+            {"error": "Evaluation run not found."},
+            status=404,
+        )
+
+    results = run.results.all()
+
+    return JsonResponse({
+        "run_id": str(run.id),
+        "status": run.status,
+        "results": [
+            {
+                "id": str(result.id),
+                "question": result.question,
+                "expected_answer": result.expected_answer,
+                "actual_answer": result.actual_answer,
+                "answer_pass": result.answer_pass,
+                "missing_terms": result.missing_terms,
+                "citation_pass": result.citation_pass,
+                "citations": result.citations,
+                "insufficient_evidence": result.insufficient_evidence,
+                "insufficient_evidence_pass": (
+                    result.insufficient_evidence_pass
+                ),
+                "overall_pass": result.overall_pass,
+                "error": result.error_message,
+            }
+            for result in results
+        ],
+    })

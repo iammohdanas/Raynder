@@ -4,9 +4,11 @@
     "question": "What is the minimum turnover requirement?",
     "expected_answer": "Average annual turnover of at least Rs. 74 crore over the last five financial years, with specified weightages.",
     "required_terms": ["74.00 crore", "average annual turnover"],
-    "expected_sources": [
-      {"document": "Volume-I.pdf", "pages": [47]}
-    ]
+    "expected_sources": [{
+    "document": "Volume-I.pdf",
+    "pages": [47]
+  }
+]
   },
   {
   "question": "What is the project completion period?",
@@ -16,12 +18,10 @@
     {
       "document": "Volume-I.pdf",
       "pages": [15]
-    },
-    {
+    }, {
       "document": "Volume-II.pdf",
       "pages": [26]
-    }
-    ]
+    }]
   },
   {
     "question": "What is the EMD amount?",

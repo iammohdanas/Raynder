@@ -29,35 +29,101 @@ def check_required_terms(answer, required_terms):
     return not missing_terms, missing_terms
 
 
+
 def check_citations(citations, expected_sources):
-    """
-    Pass only when every returned citation:
-    1. Has a non-empty quote.
-    2. Matches an expected document and page.
-    3. Has a valid expected source.
-    """
+    """Validate citations and print why validation fails."""
+
     if not citations:
+        print("CITATION DEBUG: No citations returned.")
         return False
 
     if not expected_sources:
+        print("CITATION DEBUG: No expected sources configured.")
         return False
 
     for citation in citations:
+        document = citation.get("document")
+        page = citation.get("page")
         quote = citation.get("quote", "").strip()
 
-        if not quote:
-            return False
-
         matching_source = any(
-            citation.get("document") == expected["document"]
-            and citation.get("page") in expected["pages"]
+            document == expected["document"]
+            and page in expected["pages"]
             for expected in expected_sources
         )
 
+        if not quote:
+            print(
+                f"CITATION DEBUG: Empty quote: "
+                f"{document}, page {page}"
+            )
+            return False
+
         if not matching_source:
+            print(
+                f"CITATION DEBUG: Unexpected citation: "
+                f"document={document}, page={page}"
+            )
+            print(f"Expected sources: {expected_sources}")
             return False
 
     return True
+
+
+
+def evaluate_conversation_case(service, tender_id, test):
+    """Evaluate a follow-up question using its prior conversation."""
+    history = test.get("history", [])
+
+    result = service.answer(
+        tender_id=tender_id,
+        question=test["question"],
+        conversation_history=history,
+    )
+
+    answer = result.get("answer", "")
+    citations = result.get("citations", [])
+    expected_insufficient = test.get(
+        "expected_insufficient_evidence", False
+    )
+
+    answer_pass, missing_terms = check_required_terms(
+        answer,
+        test.get("required_terms", []),
+    )
+
+    if expected_insufficient:
+        citation_pass = len(citations) == 0
+    else:
+        citation_pass = check_citations(
+            citations,
+            test.get("expected_sources", []),
+        )
+
+    insufficient_pass = (
+        result.get("insufficient_evidence", False)
+        == expected_insufficient
+    )
+
+    return {
+        "question": test["question"],
+        "expected_answer": test.get("expected_answer", ""),
+        "actual_answer": answer,
+        "answer_pass": answer_pass,
+        "missing_terms": "; ".join(missing_terms),
+        "citation_pass": citation_pass,
+        "insufficient_evidence": result.get(
+            "insufficient_evidence", False
+        ),
+        "insufficient_evidence_pass": insufficient_pass,
+        "overall_pass": (
+            answer_pass and citation_pass and insufficient_pass
+        ),
+        "citations": json.dumps(citations, ensure_ascii=False),
+        "error": "",
+        "test_type": "conversation",
+        "test_name": test.get("name", ""),
+    }
 
 
 class Command(BaseCommand):
@@ -67,6 +133,7 @@ class Command(BaseCommand):
         parser.add_argument("--tender-id", default="220926-8218")
         parser.add_argument("--dataset", default=None)
         parser.add_argument("--output", default=None)
+        parser.add_argument("--conversation-dataset",default=None,)
 
     def handle(self, *args, **options):
         base_dir = Path(settings.BASE_DIR)
@@ -151,6 +218,8 @@ class Command(BaseCommand):
                         citations, ensure_ascii=False
                     ),
                     "error": "",
+                    "test_type": "standalone",
+                    "test_name": test.get("name", ""),
                 })
 
                 status = "PASS" if overall_pass else "FAIL"
@@ -184,7 +253,72 @@ class Command(BaseCommand):
                 })
 
                 self.stderr.write(f"  Error: {exc}")
+        
+        # Optional conversational-memory evaluation
+        conversation_dataset_path = Path(
+            options["conversation_dataset"]
+            or base_dir
+            / "ai"
+            / "evaluation"
+            / "tender_conversation_qa.json"
+        )
 
+        if conversation_dataset_path.exists():
+            with conversation_dataset_path.open(
+                "r", encoding="utf-8"
+            ) as file:
+                conversation_tests = json.load(file)
+
+            self.stdout.write(
+                "\nEvaluating conversational memory..."
+            )
+
+            for index, test in enumerate(
+                conversation_tests, start=1
+            ):
+                self.stdout.write(
+                    f"[Memory {index}/{len(conversation_tests)}] "
+                    f"{test['question']}"
+                )
+
+                try:
+                    row = evaluate_conversation_case(
+                        service,
+                        options["tender_id"],
+                        test,
+                    )
+                    rows.append(row)
+
+                    status = (
+                        "PASS" if row["overall_pass"] else "FAIL"
+                    )
+                    self.stdout.write(f"  Result: {status}")
+
+                except Exception as exc:
+                    rows.append({
+                        "question": test["question"],
+                        "expected_answer": test.get(
+                            "expected_answer", ""
+                        ),
+                        "actual_answer": "",
+                        "answer_pass": False,
+                        "missing_terms": "",
+                        "citation_pass": False,
+                        "insufficient_evidence": "",
+                        "insufficient_evidence_pass": False,
+                        "overall_pass": False,
+                        "citations": "[]",
+                        "error": str(exc),
+                        "test_type": "conversation",
+                        "test_name": test.get("name", ""),
+                    })
+
+                    self.stderr.write(f"  Error: {exc}")
+        else:
+            self.stdout.write(
+                "\nNo conversation dataset found; "
+                "skipping memory evaluation."
+            )
         output_path.parent.mkdir(parents=True, exist_ok=True)
 
         fieldnames = [
@@ -199,6 +333,8 @@ class Command(BaseCommand):
             "overall_pass",
             "citations",
             "error",
+            "test_type",
+            "test_name",
         ]
 
         with output_path.open(
