@@ -3,17 +3,14 @@ from pathlib import PurePath
 from celery import shared_task
 from django.db import transaction
 from django.utils import timezone
-from ai.models import (
-    EvaluationRun,
-    EvaluationResult,
-    EvaluationTestCase,
-)
-from ai.management.evaluation.test_case_generation_service import (
-    TestCaseGenerationService,
-)
-from ai.services.documents.answer_generation_service import (
-    AnswerGenerationService,
-)
+from ai.models import (EvaluationRun, EvaluationResult, EvaluationTestCase,)
+from ai.management.evaluation.test_case_generation_service import (TestCaseGenerationService,)
+from ai.services.documents.answer_generation_service import (AnswerGenerationService,)
+from ai.models import ChatMessage
+from ai.services.evaluation.ragas_evaluation_service import (RagasEvaluationService,)
+from celery import shared_task
+from api_gateway.models import Tender
+from ai.services.documents.document_pipeline_service import (DocumentPipelineService,)
 import re, os
 
 logger = logging.getLogger(__name__)
@@ -391,3 +388,43 @@ def run_rag_evaluation(self, run_id):
         raise
 
 
+
+
+@shared_task
+def evaluate_live_rag_answer(assistant_message_id,question,answer,retrieved_contexts,):
+    try:
+        evaluation = RagasEvaluationService().evaluate(
+            question=question,
+            answer=answer,
+            retrieved_contexts=retrieved_contexts or [],
+        )
+        evaluation["status"] = "completed"
+
+    except Exception as exc:
+        logger.exception("Live Ragas evaluation failed")
+        evaluation = {
+            "status": "failed",
+            "error": type(exc).__name__,
+        }
+
+    with transaction.atomic():
+        message = ChatMessage.objects.select_for_update().filter(
+            id=assistant_message_id
+        ).first()
+
+        if message:
+            metadata = message.metadata or {}
+            metadata["ragas_evaluation"] = evaluation
+            message.metadata = metadata
+            message.save(update_fields=["metadata"])
+
+    return evaluation
+
+
+@shared_task
+def run_document_pipeline(tender_id):
+    tender = Tender.objects.get(tender_id=tender_id)
+
+    result = DocumentPipelineService.run(tender)
+
+    return result

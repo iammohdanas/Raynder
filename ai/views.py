@@ -16,14 +16,13 @@ from ai.services.documents.answer_generation_service import (
 )
 from ai.services.evaluation.ragas_evaluation_service import (RagasEvaluationService)
 import json
-
+from ai.services.chat.answer_memory_service import AnswerMemoryService
 from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
 
 from api_gateway.models import Tender
 from ai.models import EvaluationRun
-from ai.tasks import run_rag_evaluation
-
+from ai.tasks import run_document_pipeline, run_rag_evaluation,evaluate_live_rag_answer
 
 logger = logging.getLogger(__name__)
 
@@ -165,7 +164,6 @@ def send_message(request, conversation_id):
         )
 
     content = body.get("content")
-
     if not isinstance(content, str) or not content.strip():
         return JsonResponse(
             {"error": "Message content is required."},
@@ -173,21 +171,18 @@ def send_message(request, conversation_id):
         )
 
     content = content.strip()
-
     if len(content) > 20000:
         return JsonResponse(
             {"error": "Message is too long (maximum 20,000 characters)."},
             status=400,
         )
 
-    # Fetch only a conversation owned by the current user.
     conversation = get_object_or_404(
         ChatConversation.objects.select_related("tender"),
         id=conversation_id,
         user=request.user,
     )
 
-    # The existing retrieval service requires a specific tender.
     if conversation.tender is None:
         return JsonResponse(
             {
@@ -200,21 +195,17 @@ def send_message(request, conversation_id):
             status=400,
         )
 
-    # Use the internal string ID, e.g. '220926-8218',
-    # not the database's integer primary key.
     tender_id = conversation.tender.tender_id
-    # Load recent history before saving the current user message.
+
     previous_messages = list(
         ChatMessage.objects.filter(
             conversation=conversation,
         ).order_by("-created_at")[:10]
     )
     previous_messages.reverse()
+
     conversation_history = [
-        {
-            "role": message.role,
-            "content": message.content,
-        }
+        {"role": message.role, "content": message.content}
         for message in previous_messages
         if message.role in (
             ChatMessage.Role.USER,
@@ -222,7 +213,7 @@ def send_message(request, conversation_id):
         )
     ]
 
-    # Save the user's message first so it survives AI/API failures.
+    # Save the user's message before calling the AI.
     with transaction.atomic():
         user_message = ChatMessage.objects.create(
             conversation=conversation,
@@ -232,76 +223,80 @@ def send_message(request, conversation_id):
 
         if conversation.title == "New chat":
             conversation.title = (
-                content[:197] + "..."
-                if len(content) > 200
-                else content
+                content[:197] + "..." if len(content) > 200 else content
             )[:200]
 
         conversation.updated_at = timezone.now()
         conversation.save(update_fields=["title", "updated_at"])
 
-    # Generate a grounded answer using the existing RAG pipeline.
     try:
-        answer_service = AnswerGenerationService()
-        result = answer_service.answer(
+        result = AnswerGenerationService().answer(
             tender_id=tender_id,
             question=content,
             limit=5,
             conversation_history=conversation_history,
         )
-        evaluation = {
-            "status": "failed",
-            "error": "Evaluation was not completed.",
-        }
-
-        evaluator = RagasEvaluationService()
-        try:
-            evaluation = evaluator.evaluate(
-                question=content,
-                answer=result["answer"],
-                retrieved_contexts=result.get("retrieved_contexts", []),
-            )
-            evaluation["status"] = "completed"
-        except Exception as exc:
-            logger.exception(
-                "Ragas evaluation failed for conversation %s. Error type: %s",
-                conversation_id,
-                type(exc).__name__,
-            )
-            evaluation = {
-                "status": "failed",
-                "error": type(exc).__name__,
-            }
-        finally:
-            try:
-                evaluator.close()
-            except Exception:
-                logger.exception("Failed to close Ragas evaluation client")
-
 
         assistant_content = result["answer"]
         citations = result.get("citations", [])
-        insufficient_evidence = result.get(
-            "insufficient_evidence",
-            False,
-        )
+        insufficient_evidence = result.get("insufficient_evidence", False)
 
-        # Persist the assistant's response and its citations.
+        # Save the answer before scheduling background evaluation.
         with transaction.atomic():
             assistant_message = ChatMessage.objects.create(
                 conversation=conversation,
                 role=ChatMessage.Role.ASSISTANT,
                 content=assistant_content,
                 citations=citations,
-                metadata={                    
+                metadata={
                     "insufficient_evidence": insufficient_evidence,
                     "tender_id": tender_id,
-                    "ragas_evaluation": evaluation,
+                    "ragas_evaluation": {"status": "queued"},
                 },
             )
 
             conversation.updated_at = timezone.now()
             conversation.save(update_fields=["updated_at"])
+
+            # The callback runs after the outermost transaction commits.
+            def enqueue_ragas():
+                try:
+                    evaluate_live_rag_answer.delay(
+                        assistant_message_id=str(assistant_message.id),
+                        question=content,
+                        answer=assistant_content,
+                        retrieved_contexts=result.get(
+                            "retrieved_contexts", []
+                        ),
+                    )
+                except Exception as exc:
+                    logger.exception(
+                        "Could not queue Ragas evaluation for message %s",
+                        assistant_message.id,
+                    )
+
+                    # Update only the Ragas field while preserving other
+                    # metadata keys. This uses a fresh database value.
+                    try:
+                        with transaction.atomic():
+                            message = ChatMessage.objects.select_for_update().get(
+                                id=assistant_message.id
+                            )
+                            metadata = message.metadata or {}
+                            metadata["ragas_evaluation"] = {
+                                "status": "failed",
+                                "error": type(exc).__name__,
+                            }
+                            message.metadata = metadata
+                            message.save(update_fields=["metadata"])
+                    except Exception:
+                        logger.exception(
+                            "Could not save Ragas enqueue failure for %s",
+                            assistant_message.id,
+                        )
+
+            transaction.on_commit(enqueue_ragas)
+
         return JsonResponse(
             {
                 "message": {
@@ -347,8 +342,6 @@ def send_message(request, conversation_id):
             },
             status=502,
         )
-
-
 
 
 @require_http_methods(["POST"])
@@ -416,7 +409,6 @@ def start_rag_evaluation(request):
         },
         status=202,
     )
-
 
 
 @require_http_methods(["GET"])
@@ -488,3 +480,56 @@ def rag_evaluation_results(request, run_id):
             for result in results
         ],
     })
+
+
+@require_http_methods(["POST"])
+def start_document_pipeline(request, tender_id):
+    """Queue document processing and vector indexing for a tender."""
+    if not request.user.is_authenticated:
+        return JsonResponse({"error": "Authentication required."}, status=401)
+
+    tender = Tender.objects.filter(tender_id=tender_id).first()
+    print(tender)
+    print(tender_id)
+    if tender is None:
+        return JsonResponse({"error": "Tender not found."}, status=404)
+
+    try:
+        task = run_document_pipeline.delay(tender.tender_id)
+    except Exception:
+        logger.exception("Could not enqueue document pipeline for tender %s", tender_id)
+        return JsonResponse({"error": "Could not queue document pipeline."}, status=503)
+
+    return JsonResponse(
+        {
+            "success": True,
+            "tender_id": tender.tender_id,
+            "task_id": task.id,
+            "status": "queued",
+            "message": "Document pipeline queued successfully.",
+        },
+        status=202,
+    )
+
+
+from celery import current_app
+from ai.tasks import run_document_pipeline
+
+
+@require_http_methods(["GET"])
+def document_pipeline_status(request, task_id):
+    if not request.user.is_authenticated:
+        return JsonResponse(
+            {"error": "Authentication required."},
+            status=401
+        )
+    task = run_document_pipeline.AsyncResult(task_id)
+    response = {
+        "task_id": task_id,
+        "status": task.state,
+    }
+    if task.successful():
+        response["result"] = task.result
+    elif task.failed():
+        response["error"] = str(task.result)
+    return JsonResponse(response)

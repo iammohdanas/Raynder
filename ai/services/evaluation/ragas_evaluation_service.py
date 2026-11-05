@@ -25,7 +25,7 @@ class RagasEvaluationService:
         self.judge_llm = llm_factory(
             settings.AZURE_OPENAI_DEPLOYMENT_NAME,
             client=self.client,
-            temperature=1.0,
+            temperature=0.1,
             max_tokens=4096,
         )
         self.judge_llm.model_args = self.judge_llm._map_openai_params()
@@ -38,7 +38,7 @@ class RagasEvaluationService:
                 self.judge_llm.model_args.pop("max_tokens")
             )
 
-        self.judge_llm.model_args["temperature"] = 1.0
+        self.judge_llm.model_args["temperature"] = 0.1
 
         self.faithfulness = Faithfulness(llm=self.judge_llm)
         self.context_relevance = ContextRelevance(llm=self.judge_llm)

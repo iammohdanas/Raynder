@@ -280,79 +280,71 @@
                 </div>
             </div>
         </div>
-        
-<!-- RAG Evaluation Panel -->
-<div id="ragEvaluationPanel" class="detail-card p-4 mb-4" hidden>
-    <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-4">
-        <div>
-            <h5 class="fw-bold mb-1">
-                <i class="fa-solid fa-flask text-primary me-2"></i>
-                RAG Evaluation
-            </h5>
-            <p class="text-secondary small mb-0">
-                Evaluate answer quality, evidence citations, and unsupported answers.
-            </p>
-        </div>
 
-        <span id="ragEvaluationStatus" class="status-pill badge-source">
-            Ready
-        </span>
-    </div>
+        <!-- RAG Evaluation Panel -->
+        <div id="ragEvaluationPanel" class="detail-card p-4 mb-4" hidden>
+            <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-4">
+                <div>
+                    <h5 class="fw-bold mb-1">
+                        <i class="fa-solid fa-flask text-primary me-2"></i>
+                        RAG Evaluation
+                    </h5>
+                    <p class="text-secondary small mb-0">
+                        Evaluate answer quality, evidence citations, and unsupported answers.
+                    </p>
+                </div>
 
-    <div id="ragEvaluationError"
-         class="alert alert-danger small"
-         role="alert"
-         hidden></div>
-
-    <div id="ragEvaluationProgressSection" hidden>
-        <div class="d-flex justify-content-between align-items-center mb-2">
-            <span class="small fw-semibold">Evaluation progress</span>
-            <span id="ragEvaluationProgressText" class="small text-secondary">
-                0 / 0 questions
-            </span>
-        </div>
-
-        <div class="progress mb-3" style="height: 8px;">
-            <div id="ragEvaluationProgressBar"
-                 class="progress-bar"
-                 role="progressbar"
-                 style="width: 0%;"
-                 aria-valuemin="0"
-                 aria-valuemax="100"
-                 aria-valuenow="0">
+                <span id="ragEvaluationStatus" class="status-pill badge-source">
+                    Ready
+                </span>
             </div>
-        </div>
 
-        <div class="row g-3 mb-4">
-            <div class="col-6 col-md-4">
-                <div class="border rounded-3 p-3">
-                    <div class="small text-secondary">Passed</div>
-                    <div id="ragPassedCount" class="fs-4 fw-bold text-success">0</div>
+            <div id="ragEvaluationError" class="alert alert-danger small" role="alert" hidden></div>
+
+            <div id="ragEvaluationProgressSection" hidden>
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span class="small fw-semibold">Evaluation progress</span>
+                    <span id="ragEvaluationProgressText" class="small text-secondary">
+                        0 / 0 questions
+                    </span>
+                </div>
+
+                <div class="progress mb-3" style="height: 8px;">
+                    <div id="ragEvaluationProgressBar" class="progress-bar" role="progressbar" style="width: 0%;"
+                        aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+                    </div>
+                </div>
+
+                <div class="row g-3 mb-4">
+                    <div class="col-6 col-md-4">
+                        <div class="border rounded-3 p-3">
+                            <div class="small text-secondary">Passed</div>
+                            <div id="ragPassedCount" class="fs-4 fw-bold text-success">0</div>
+                        </div>
+                    </div>
+
+                    <div class="col-6 col-md-4">
+                        <div class="border rounded-3 p-3">
+                            <div class="small text-secondary">Failed</div>
+                            <div id="ragFailedCount" class="fs-4 fw-bold text-danger">0</div>
+                        </div>
+                    </div>
+
+                    <div class="col-12 col-md-4">
+                        <div class="border rounded-3 p-3">
+                            <div class="small text-secondary">Pass rate</div>
+                            <div id="ragPassRate" class="fs-4 fw-bold">—</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="ragEvaluationResultsSection" hidden>
+                    <h6 class="fw-bold mb-3">Question results</h6>
+                    <div id="ragEvaluationResults" class="d-flex flex-column gap-3"></div>
                 </div>
             </div>
-
-            <div class="col-6 col-md-4">
-                <div class="border rounded-3 p-3">
-                    <div class="small text-secondary">Failed</div>
-                    <div id="ragFailedCount" class="fs-4 fw-bold text-danger">0</div>
-                </div>
-            </div>
-
-            <div class="col-12 col-md-4">
-                <div class="border rounded-3 p-3">
-                    <div class="small text-secondary">Pass rate</div>
-                    <div id="ragPassRate" class="fs-4 fw-bold">—</div>
-                </div>
-            </div>
         </div>
-
-        <div id="ragEvaluationResultsSection" hidden>
-            <h6 class="fw-bold mb-3">Question results</h6>
-            <div id="ragEvaluationResults" class="d-flex flex-column gap-3"></div>
-        </div>
-    </div>
-</div>
-<!-- End RAG Evaluation Panel -->
+        <!-- End RAG Evaluation Panel -->
 
         <!-- Financial & Authority Metrics -->
         <div class="row g-3 mb-4">
@@ -499,11 +491,29 @@
                 {% endif %}
 
             </div>
+            <div id="documentPipelineStatus" style="display: none;">
+                <div id="pipelineStatusText" class="small mb-2"></div>
 
+                <div class="progress" style="height: 8px;">
+                    <div id="pipelineProgressBar" class="progress-bar progress-bar-striped progress-bar-animated"
+                        style="width: 100%;">
+                    </div>
+                </div>
+            </div>
 
             <!-- Hidden file input - Only Admin / Manager -->
             {% if can_upload %}
-            <input type="file" id="documentInput" multiple hidden>
+            <input type="file" id="documentInput" multiple hidden> <br>
+            <button type="button" id="runDocumentPipelineBtn" style="display: inline-flex; align-items: center; gap: 8px;
+                    background: linear-gradient(135deg, #0f766e 0%, #0d9488 100%);
+                    color: #ffffff; border: none; padding: 8px 18px;
+                    border-radius: 10px; font-size: 0.8125rem;
+                    font-weight: 600; cursor: pointer;
+                    box-shadow: 0 4px 12px rgba(13, 148, 136, 0.2);
+                    transition: all 0.2s ease;">
+                <i class="fa-solid fa-gears"></i>
+                <span>Run Document Pipeline</span>
+            </button>
             {% endif %}
 
 

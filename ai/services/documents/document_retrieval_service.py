@@ -33,8 +33,39 @@ class DocumentRetrievalService:
             "text":result.payload["text"]
         } for result in results]
 
-        return RerankerService.rerank(
+        print("\n========== HYBRID RETRIEVAL DEBUG ==========")
+        print("Tender ID:", tender_id)
+        print("Query:", query)
+        print("Hybrid candidates:", len(candidates))
+
+        for rank, item in enumerate(candidates, start=1):
+            print(
+                f"HYBRID #{rank} | "
+                f"chunk_id={item['chunk_id']} | "
+                f"document={item['document']} | "
+                f"page={item['page']} | "
+                f"score={item['score']} | "
+                f"text={item['text'][:250]!r}"
+            )
+
+        reranked = RerankerService.rerank(
             query=query,
             results=candidates,
-            limit=limit
+            limit=limit,
         )
+
+        print("\n========== RERANKED RESULTS ==========")
+
+        for rank, item in enumerate(reranked, start=1):
+            print(
+                f"RERANKED #{rank} | "
+                f"chunk_id={item['chunk_id']} | "
+                f"document={item['document']} | "
+                f"page={item['page']} | "
+                f"score={item.get('rerank_score', item.get('score'))} | "
+                f"text={item['text'][:250]!r}"
+            )
+
+        print("========== END RETRIEVAL DEBUG ==========\n")
+
+        return reranked

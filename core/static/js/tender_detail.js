@@ -960,3 +960,247 @@ document.addEventListener("DOMContentLoaded", () => {
         return new Promise((resolve) => setTimeout(resolve, ms));
     }
 });
+
+
+
+document.addEventListener("DOMContentLoaded", function () {
+    const pipelineButton = document.getElementById("runDocumentPipelineBtn");
+    const pipelineStatus = document.getElementById("documentPipelineStatus");
+
+    if (!pipelineButton || !pipelineStatus) return;
+
+    const statusText = document.getElementById("pipelineStatusText");
+    const progressBar = document.getElementById("pipelineProgressBar");
+
+    let polling = false;
+
+    pipelineButton.addEventListener("click", async function () {
+        const tenderId = document.getElementById("tenderId")?.textContent.trim();
+
+        if (!tenderId || tenderId === "—") {
+            showPipelineStatus("Tender ID not found.", "danger");
+            return;
+        }
+
+        if (polling) return;
+
+        pipelineButton.disabled = true;
+        pipelineButton.innerHTML =
+            '<i class="fa-solid fa-spinner fa-spin"></i> Queuing Pipeline...';
+
+        showPipelineStatus("Submitting document pipeline task...", "info");
+
+        try {
+            const response = await fetch(
+                `/api/ai/tenders/${encodeURIComponent(tenderId)}/run-pipeline/`,
+                {
+                    method: "POST",
+                    credentials: "same-origin",
+                    headers: {
+                        "Accept": "application/json",
+                        "X-CSRFToken": getCookie("csrftoken")
+                    }
+                }
+            );
+
+            const result = await response.json();
+
+            if (!response.ok) {
+                throw new Error(
+                    result.error || "Unable to start document pipeline."
+                );
+            }
+
+            polling = true;
+
+            pipelineButton.innerHTML =
+                '<i class="fa-solid fa-spinner fa-spin"></i> Pipeline Running';
+
+            showPipelineStatus(
+                `Pipeline queued. Task ID: ${result.task_id}`,
+                "info"
+            );
+
+            await pollDocumentPipeline(result.task_id);
+
+        } catch (error) {
+            console.error("Document pipeline error:", error);
+
+            showPipelineStatus(
+                error.message || "Unable to start document pipeline.",
+                "danger"
+            );
+
+            pipelineButton.disabled = false;
+            pipelineButton.innerHTML =
+                '<i class="fa-solid fa-gears"></i> Run Document Pipeline';
+
+        } finally {
+            polling = false;
+        }
+    });
+
+    async function pollDocumentPipeline(taskId) {
+        const statusUrl =
+            `/api/ai/tasks/${encodeURIComponent(taskId)}/status/`;
+
+        pipelineStatus.style.display = "block";
+
+        if (progressBar) {
+            progressBar.style.width = "100%";
+            progressBar.className =
+                "progress-bar progress-bar-striped progress-bar-animated bg-info";
+        }
+
+        while (true) {
+            const response = await fetch(statusUrl, {
+                method: "GET",
+                credentials: "same-origin",
+                headers: {
+                    "Accept": "application/json"
+                }
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(
+                    data.error || "Unable to retrieve pipeline status."
+                );
+            }
+
+            if (data.status === "SUCCESS") {
+                if (statusText) {
+                    statusText.textContent =
+                        "Document pipeline completed successfully!";
+                }
+
+                if (progressBar) {
+                    progressBar.className = "progress-bar bg-success";
+                    progressBar.style.width = "100%";
+                }
+
+                pipelineButton.disabled = false;
+                pipelineButton.innerHTML =
+                    '<i class="fa-solid fa-check"></i> Pipeline Completed';
+
+                return;
+            }
+
+            if (data.status === "FAILURE") {
+                throw new Error(
+                    data.error || "Document pipeline failed."
+                );
+            }
+
+            if (statusText) {
+                statusText.textContent =
+                    data.status === "STARTED"
+                        ? "Processing documents and indexing vectors..."
+                        : "Pipeline queued. Waiting for worker...";
+            }
+
+            await new Promise(resolve => setTimeout(resolve, 2000));
+        }
+    }
+
+    function showPipelineStatus(message, type) {
+        pipelineStatus.style.display = "block";
+
+        if (statusText) {
+            statusText.textContent = message;
+        } else {
+            pipelineStatus.textContent = message;
+        }
+
+        pipelineStatus.className = `small mt-2 text-${type}`;
+    }
+});
+
+
+async function pollDocumentPipeline(taskId) {
+    const statusContainer = document.getElementById("documentPipelineStatus");
+    const statusText = document.getElementById("pipelineStatusText");
+    const progressBar = document.getElementById("pipelineProgressBar");
+    const pipelineButton = document.getElementById("runDocumentPipelineBtn");
+
+    const statusUrl = `/api/ai/tasks/${encodeURIComponent(taskId)}/status/`;
+
+    statusContainer.style.display = "block";
+
+    statusText.textContent = "Pipeline queued. Waiting for worker...";
+    progressBar.className =
+        "progress-bar progress-bar-striped progress-bar-animated bg-info";
+
+    const checkStatus = async () => {
+        try {
+            const response = await fetch(statusUrl, {
+                method: "GET",
+                credentials: "same-origin",
+                headers: {
+                    "Accept": "application/json"
+                }
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.error || "Unable to fetch task status.");
+            }
+
+            if (data.status === "SUCCESS") {
+                statusText.textContent =
+                    "Document pipeline completed successfully! Documents processed and indexing finished.";
+
+                progressBar.className = "progress-bar bg-success";
+                progressBar.style.width = "100%";
+
+                pipelineButton.disabled = false;
+                pipelineButton.innerHTML =
+                    '<i class="fa-solid fa-check"></i> Pipeline Completed';
+
+                // Optional browser notification
+                if ("Notification" in window &&
+                    Notification.permission === "granted") {
+                    new Notification("Raynder", {
+                        body: "Document pipeline completed successfully."
+                    });
+                }
+
+                return;
+            }
+
+            if (data.status === "FAILURE") {
+                statusText.textContent =
+                    `Pipeline failed: ${data.error || "Unknown error"}`;
+
+                progressBar.className = "progress-bar bg-danger";
+                progressBar.style.width = "100%";
+
+                pipelineButton.disabled = false;
+                pipelineButton.innerHTML =
+                    '<i class="fa-solid fa-rotate"></i> Retry Pipeline';
+
+                return;
+            }
+
+            if (data.status === "STARTED") {
+                statusText.textContent =
+                    "Pipeline processing: extracting documents, generating chunks and indexing vectors...";
+            } else {
+                statusText.textContent =
+                    "Pipeline queued. Waiting for worker...";
+            }
+
+            setTimeout(checkStatus, 2000);
+
+        } catch (error) {
+            console.error("Pipeline status error:", error);
+            statusText.textContent =
+                "Unable to retrieve pipeline status. Please refresh and check again.";
+            pipelineButton.disabled = false;
+        }
+    };
+
+    checkStatus();
+}

@@ -19,6 +19,7 @@ class VectorIndexService:
         value = f"raynder:{chunk.document_id}:{chunk.chunk_index}"
         return str(uuid.uuid5(uuid.NAMESPACE_URL, value))
     
+        
     def index_tender(self, tender):
         chunks = list(
             DocumentChunk.objects.filter(
@@ -34,19 +35,60 @@ class VectorIndexService:
                 "tender_id": tender.tender_id,
                 "chunks_found": 0,
                 "indexed": 0,
+                "already_indexed": 0,
+                "batches": 0,
                 "message": "No document chunks found."
             }
 
         indexed = 0
+        already_indexed = 0
+        batches = 0
 
         for start in range(0, len(chunks), self.BATCH_SIZE):
             batch = chunks[start:start + self.BATCH_SIZE]
-            texts = [chunk.content for chunk in batch]
+
+            # Generate deterministic IDs for the current batch.
+            point_ids = [
+                self.get_point_id(chunk)
+                for chunk in batch
+            ]
+
+            # Check which points already exist in Qdrant.
+            existing_points = self.qdrant.client.retrieve(
+                collection_name=self.qdrant.COLLECTION_NAME,
+                ids=point_ids,
+                with_payload=False,
+                with_vectors=False,
+            )
+
+            existing_ids = {
+                str(point.id)
+                for point in existing_points
+            }
+
+            # Only process chunks whose vectors are missing.
+            missing_chunks = [
+                chunk
+                for chunk in batch
+                if self.get_point_id(chunk) not in existing_ids
+            ]
+
+            already_indexed += len(batch) - len(missing_chunks)
+
+            if not missing_chunks:
+                continue
+
+            # Generate embeddings only for missing chunks.
+            texts = [
+                chunk.content
+                for chunk in missing_chunks
+            ]
+
             vectors = EmbeddingService.embed_batch(texts)
 
             points = []
 
-            for chunk, vector in zip(batch, vectors):
+            for chunk, vector in zip(missing_chunks, vectors):
                 document = chunk.document
 
                 points.append(
@@ -76,12 +118,13 @@ class VectorIndexService:
             )
 
             indexed += len(points)
+            batches += 1
 
         return {
             "tender_id": tender.tender_id,
             "chunks_found": len(chunks),
             "indexed": indexed,
-            "batches": (
-                len(chunks) + self.BATCH_SIZE - 1
-            ) // self.BATCH_SIZE,
+            "already_indexed": already_indexed,
+            "batches": batches,
         }
+
