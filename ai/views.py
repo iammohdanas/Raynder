@@ -239,6 +239,7 @@ def send_message(request, conversation_id):
 
         assistant_content = result["answer"]
         citations = result.get("citations", [])
+        print("\n\n\n\n\n\n\n\n citations: ", citations,"\n\n\n\n\n\n\n\n")
         insufficient_evidence = result.get("insufficient_evidence", False)
 
         # Save the answer before scheduling background evaluation.

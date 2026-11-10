@@ -286,6 +286,131 @@ def get_priority_tenders(request):
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )       
         
+#this api will be used to fetch the priority tenders as it filters out the tenders whose submission dates passed
+
+# @api_view(["GET"])
+# def get_priority_tenders(request):
+#     """
+#     Server-side DataTables API for high-priority tenders.
+
+#     Supports:
+#     - Pagination
+#     - Search
+#     - Ordering
+#     - Excludes expired tenders
+#     - Includes tenders without deadlines for up to 3 months
+#     """
+#     try:
+#         start = max(0, int(request.GET.get("start", 0)))
+#         length = max(1, min(int(request.GET.get("length", 10)), 100))
+#         search_value = request.GET.get("search[value]", "").strip()
+
+#         today = timezone.localdate()
+#         three_months_ago = today - timedelta(days=90)
+
+#         # Base queryset
+#         queryset = TenderPriority.objects.select_related("tender")
+
+#         # Deadline filtering:
+#         # 1. Closing date is today or in the future.
+#         # 2. If closing date is NULL, show only tenders
+#         #    created within the last 3 months.
+#         queryset = queryset.filter(
+#             Q(tender__closing_date__gte=today)
+#             |
+#             Q(
+#                 tender__closing_date__isnull=True,
+#                 tender__created_at__date__gte=three_months_ago,
+#             )
+#         )
+
+#         # Total records after deadline filtering
+#         records_total = queryset.count()
+
+#         # Search
+#         if search_value:
+#             queryset = queryset.filter(
+#                 Q(tender__tender_id__icontains=search_value)
+#                 | Q(tender__source_tender_id__icontains=search_value)
+#                 | Q(tender__tender_ref_no__icontains=search_value)
+#                 | Q(tender__tcno__icontains=search_value)
+#                 | Q(tender__title__icontains=search_value)
+#                 | Q(tender__description__icontains=search_value)
+#                 | Q(tender__company_name__icontains=search_value)
+#                 | Q(tender__state__icontains=search_value)
+#                 | Q(tender__city__icontains=search_value)
+#                 | Q(tender__address__icontains=search_value)
+#             )
+
+#         records_filtered = queryset.count()
+
+#         # Ordering
+#         queryset = queryset.order_by("-id")
+
+#         # Pagination
+#         paginator = Paginator(queryset, length)
+#         page_number = (start // length) + 1
+#         page = paginator.get_page(page_number)
+
+#         data = []
+
+#         for priority in page.object_list:
+#             tender = priority.tender
+
+#             location_parts = [
+#                 v for v in [tender.city, tender.state] if v
+#             ]
+
+#             data.append({
+#                 "id": tender.id,
+#                 "priority_id": priority.id,
+#                 "tender_id": tender.tender_id,
+#                 "title": tender.title,
+#                 "tender_ref_no": tender.tender_ref_no,
+#                 "due_date": (
+#                     tender.closing_date.strftime("%d-%m-%Y")
+#                     if tender.closing_date else None
+#                 ),
+#                 "authority": tender.company_name,
+#                 "location": (
+#                     ", ".join(location_parts)
+#                     if location_parts else "Pan India"
+#                 ),
+#                 "capacity_mw": (
+#                     float(priority.capacity_mw)
+#                     if priority.capacity_mw is not None else None
+#                 ),
+#                 "amount_crore": (
+#                     float(priority.amount_crore)
+#                     if priority.amount_crore is not None else None
+#                 ),
+#                 "is_paid": None,
+#                 "fit_score": 0,
+#                 "recommendation": None,
+#                 "view_url": f"/tenders/{tender.id}/",
+#             })
+
+#         return Response(
+#             {
+#                 "draw": int(request.GET.get("draw", 1)),
+#                 "recordsTotal": records_total,
+#                 "recordsFiltered": records_filtered,
+#                 "data": data,
+#                 "stats": {
+#                     "total_tenders": records_total,
+#                     "recommended_count": records_total,
+#                     "total_capacity_mw": 0,
+#                     "last_sync": None,
+#                 },
+#             },
+#             status=status.HTTP_200_OK,
+#         )
+
+#     except Exception as e:
+#         return Response(
+#             {"success": False, "error": str(e)},
+#             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+#         )
 
 
 @api_view(["POST"])

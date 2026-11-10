@@ -186,6 +186,17 @@ class AnswerGenerationService:
         # 3. Prepare labelled source passages for the answer-generation model.
         source_text = []
 
+        source_lookup = {
+            f"S{index}": {
+                "document": result.get("document"),
+                "page": result.get("page"),
+                "chunk_id": result.get("chunk_id"),
+            }
+            for index, result in enumerate(results, start=1)
+        }
+
+        print("\n\n\n\n\n\n\n\n source_lookup: ", source_lookup,"\n\n\n\n\n\n\n\n")
+
         for index, result in enumerate(results, start=1):
             source_id = f"S{index}"
 
@@ -318,16 +329,30 @@ class AnswerGenerationService:
         # 6. Return the final answer (initial or retry result).
         return {
             "answer": parsed.answer,
+
             "citations": [
                 {
                     "source_id": citation.source_id,
+                    "document": source_lookup.get(
+                        citation.source_id, {}
+                    ).get("document"),
+                    "page": source_lookup.get(
+                        citation.source_id, {}
+                    ).get("page"),
+                    "chunk_id": source_lookup.get(
+                        citation.source_id, {}
+                    ).get("chunk_id"),
                     "quote": citation.quote,
                 }
                 for citation in parsed.citations
+                if citation.source_id in source_lookup
             ],
+
             "insufficient_evidence": parsed.insufficient_evidence,
+
             "retrieved_contexts": [
                 result.get("text", "") for result in results
             ],
+
             "retrieved_sources": self._build_retrieved_sources(results),
         }
