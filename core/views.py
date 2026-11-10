@@ -70,3 +70,14 @@ def edit_tender_page(request, tender_id):
             "tender_id": tender_id,
         },
     )
+
+@login_required
+@role_required(['admin', 'manager', 'customer'])
+def pq_analysis_page(request, tender_id):
+    return render(
+        request,
+        "pages/pq_analysis.html",
+        {
+            "tender_id": tender_id,
+        },
+    )

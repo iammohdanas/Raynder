@@ -268,3 +268,91 @@ class EvaluationResult(models.Model):
 
     def __str__(self):
         return f"Result for evaluation {self.run_id}"
+
+
+
+class TenderPQAnalysis(models.Model):
+
+    class Status(models.TextChoices):
+        QUEUED = "queued", "Queued"
+        RUNNING = "running", "Running"
+        COMPLETED = "completed", "Completed"
+        FAILED = "failed", "Failed"
+
+    class OverallStatus(models.TextChoices):
+        QUALIFIED = "qualified", "Qualified"
+        NOT_QUALIFIED = "not_qualified", "Not Qualified"
+        NEEDS_REVIEW = "needs_review", "Needs Review"
+        INSUFFICIENT_EVIDENCE = (
+            "insufficient_evidence",
+            "Insufficient Evidence",
+        )
+
+    id = models.UUIDField(
+        primary_key=True,
+        default=uuid.uuid4,
+        editable=False,
+    )
+
+    tender = models.ForeignKey(
+        "api_gateway.Tender",
+        on_delete=models.CASCADE,
+        related_name="pq_analyses",
+    )
+
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.QUEUED,
+        db_index=True,
+    )
+
+    overall_status = models.CharField(
+        max_length=30,
+        choices=OverallStatus.choices,
+        blank=True,
+    )
+
+    # Complete extraction output from PQExtractionService
+    extraction_result = models.JSONField(
+        default=dict,
+        blank=True,
+    )
+
+    # Complete comparison output from PQComparisonService
+    comparison_result = models.JSONField(
+        default=dict,
+        blank=True,
+    )
+
+    total_criteria = models.PositiveIntegerField(default=0)
+    requirements_met = models.PositiveIntegerField(default=0)
+    critical_gaps = models.PositiveIntegerField(default=0)
+
+    error_message = models.TextField(blank=True)
+
+    celery_task_id = models.CharField(
+        max_length=255,
+        blank=True,
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    started_at = models.DateTimeField(null=True, blank=True)
+    finished_at = models.DateTimeField(null=True, blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(
+                fields=["tender", "-created_at"],
+                name="pq_tender_created_idx",
+            ),
+            models.Index(
+                fields=["tender", "status"],
+                name="pq_tender_status_idx",
+            ),
+        ]
+
+    def __str__(self):
+        return f"PQ Analysis {self.id} - {self.tender.tender_id}"

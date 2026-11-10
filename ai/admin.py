@@ -1,8 +1,9 @@
 from django.contrib import admin
-from .models import ChatConversation, ChatMessage, EvaluationTestCase , EvaluationResult, EvaluationRun
+from .models import ChatConversation, ChatMessage, EvaluationTestCase , EvaluationResult, EvaluationRun, TenderPQAnalysis
 # Register your models here.
 admin.site.register(ChatConversation)
 admin.site.register(ChatMessage)
 admin.site.register(EvaluationTestCase)
 admin.site.register(EvaluationResult)
 admin.site.register(EvaluationRun)
+admin.site.register(TenderPQAnalysis)

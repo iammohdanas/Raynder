@@ -1,12 +1,12 @@
 
 import json
-
 from django.db import transaction
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from django.views.decorators.http import require_http_methods
-
+from django.utils import timezone
+from ai.models import TenderPQAnalysis
 from api_gateway.models import Tender
 
 from .models import ChatConversation, ChatMessage
@@ -22,7 +22,7 @@ from django.views.decorators.http import require_http_methods
 
 from api_gateway.models import Tender
 from ai.models import EvaluationRun
-from ai.tasks import run_document_pipeline, run_rag_evaluation,evaluate_live_rag_answer
+from ai.tasks import run_document_pipeline, run_rag_evaluation,evaluate_live_rag_answer, run_pq_analysis
 
 logger = logging.getLogger(__name__)
 
@@ -533,4 +533,180 @@ def document_pipeline_status(request, task_id):
         response["result"] = task.result
     elif task.failed():
         response["error"] = str(task.result)
+    return JsonResponse(response)
+
+
+
+
+@require_http_methods(["POST"])
+def start_pq_analysis(request, tender_id):
+    """Create and queue a new PQ analysis."""
+
+    if not request.user.is_authenticated:
+        return JsonResponse(
+            {"error": "Authentication required."},
+            status=401,
+        )
+
+    tender = Tender.objects.filter(pk=tender_id).first()
+
+    if tender is None:
+        return JsonResponse(
+            {"error": "Tender not found."},
+            status=404,
+        )
+
+    # Create the database record before queueing Celery.
+    analysis = TenderPQAnalysis.objects.create(
+        tender=tender,
+        status=TenderPQAnalysis.Status.QUEUED,
+    )
+
+    try:
+        task = run_pq_analysis.delay(
+            tender.tender_id,
+            str(analysis.id),
+        )
+
+        analysis.celery_task_id = task.id
+        analysis.save(update_fields=["celery_task_id"])
+
+    except Exception as exc:
+        logger.exception(
+            "Could not enqueue PQ analysis for tender %s",
+            tender.tender_id,
+        )
+
+        analysis.status = TenderPQAnalysis.Status.FAILED
+        analysis.error_message = str(exc)
+        analysis.finished_at = timezone.now()
+        analysis.save(
+            update_fields=[
+                "status",
+                "error_message",
+                "finished_at",
+                "updated_at",
+            ]
+        )
+
+        return JsonResponse(
+            {"error": "Could not queue PQ analysis."},
+            status=503,
+        )
+
+    return JsonResponse(
+        {
+            "success": True,
+            "tender_id": tender.tender_id,
+            "analysis_id": str(analysis.id),
+            "task_id": task.id,
+            "status": analysis.status,
+            "message": "PQ analysis queued successfully.",
+        },
+        status=202,
+    )
+
+
+
+
+@require_http_methods(["GET"])
+def pq_analysis_task_status(request, task_id):
+    """Return PQ analysis status and result from the database."""
+
+    if not request.user.is_authenticated:
+        return JsonResponse(
+            {"error": "Authentication required."},
+            status=401,
+        )
+
+    analysis = TenderPQAnalysis.objects.filter(
+        celery_task_id=task_id
+    ).first()
+
+    if analysis is None:
+        return JsonResponse(
+            {"error": "PQ analysis record not found."},
+            status=404,
+        )
+
+    response = {
+        "analysis_id": str(analysis.id),
+        "task_id": task_id,
+        "tender_id": analysis.tender.tender_id,
+        "status": analysis.status,
+        "overall_status": analysis.overall_status,
+        "total_criteria": analysis.total_criteria,
+        "requirements_met": analysis.requirements_met,
+        "critical_gaps": analysis.critical_gaps,
+    }
+
+    if analysis.status == TenderPQAnalysis.Status.COMPLETED:
+        response["result"] = {
+            "tender_id": analysis.tender.tender_id,
+            "overall_status": analysis.overall_status,
+            "extraction": analysis.extraction_result,
+            "comparison": analysis.comparison_result,
+        }
+
+    elif analysis.status == TenderPQAnalysis.Status.FAILED:
+        response["error"] = analysis.error_message
+
+    return JsonResponse(response)
+
+
+
+@require_http_methods(["GET"])
+def get_latest_pq_analysis(request, tender_id):
+    """Fetch the latest saved PQ analysis for a tender."""
+
+    if not request.user.is_authenticated:
+        return JsonResponse(
+            {"error": "Authentication required."},
+            status=401,
+        )
+
+    tender = Tender.objects.filter(pk=tender_id).first()
+
+    if tender is None:
+        return JsonResponse(
+            {"error": "Tender not found."},
+            status=404,
+        )
+
+    analysis = TenderPQAnalysis.objects.filter(
+        tender=tender
+    ).order_by("-created_at").first()
+
+    if analysis is None:
+        return JsonResponse({
+            "success": True,
+            "found": False,
+            "message": "No PQ analysis available.",
+        })
+
+    response = {
+        "success": True,
+        "found": True,
+        "analysis_id": str(analysis.id),
+        "tender_id": tender.tender_id,
+        "status": analysis.status,
+        "overall_status": analysis.overall_status,
+        "total_criteria": analysis.total_criteria,
+        "requirements_met": analysis.requirements_met,
+        "critical_gaps": analysis.critical_gaps,
+        "created_at": analysis.created_at.isoformat(),
+        "updated_at": analysis.updated_at.isoformat(),
+    }
+
+    if analysis.status == TenderPQAnalysis.Status.COMPLETED:
+        response["result"] = {
+            "tender_id": tender.tender_id,
+            "overall_status": analysis.overall_status,
+            "extraction": analysis.extraction_result,
+            "comparison": analysis.comparison_result,
+        }
+
+    elif analysis.status == TenderPQAnalysis.Status.FAILED:
+        response["error"] = analysis.error_message
+    print(response)
     return JsonResponse(response)

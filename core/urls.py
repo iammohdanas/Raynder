@@ -9,5 +9,8 @@ urlpatterns = [
     path("tenders/create/", views.create_tender_page,name="create_tender_page"),
     path("create-project/", views.create_project_page, name="create_project_page"),
     path("priority-tenders/", views.priority_tenders_list_page, name="priority_tenders_list"),
-    path("tenders/<int:tender_id>/edit/", views.edit_tender_page,name="edit_tender_page",)
+    path("tenders/<int:tender_id>/edit/", views.edit_tender_page,name="edit_tender_page",),
+    path("tenders/<int:tender_id>/pq-analysis/",views.pq_analysis_page,name="pq_analysis_page",),
+    
+
 ]

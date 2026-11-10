@@ -31,6 +31,9 @@ class Tender(models.Model):
     raw_data = models.JSONField(default=dict, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    ai_summary = models.JSONField(default=dict, blank=True)
+    summary_meta = models.JSONField( default=dict, blank=True,)
+
     
 
     class Meta:

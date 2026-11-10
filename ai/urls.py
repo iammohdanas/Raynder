@@ -23,4 +23,7 @@ urlpatterns = [
     path("evaluations/<uuid:run_id>/results/",views.rag_evaluation_results,name="rag_evaluation_results",),
     path("tenders/<str:tender_id>/run-pipeline/", views.start_document_pipeline, name="start_document_pipeline",),
     path("tasks/<str:task_id>/status/",views.document_pipeline_status,name="document_pipeline_status"),
+    path("tenders/<int:tender_id>/pq-analysis/run/", views.start_pq_analysis, name="start_pq_analysis",),
+    path("tasks/<str:task_id>/pq-analysis-status/", views.pq_analysis_task_status, name="pq_analysis_task_status",),
+    path("tenders/<int:tender_id>/pq-analysis/latest/", views.get_latest_pq_analysis, name="get_latest_pq_analysis",),
 ]

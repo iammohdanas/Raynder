@@ -195,8 +195,6 @@ class AnswerGenerationService:
             for index, result in enumerate(results, start=1)
         }
 
-        print("\n\n\n\n\n\n\n\n source_lookup: ", source_lookup,"\n\n\n\n\n\n\n\n")
-
         for index, result in enumerate(results, start=1):
             source_id = f"S{index}"
 

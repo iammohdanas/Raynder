@@ -97,7 +97,7 @@ def get_tenders(request):
         recommended_tenders = recommended_tender_queryset.count()
 
         if search_value:
-            queryset = queryset.filter(
+            search_filter = (
                 Q(tender_id__icontains=search_value)
                 | Q(source_tender_id__icontains=search_value)
                 | Q(tender_ref_no__icontains=search_value)
@@ -109,6 +109,10 @@ def get_tenders(request):
                 | Q(city__icontains=search_value)
                 | Q(address__icontains=search_value)
             )
+            # Search using Django model's primary key
+            if search_value.isdigit():
+                search_filter |= Q(pk=int(search_value))
+            queryset = queryset.filter(search_filter)
 
         records_filtered = queryset.count()
         queryset = queryset.order_by("-created_at")
@@ -220,8 +224,9 @@ def get_priority_tenders(request):
         records_total = queryset.count()
 
         # Search
+        # Search
         if search_value:
-            queryset = queryset.filter(
+            search_filter = (
                 Q(tender__tender_id__icontains=search_value)
                 | Q(tender__source_tender_id__icontains=search_value)
                 | Q(tender__tender_ref_no__icontains=search_value)
@@ -233,6 +238,12 @@ def get_priority_tenders(request):
                 | Q(tender__city__icontains=search_value)
                 | Q(tender__address__icontains=search_value)
             )
+
+            # Search by Tender model's actual primary key
+            if search_value.isdigit():
+                search_filter |= Q(tender__pk=int(search_value))
+
+            queryset = queryset.filter(search_filter)
 
         records_filtered = queryset.count()
         queryset = queryset.order_by("-id")

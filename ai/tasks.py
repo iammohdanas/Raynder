@@ -12,9 +12,10 @@ from celery import shared_task
 from api_gateway.models import Tender
 from ai.services.documents.document_pipeline_service import (DocumentPipelineService,)
 import re, os
-
+from ai.services.qualification.pq_analysis_service import PQAnalysisService
 logger = logging.getLogger(__name__)
-
+from django.utils import timezone
+from ai.models import TenderPQAnalysis
 
 def normalize(text):
     """Normalize text to reduce failures caused by formatting differences."""
@@ -428,3 +429,115 @@ def run_document_pipeline(tender_id):
     result = DocumentPipelineService.run(tender)
 
     return result
+
+
+
+@shared_task
+def run_pq_analysis(tender_id, analysis_id):
+    """
+    Generate PQ analysis and persist the complete result.
+
+    tender_id: External Tender.tender_id
+    analysis_id: TenderPQAnalysis UUID
+    """
+
+    analysis = TenderPQAnalysis.objects.get(id=analysis_id)
+
+    try:
+        analysis.status = TenderPQAnalysis.Status.RUNNING
+        analysis.started_at = timezone.now()
+        analysis.save(
+            update_fields=[
+                "status",
+                "started_at",
+                "updated_at",
+            ]
+        )
+
+        # Generate PQ analysis using existing services.
+        result = PQAnalysisService.analyze(tender_id)
+
+        extraction = result.get("extraction") or {}
+        comparison = result.get("comparison") or {}
+
+        # Collect all comparison criteria.
+        criteria = []
+
+        for key in (
+            "financial_results",
+            "technical_results",
+            "other_results",
+        ):
+            items = comparison.get(key, [])
+
+            if isinstance(items, list):
+                criteria.extend(items)
+
+        # Calculate summary counts.
+        total_criteria = len(criteria)
+
+        requirements_met = sum(
+            1
+            for item in criteria
+            if str(item.get("status", "")).upper() == "MEETS"
+        )
+
+        critical_gaps = sum(
+            1
+            for item in criteria
+            if str(item.get("status", "")).upper()
+            == "DOES_NOT_MEET"
+        )
+
+        overall_status = result.get("overall_status", "")
+
+        # Persist complete analysis.
+        analysis.extraction_result = extraction
+        analysis.comparison_result = comparison
+
+        analysis.overall_status = str(
+            overall_status
+        ).lower()
+
+        analysis.total_criteria = total_criteria
+        analysis.requirements_met = requirements_met
+        analysis.critical_gaps = critical_gaps
+
+        analysis.status = TenderPQAnalysis.Status.COMPLETED
+        analysis.finished_at = timezone.now()
+        analysis.error_message = ""
+
+        analysis.save()
+
+        return {
+            "success": True,
+            "analysis_id": str(analysis.id),
+            "tender_id": tender_id,
+            "overall_status": analysis.overall_status,
+            "total_criteria": total_criteria,
+            "requirements_met": requirements_met,
+            "critical_gaps": critical_gaps,
+        }
+
+    except Exception as exc:
+        logger.exception(
+            "PQ analysis failed | tender_id=%s | analysis_id=%s",
+            tender_id,
+            analysis_id,
+        )
+
+        analysis.status = TenderPQAnalysis.Status.FAILED
+        analysis.error_message = str(exc)
+        analysis.finished_at = timezone.now()
+
+        analysis.save(
+            update_fields=[
+                "status",
+                "error_message",
+                "finished_at",
+                "updated_at",
+            ]
+        )
+
+        raise
+

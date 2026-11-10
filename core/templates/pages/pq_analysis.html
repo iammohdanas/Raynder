@@ -1,0 +1,858 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap"
+    rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+<style>
+    .pq-page {
+        max-width: 1320px;
+        margin: auto;
+        padding: 96px 24px 50px;
+        font-family: 'Plus Jakarta Sans', sans-serif;
+        color: #0f172a;
+    }
+
+    .pq-card {
+        background: #fff;
+        border: 1px solid #e2e8f0;
+        border-radius: 16px;
+        padding: 22px;
+        box-shadow: 0 4px 15px rgba(15, 23, 42, .03);
+    }
+
+    .pq-label {
+        color: #64748b;
+        font-size: 11px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: .06em;
+    }
+
+    .pq-value {
+        font-size: 26px;
+        font-weight: 800;
+        margin-top: 8px;
+    }
+
+    .pq-heading {
+        font-size: 16px;
+        font-weight: 800;
+        margin-bottom: 18px;
+    }
+
+    .pq-icon {
+        width: 42px;
+        height: 42px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 12px;
+        font-size: 17px;
+    }
+
+    .pq-table th {
+        background: #f8fafc;
+        color: #64748b;
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: .05em;
+        white-space: nowrap;
+    }
+
+    .pq-table td {
+        font-size: 13px;
+        vertical-align: middle;
+    }
+
+    .pq-status {
+        display: inline-block;
+        padding: 5px 10px;
+        border-radius: 20px;
+        font-size: 11px;
+        font-weight: 700;
+        white-space: nowrap;
+    }
+
+    .status-meets {
+        background: #dcfce7;
+        color: #15803d;
+    }
+
+    .status-fails {
+        background: #fee2e2;
+        color: #b91c1c;
+    }
+
+    .status-review {
+        background: #fef3c7;
+        color: #b45309;
+    }
+
+    .status-partial {
+        background: #dbeafe;
+        color: #1d4ed8;
+    }
+
+    .pq-nav {
+        border-bottom: 1px solid #e2e8f0;
+        gap: 22px;
+        overflow-x: auto;
+        flex-wrap: nowrap;
+    }
+
+    .pq-nav .nav-link {
+        color: #64748b;
+        font-weight: 600;
+        font-size: 13px;
+        padding: 12px 2px;
+        border: none;
+        border-bottom: 2px solid transparent;
+        white-space: nowrap;
+    }
+
+    .pq-nav .nav-link.active {
+        color: #2563eb;
+        background: transparent;
+        border-bottom-color: #2563eb;
+    }
+
+    .pq-empty {
+        padding: 55px 20px;
+        text-align: center;
+        color: #64748b;
+    }
+
+    .pq-empty i {
+        font-size: 35px;
+        color: #94a3b8;
+        margin-bottom: 15px;
+    }
+
+    @media(max-width: 768px) {
+        .pq-page {
+            padding: 85px 14px 30px;
+        }
+    }
+</style>
+
+<div class="pq-page">
+
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-4">
+
+        <div>
+            <a href="{% url 'tender-detail-page' tender_id=tender_id %}"
+                class="text-decoration-none text-secondary small fw-semibold">
+                <i class="fa-solid fa-arrow-left me-1"></i>
+                Back to Tender Details
+            </a>
+
+            <h4 class="fw-bold mt-3 mb-1">
+                <i class="fa-solid fa-chart-pie text-primary me-2"></i>
+                Tender AI Analysis
+            </h4>
+
+            <p class="text-secondary small mb-0">
+                AI-powered pre-qualification and tender intelligence
+            </p>
+        </div>
+
+        <div class="d-flex gap-2 align-items-center">
+            <span class="badge bg-light text-dark border p-2">
+                Tender Database ID: {{ tender_id }}
+            </span>
+
+            <button class="btn btn-primary btn-sm px-3" id="generatePQAnalysisBtn">
+                <i class="fa-solid fa-wand-magic-sparkles me-1"></i>
+                Generate Analysis
+            </button>
+        </div>
+    </div>
+
+    <!-- Analysis Status -->
+    <div class="pq-card mb-4">
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <div>
+                <div class="pq-label">Analysis Status</div>
+                <div class="fw-bold mt-1" id="analysisStatus">
+                    Not Generated
+                </div>
+                <div class="text-secondary small mt-1" id="analysisUpdatedAt">
+                    No analysis has been generated for this tender yet.
+                </div>
+            </div>
+
+            <span class="pq-status status-review" id="analysisStatusBadge">
+                Pending
+            </span>
+        </div>
+    </div>
+
+    <!-- KPI Cards -->
+    <div class="row g-3 mb-4">
+
+        <div class="col-6 col-lg-3">
+            <div class="pq-card h-100">
+                <div class="d-flex justify-content-between">
+                    <span class="pq-label">Overall PQ Status</span>
+                    <div class="pq-icon bg-primary-subtle text-primary">
+                        <i class="fa-solid fa-clipboard-check"></i>
+                    </div>
+                </div>
+                <div class="pq-value" id="overallPQStatus">—</div>
+                <small class="text-secondary">Qualification assessment</small>
+            </div>
+        </div>
+
+        <div class="col-6 col-lg-3">
+            <div class="pq-card h-100">
+                <div class="d-flex justify-content-between">
+                    <span class="pq-label">Total Criteria</span>
+                    <div class="pq-icon bg-info-subtle text-info">
+                        <i class="fa-solid fa-list-check"></i>
+                    </div>
+                </div>
+                <div class="pq-value" id="totalCriteria">—</div>
+                <small class="text-secondary">Criteria evaluated</small>
+            </div>
+        </div>
+
+        <div class="col-6 col-lg-3">
+            <div class="pq-card h-100">
+                <div class="d-flex justify-content-between">
+                    <span class="pq-label">Requirements Met</span>
+                    <div class="pq-icon bg-success-subtle text-success">
+                        <i class="fa-solid fa-circle-check"></i>
+                    </div>
+                </div>
+                <div class="pq-value text-success" id="criteriaMet">—</div>
+                <small class="text-secondary">Satisfied criteria</small>
+            </div>
+        </div>
+
+        <div class="col-6 col-lg-3">
+            <div class="pq-card h-100">
+                <div class="d-flex justify-content-between">
+                    <span class="pq-label">Critical Gaps</span>
+                    <div class="pq-icon bg-danger-subtle text-danger">
+                        <i class="fa-solid fa-triangle-exclamation"></i>
+                    </div>
+                </div>
+                <div class="pq-value text-danger" id="criticalGaps">—</div>
+                <small class="text-secondary">Potential eligibility gaps</small>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Analysis Tabs -->
+    <div class="pq-card mb-4">
+
+        <ul class="nav pq-nav mb-4" id="pqAnalysisTabs">
+            <li class="nav-item">
+                <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#overviewTab" type="button">
+                    <i class="fa-solid fa-chart-line me-1"></i> Overview
+                </button>
+            </li>
+
+            <li class="nav-item">
+                <button class="nav-link" data-bs-toggle="tab" data-bs-target="#financialTab" type="button">
+                    <i class="fa-solid fa-indian-rupee-sign me-1"></i> Financial PQ
+                </button>
+            </li>
+
+            <li class="nav-item">
+                <button class="nav-link" data-bs-toggle="tab" data-bs-target="#technicalTab" type="button">
+                    <i class="fa-solid fa-gears me-1"></i> Technical PQ
+                </button>
+            </li>
+
+            <li class="nav-item">
+                <button class="nav-link" data-bs-toggle="tab" data-bs-target="#otherTab" type="button">
+                    <i class="fa-solid fa-file-circle-check me-1"></i> Other Criteria
+                </button>
+            </li>
+
+            <li class="nav-item">
+                <button class="nav-link" data-bs-toggle="tab" data-bs-target="#gapsTab" type="button">
+                    <i class="fa-solid fa-triangle-exclamation me-1"></i> Critical Gaps
+                </button>
+            </li>
+        </ul>
+
+        <div class="tab-content">
+
+            <!-- Overview -->
+            <div class="tab-pane fade show active" id="overviewTab">
+
+                <h6 class="pq-heading">Qualification Overview</h6>
+
+                <div id="pqOverviewEmpty" class="pq-empty">
+                    <i class="fa-solid fa-chart-pie d-block"></i>
+                    <h6 class="fw-bold text-dark">No PQ Analysis Available</h6>
+                    <p class="small mb-0">
+                        Generate an analysis to view the company's eligibility
+                        against this tender's pre-qualification requirements.
+                    </p>
+                </div>
+
+                <div id="pqOverviewContent" hidden>
+                    <div id="pqSummary" class="p-3 bg-light rounded-3 mb-3"></div>
+                    <div id="pqOverviewResults"></div>
+                </div>
+
+            </div>
+
+            <!-- Financial -->
+            <div class="tab-pane fade" id="financialTab">
+                <h6 class="pq-heading">Financial Eligibility Criteria</h6>
+
+                <div class="table-responsive">
+                    <table class="table pq-table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Criterion</th>
+                                <th>Tender Requirement</th>
+                                <th>Company Evidence</th>
+                                <th>Assessment</th>
+                                <th>Source</th>
+                            </tr>
+                        </thead>
+                        <tbody id="financialCriteriaBody">
+                            <tr>
+                                <td colspan="5" class="text-center text-secondary py-4">
+                                    No financial criteria available.
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Technical -->
+            <div class="tab-pane fade" id="technicalTab">
+                <h6 class="pq-heading">Technical Eligibility Criteria</h6>
+
+                <div class="table-responsive">
+                    <table class="table pq-table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Criterion</th>
+                                <th>Tender Requirement</th>
+                                <th>Company Evidence</th>
+                                <th>Assessment</th>
+                                <th>Source</th>
+                            </tr>
+                        </thead>
+                        <tbody id="technicalCriteriaBody">
+                            <tr>
+                                <td colspan="5" class="text-center text-secondary py-4">
+                                    No technical criteria available.
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Other -->
+            <div class="tab-pane fade" id="otherTab">
+                <h6 class="pq-heading">Other Eligibility Criteria</h6>
+
+                <div class="table-responsive">
+                    <table class="table pq-table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Criterion</th>
+                                <th>Tender Requirement</th>
+                                <th>Company Evidence</th>
+                                <th>Assessment</th>
+                                <th>Source</th>
+                            </tr>
+                        </thead>
+                        <tbody id="otherCriteriaBody">
+                            <tr>
+                                <td colspan="5" class="text-center text-secondary py-4">
+                                    No other criteria available.
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Critical Gaps -->
+            <div class="tab-pane fade" id="gapsTab">
+                <h6 class="pq-heading">Critical Eligibility Gaps</h6>
+
+                <div id="criticalGapsList">
+                    <div class="pq-empty">
+                        <i class="fa-solid fa-shield-halved d-block"></i>
+                        <h6 class="fw-bold text-dark">No Gap Analysis Available</h6>
+                        <p class="small mb-0">
+                            Eligibility gaps will appear here after analysis.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Evidence -->
+    <div class="pq-card">
+        <h6 class="pq-heading mb-2">
+            <i class="fa-solid fa-file-lines text-primary me-2"></i>
+            Source Evidence & References
+        </h6>
+
+        <p class="text-secondary small">
+            Every extracted PQ requirement will retain its source document,
+            page number and supporting quotation for verification.
+        </p>
+
+        <div id="pqEvidenceList" class="text-secondary small">
+            No source evidence available yet.
+        </div>
+    </div>
+
+</div>
+
+
+<!-- 
+<script src="{% static 'js/pq_analysis.js' %}"></script> -->
+
+<script>
+
+    const PQ_TENDER_DATABASE_ID = "{{ tender_id|escapejs }}";
+    const PQ_START_URL = "{% url 'ai:start_pq_analysis' tender_id=tender_id %}";
+    const PQ_STATUS_URL_TEMPLATE = "{% url 'ai:pq_analysis_task_status' task_id='TASK_ID' %}";
+    const PQ_LATEST_URL = "{% url 'ai:get_latest_pq_analysis' tender_id=tender_id %}";
+
+    document.addEventListener("DOMContentLoaded", function () {
+
+        const generateBtn = document.getElementById("generatePQAnalysisBtn");
+
+        const statusText = document.getElementById("analysisStatus");
+        const statusBadge = document.getElementById("analysisStatusBadge");
+        const updatedAt = document.getElementById("analysisUpdatedAt");
+
+        const sleep = (ms) =>
+            new Promise(resolve => setTimeout(resolve, ms));
+
+        function getCookie(name) {
+            const cookies = document.cookie ? document.cookie.split(";") : [];
+
+            for (const cookie of cookies) {
+                const value = cookie.trim();
+
+                if (value.startsWith(name + "=")) {
+                    return decodeURIComponent(value.substring(name.length + 1));
+                }
+            }
+
+            return null;
+        }
+
+        function escapeHTML(value) {
+            return String(value ?? "").replace(/[&<>"']/g, char => ({
+                "&": "&amp;",
+                "<": "&lt;",
+                ">": "&gt;",
+                '"': "&quot;",
+                "'": "&#039;"
+            })[char]);
+        }
+
+        function setStatus(text, badgeText, badgeClass = "status-review") {
+            statusText.textContent = text;
+            statusBadge.textContent = badgeText;
+            statusBadge.className = `pq-status ${badgeClass}`;
+        }
+
+        function statusClass(status) {
+            switch ((status || "").toUpperCase()) {
+                case "MEETS":
+                case "QUALIFIED":
+                    return "status-meets";
+
+                case "DOES_NOT_MEET":
+                case "NOT_QUALIFIED":
+                    return "status-fails";
+
+                case "PARTIALLY_MEETS":
+                    return "status-partial";
+
+                default:
+                    return "status-review";
+            }
+        }
+
+        function statusLabel(status) {
+            return (status || "INSUFFICIENT INFORMATION")
+                .replaceAll("_", " ");
+        }
+
+        function renderCriteria(items, targetId) {
+            const tbody = document.getElementById(targetId);
+
+            if (!items || !items.length) {
+                tbody.innerHTML = `
+                <tr>
+                    <td colspan="5" class="text-center text-secondary py-4">
+                        No criteria extracted.
+                    </td>
+                </tr>
+            `;
+                return;
+            }
+
+            tbody.innerHTML = items.map(item => {
+                const source = [
+                    item.source_document,
+                    item.page_number ? `Page ${item.page_number}` : ""
+                ].filter(Boolean).join(" · ");
+
+                return `
+                <tr>
+                    <td class="fw-semibold">
+                        ${escapeHTML(item.criterion)}
+                    </td>
+
+                    <td>
+                        ${escapeHTML(item.tender_requirement || item.requirement)}
+                    </td>
+
+                    <td>
+                        ${escapeHTML(item.company_evidence || "Not established")}
+                    </td>
+
+                    <td>
+                        <span class="pq-status ${statusClass(item.status)}">
+                            ${escapeHTML(statusLabel(item.status))}
+                        </span>
+                    </td>
+
+                    <td>
+                        <div class="small fw-semibold">
+                            ${escapeHTML(source || "Source unavailable")}
+                        </div>
+                        <div class="small text-secondary">
+                            ${escapeHTML(item.chunk_id || "")}
+                        </div>
+                    </td>
+                </tr>
+            `;
+            }).join("");
+        }
+
+        function renderGaps(gaps) {
+            const container = document.getElementById("criticalGapsList");
+
+            if (!gaps || !gaps.length) {
+                container.innerHTML = `
+                <div class="alert alert-light border small mb-0">
+                    No critical gaps were identified in the returned analysis.
+                </div>
+            `;
+                return;
+            }
+
+            container.innerHTML = `
+            <div class="d-flex flex-column gap-2">
+                ${gaps.map(gap => `
+                    <div class="border rounded-3 p-3 d-flex gap-2">
+                        <i class="fa-solid fa-triangle-exclamation text-danger mt-1"></i>
+                        <div class="small">${escapeHTML(gap)}</div>
+                    </div>
+                `).join("")}
+            </div>
+        `;
+        }
+
+        function renderEvidence(extraction) {
+            const container = document.getElementById("pqEvidenceList");
+
+            const allCriteria = [
+                ...(extraction.financial_criteria || []),
+                ...(extraction.technical_criteria || []),
+                ...(extraction.other_criteria || [])
+            ];
+
+            if (!allCriteria.length) {
+                container.textContent = "No source evidence available.";
+                return;
+            }
+
+            container.innerHTML = allCriteria.map(item => `
+            <div class="border-bottom py-3">
+                <div class="fw-semibold text-dark mb-1">
+                    ${escapeHTML(item.criterion)}
+                </div>
+
+                <div class="small text-secondary mb-2">
+                    ${escapeHTML(item.source_document)}
+                    ${item.page_number ? ` · Page ${escapeHTML(item.page_number)}` : ""}
+                    · Chunk: ${escapeHTML(item.chunk_id)}
+                </div>
+
+                <blockquote class="border-start border-3 ps-3 mb-0 small text-secondary">
+                    ${escapeHTML(item.evidence_quote)}
+                </blockquote>
+            </div>
+        `).join("");
+        }
+
+        function renderAnalysis(result) {
+            const extraction = result.extraction || {};
+            const comparison = result.comparison || {};
+
+            const financial = comparison.financial_results || [];
+            const technical = comparison.technical_results || [];
+            const other = comparison.other_results || [];
+
+            const allResults = [...financial, ...technical, ...other];
+
+            const meets = allResults.filter(
+                item => item.status === "MEETS"
+            ).length;
+
+            document.getElementById("overallPQStatus").textContent =
+                comparison.overall_status || result.status || "—";
+
+            document.getElementById("totalCriteria").textContent =
+                allResults.length;
+
+            document.getElementById("criteriaMet").textContent = meets;
+
+            document.getElementById("criticalGaps").textContent =
+                (comparison.critical_gaps || []).length;
+
+            document.getElementById("pqSummary").textContent =
+                comparison.summary || "No summary available.";
+
+            document.getElementById("pqOverviewEmpty").hidden = true;
+            document.getElementById("pqOverviewContent").hidden = false;
+
+            renderCriteria(financial, "financialCriteriaBody");
+            renderCriteria(technical, "technicalCriteriaBody");
+            renderCriteria(other, "otherCriteriaBody");
+
+            renderGaps(comparison.critical_gaps || []);
+            renderEvidence(extraction);
+
+            const overallStatus = result.overall_status || comparison.overall_status || "NEEDS_REVIEW";
+
+            setStatus(
+                "Analysis Completed",
+                statusLabel(overallStatus),
+                statusClass(overallStatus)
+            );
+
+            updatedAt.textContent =
+                "PQ analysis completed successfully.";
+        }
+
+        async function pollTask(taskId) {
+            const statusUrl = PQ_STATUS_URL_TEMPLATE.replace(
+                "TASK_ID",
+                encodeURIComponent(taskId)
+            );
+
+            for (let attempt = 0; attempt < 300; attempt++) {
+                await sleep(2000);
+
+                const response = await fetch(statusUrl, {
+                    credentials: "same-origin"
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.error || "Unable to fetch task status.");
+                }
+
+                if (data.status === "completed") {
+                    renderAnalysis(data.result);
+                    return;
+                }
+
+                if (data.status === "failed") {
+                    throw new Error(data.error || "PQ analysis failed.");
+                }
+
+                if (data.status === "running") {
+                    setStatus(
+                        "Generating PQ analysis...",
+                        "Processing",
+                        "status-partial"
+                    );
+                } else if (data.status === "queued") {
+                    setStatus(
+                        "Waiting for analysis worker...",
+                        "Queued",
+                        "status-review"
+                    );
+                }
+            }
+
+            throw new Error("PQ analysis is taking longer than expected. Please refresh and check again.");
+        }
+
+        
+async function loadLatestAnalysis() {
+    try {
+        const response = await fetch(PQ_LATEST_URL, {
+            method: "GET",
+            credentials: "same-origin"
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(
+                data.error || "Unable to load saved PQ analysis."
+            );
+        }
+
+        // No previous analysis exists.
+        if (!data.found) {
+            return;
+        }
+
+        // Restore an already completed analysis.
+        if (data.status === "completed") {
+            renderAnalysis(data.result);
+
+            updatedAt.textContent =
+                `Last analyzed: ${new Date(data.updated_at).toLocaleString()}`;
+
+            generateBtn.innerHTML = `
+                <i class="fa-solid fa-rotate me-1"></i>
+                Regenerate Analysis
+            `;
+
+            return;
+        }
+
+        // Resume polling if the previous task is still running.
+        if (
+            data.status === "queued" ||
+            data.status === "running"
+        ) {
+            setStatus(
+                "Previous PQ analysis is still processing...",
+                data.status === "queued" ? "Queued" : "Processing",
+                "status-review"
+            );
+
+            generateBtn.disabled = true;
+
+            if (data.task_id) {
+                await pollTask(data.task_id);
+            }
+
+            generateBtn.disabled = false;
+
+            generateBtn.innerHTML = `
+                <i class="fa-solid fa-rotate me-1"></i>
+                Regenerate Analysis
+            `;
+
+            return;
+        }
+
+        if (data.status === "failed") {
+            setStatus(
+                data.error || "Previous analysis failed.",
+                "Failed",
+                "status-fails"
+            );
+        }
+
+    } catch (error) {
+        console.error("Loading saved PQ analysis failed:", error);
+    }
+}
+
+
+        generateBtn.addEventListener("click", async function () {
+            generateBtn.disabled = true;
+            generateBtn.innerHTML = `
+            <i class="fa-solid fa-spinner fa-spin me-1"></i>
+            Queuing Analysis...
+        `;
+
+            setStatus(
+                "Submitting PQ analysis...",
+                "Submitting",
+                "status-review"
+            );
+
+            try {
+                const response = await fetch(PQ_START_URL, {
+                    method: "POST",
+                    credentials: "same-origin",
+                    headers: {
+                        "X-CSRFToken": getCookie("csrftoken"),
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({})
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.error || "Unable to start PQ analysis.");
+                }
+
+                setStatus(
+                    "PQ analysis queued successfully.",
+                    "Queued",
+                    "status-review"
+                );
+
+                generateBtn.innerHTML = `
+                <i class="fa-solid fa-spinner fa-spin me-1"></i>
+                Analysis Running...
+            `;
+
+                await pollTask(data.task_id);
+
+                generateBtn.innerHTML = `
+                <i class="fa-solid fa-rotate me-1"></i>
+                Regenerate Analysis
+            `;
+
+            } catch (error) {
+                console.error("PQ Analysis Error:", error);
+
+                setStatus(
+                    error.message,
+                    "Failed",
+                    "status-fails"
+                );
+
+                updatedAt.textContent = "Please try again.";
+
+                generateBtn.innerHTML = `
+                <i class="fa-solid fa-rotate me-1"></i>
+                Retry Analysis
+            `;
+
+            } finally {
+                generateBtn.disabled = false;
+            }
+        });
+        loadLatestAnalysis();
+    });
+
+</script>
+
+{% endblock %}
