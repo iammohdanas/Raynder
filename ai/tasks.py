@@ -16,6 +16,9 @@ from ai.services.qualification.pq_analysis_service import PQAnalysisService
 logger = logging.getLogger(__name__)
 from django.utils import timezone
 from ai.models import TenderPQAnalysis
+from ai.services.summary.tender_summary_service import (
+    TenderSummaryService,
+)
 
 def normalize(text):
     """Normalize text to reduce failures caused by formatting differences."""
@@ -541,3 +544,59 @@ def run_pq_analysis(tender_id, analysis_id):
 
         raise
 
+
+
+@shared_task(bind=True, max_retries=2, default_retry_delay=30)
+def run_tender_summary(self, tender_id):
+    """Generate and persist AI summary without recursive task launches."""
+    tender = Tender.objects.filter(tender_id=tender_id).first()
+    if not tender:
+        logger.error("Tender %s not found for summarization task.", tender_id)
+        return {"success": False, "error": "Tender not found"}
+
+    try:
+        # 1. Transition state to 'running'
+        summary_meta = tender.summary_meta or {}
+        summary_meta.update({
+            "status": "running",
+            "task_id": self.request.id,
+            "started_at": timezone.now().isoformat(),
+            "error": "",
+        })
+        tender.summary_meta = summary_meta
+        tender.save(update_fields=["summary_meta", "updated_at"])
+
+        # 2. Run the actual service pipeline
+        service = TenderSummaryService()
+        result = service.generate(tender_id)
+
+        # 3. Transition state to 'completed'
+        tender.refresh_from_db()
+        tender.ai_summary = result
+        summary_meta = tender.summary_meta or {}
+        summary_meta.update({
+            "status": "completed",
+            "error": "",
+            "completed_at": timezone.now().isoformat(),
+            "task_id": self.request.id,
+        })
+        tender.summary_meta = summary_meta
+        tender.save(update_fields=["ai_summary", "summary_meta", "updated_at"])
+
+        return {"success": True, "tender_id": tender_id, "status": "completed"}
+
+    except Exception as exc:
+        logger.exception(
+            "Tender summary failed for tender_id=%s",
+            tender_id
+        )
+        tender.refresh_from_db()
+        summary_meta = tender.summary_meta or {}
+        summary_meta.update({
+            "status": "failed",
+            "error": str(exc),
+            "task_id": self.request.id,
+        })
+        tender.summary_meta = summary_meta
+        tender.save(update_fields=["summary_meta", "updated_at"])
+        raise self.retry(exc=exc)

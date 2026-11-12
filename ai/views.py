@@ -7,7 +7,7 @@ from django.utils import timezone
 from django.views.decorators.http import require_http_methods
 from django.utils import timezone
 from ai.models import TenderPQAnalysis
-from api_gateway.models import Tender
+from api_gateway.models import DocumentChunk, Tender
 
 from .models import ChatConversation, ChatMessage
 import logging
@@ -22,7 +22,7 @@ from django.views.decorators.http import require_http_methods
 
 from api_gateway.models import Tender
 from ai.models import EvaluationRun
-from ai.tasks import run_document_pipeline, run_rag_evaluation,evaluate_live_rag_answer, run_pq_analysis
+from ai.tasks import run_document_pipeline, run_rag_evaluation,evaluate_live_rag_answer, run_pq_analysis, run_tender_summary
 
 logger = logging.getLogger(__name__)
 
@@ -708,5 +708,167 @@ def get_latest_pq_analysis(request, tender_id):
 
     elif analysis.status == TenderPQAnalysis.Status.FAILED:
         response["error"] = analysis.error_message
-    print(response)
     return JsonResponse(response)
+
+@require_http_methods(["POST"])
+def start_tender_summary(request, tender_id):
+
+    if not request.user.is_authenticated:
+        return JsonResponse(
+            {"error": "Authentication required."},
+            status=401,
+        )
+
+    try:
+        with transaction.atomic():
+
+            # Lock tender row to prevent concurrent dispatch.
+            tender = (
+                Tender.objects
+                .select_for_update()
+                .filter(pk=tender_id)
+                .first()
+            )
+
+            if tender is None:
+                return JsonResponse(
+                    {"error": "Tender not found."},
+                    status=404,
+                )
+
+            summary_meta = tender.summary_meta or {}
+            status = summary_meta.get("status")
+
+            # Already generated.
+            if status == "completed" and tender.ai_summary:
+                return JsonResponse({
+                    "status": "completed",
+                    "message": "Summary already exists.",
+                    "task_id": summary_meta.get("task_id"),
+                    "summary": tender.ai_summary,
+                    "found": True,
+                }, status=200)
+
+            # Already processing.
+            if status in ("queued", "running"):
+                return JsonResponse({
+                    "status": status,
+                    "message": "Summary generation is already in progress.",
+                    "task_id": summary_meta.get("task_id"),
+                    "found": bool(tender.ai_summary),
+                }, status=202)
+
+            # Check processed chunks.
+            if not DocumentChunk.objects.filter(
+                document__tender=tender
+            ).exists():
+                return JsonResponse({
+                    "success": False,
+                    "error": "No processed document chunks found.",
+                }, status=400)
+
+            # Generate task ID before dispatch.
+            task_id = str(uuid.uuid4())
+
+            summary_meta.update({
+                "status": "queued",
+                "task_id": task_id,
+                "error": "",
+                "queued_at": timezone.now().isoformat(),
+            })
+
+            tender.summary_meta = summary_meta
+
+            tender.save(
+                update_fields=["summary_meta", "updated_at"]
+            )
+
+            tender_pk = tender.pk
+            actual_tender_id = tender.tender_id
+
+            # Dispatch only after database commit.
+            def enqueue_summary():
+
+                try:
+                    run_tender_summary.apply_async(
+                        args=[actual_tender_id],
+                        task_id=task_id,
+                    )
+
+                    logger.info(
+                        "Summary queued | tender_id=%s | task_id=%s",
+                        actual_tender_id,
+                        task_id,
+                    )
+
+                except Exception as exc:
+
+                    logger.exception(
+                        "Summary enqueue failed | tender_id=%s",
+                        actual_tender_id,
+                    )
+
+                    failed_tender = Tender.objects.get(pk=tender_pk)
+                    meta = failed_tender.summary_meta or {}
+
+                    # Don't overwrite a newer task's status.
+                    if meta.get("task_id") == task_id:
+                        meta.update({
+                            "status": "failed",
+                            "error": "Could not queue summary generation.",
+                        })
+
+                        failed_tender.summary_meta = meta
+                        failed_tender.save(
+                            update_fields=["summary_meta", "updated_at"]
+                        )
+
+            transaction.on_commit(enqueue_summary)
+
+        return JsonResponse({
+            "success": True,
+            "tender_id": actual_tender_id,
+            "task_id": task_id,
+            "status": "queued",
+            "message": "Tender summary queued successfully.",
+        }, status=202)
+
+    except Exception:
+
+        logger.exception(
+            "Summary request failed | tender_id=%s",
+            tender_id,
+        )
+
+        return JsonResponse(
+            {"error": "Could not queue summary generation."},
+            status=503,
+        )
+
+
+@require_http_methods(["GET"])
+def get_tender_summary(request, tender_id):
+    """Retrieve the latest saved tender summary and its status."""
+    if not request.user.is_authenticated:
+        return JsonResponse(
+            {"error": "Authentication required."},
+            status=401,
+        )
+    tender = Tender.objects.filter(pk=tender_id).first()
+    if tender is None:
+        return JsonResponse(
+            {"error": "Tender not found."},
+            status=404,
+        )
+    summary_meta = tender.summary_meta or {}
+    return JsonResponse({
+        "success": True,
+        "tender_id": tender.tender_id,
+        "title": tender.title,
+        "status": summary_meta.get("status", "not_generated"),
+        "error": summary_meta.get("error", ""),
+        "generated_at": summary_meta.get("generated_at"),
+        "task_id": summary_meta.get("task_id"),
+        "summary": tender.ai_summary or {},
+        "found": bool(tender.ai_summary),
+    })

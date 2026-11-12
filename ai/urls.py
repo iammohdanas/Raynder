@@ -26,4 +26,6 @@ urlpatterns = [
     path("tenders/<int:tender_id>/pq-analysis/run/", views.start_pq_analysis, name="start_pq_analysis",),
     path("tasks/<str:task_id>/pq-analysis-status/", views.pq_analysis_task_status, name="pq_analysis_task_status",),
     path("tenders/<int:tender_id>/pq-analysis/latest/", views.get_latest_pq_analysis, name="get_latest_pq_analysis",),
+    path("tenders/<int:tender_id>/generate-summary/", views.start_tender_summary, name="start_tender_summary",),
+    path("tenders/<int:tender_id>/summary/", views.get_tender_summary, name="get_tender_summary",),
 ]
