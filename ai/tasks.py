@@ -16,9 +16,10 @@ from ai.services.qualification.pq_analysis_service import PQAnalysisService
 logger = logging.getLogger(__name__)
 from django.utils import timezone
 from ai.models import TenderPQAnalysis
-from ai.services.summary.tender_summary_service import (
+from ai.services.summary.tender_summary_service_new import (
     TenderSummaryService,
 )
+from ai.services.summary.summary_keywords import SUMMARY_KEYWORDS
 
 def normalize(text):
     """Normalize text to reduce failures caused by formatting differences."""
@@ -546,57 +547,283 @@ def run_pq_analysis(tender_id, analysis_id):
 
 
 
-@shared_task(bind=True, max_retries=2, default_retry_delay=30)
+@shared_task(
+    bind=True,
+    max_retries=2,
+    default_retry_delay=60,
+)
 def run_tender_summary(self, tender_id):
-    """Generate and persist AI summary without recursive task launches."""
-    tender = Tender.objects.filter(tender_id=tender_id).first()
-    if not tender:
-        logger.error("Tender %s not found for summarization task.", tender_id)
-        return {"success": False, "error": "Tender not found"}
+    """
+    Generate and persist the AI tender summary.
+
+    Protects against:
+    - Duplicate task execution
+    - Stale tasks overwriting newer tasks
+    - Incorrect failed status during retries
+    - Partial summary persistence
+    """
+
+    task_id = self.request.id
+
+    logger.info(
+        "Tender summary task started | tender_id=%s | task_id=%s",
+        tender_id,
+        task_id,
+    )
 
     try:
-        # 1. Transition state to 'running'
-        summary_meta = tender.summary_meta or {}
-        summary_meta.update({
-            "status": "running",
-            "task_id": self.request.id,
-            "started_at": timezone.now().isoformat(),
-            "error": "",
-        })
-        tender.summary_meta = summary_meta
-        tender.save(update_fields=["summary_meta", "updated_at"])
 
-        # 2. Run the actual service pipeline
+        # -------------------------------------------------
+        # STEP 1: FETCH AND LOCK TENDER
+        # -------------------------------------------------
+
+        with transaction.atomic():
+
+            tender = (
+                Tender.objects
+                .select_for_update()
+                .filter(tender_id=tender_id)
+                .first()
+            )
+
+            if tender is None:
+                logger.error(
+                    "Tender not found | tender_id=%s",
+                    tender_id,
+                )
+                return {
+                    "success": False,
+                    "error": "Tender not found.",
+                }
+
+            summary_meta = tender.summary_meta or {}
+
+            # Ensure this task still owns the generation request.
+            if summary_meta.get("task_id") != task_id:
+
+                logger.warning(
+                    "Ignoring stale summary task | tender_id=%s | "
+                    "task_id=%s",
+                    tender_id,
+                    task_id,
+                )
+
+                return {
+                    "success": False,
+                    "status": "ignored",
+                    "message": "Task is no longer active.",
+                }
+
+            # Avoid regenerating an already completed summary.
+            if (
+                summary_meta.get("status") == "completed"
+                and tender.ai_summary
+            ):
+                return {
+                    "success": True,
+                    "status": "completed",
+                    "message": "Summary already exists.",
+                }
+
+            summary_meta.update({
+                "status": "running",
+                "started_at": timezone.now().isoformat(),
+                "error": "",
+                "retry_count": self.request.retries,
+            })
+
+            tender.summary_meta = summary_meta
+
+            tender.save(
+                update_fields=["summary_meta", "updated_at"]
+            )
+
+        # -------------------------------------------------
+        # STEP 2: GENERATE SUMMARY
+        # -------------------------------------------------
+
         service = TenderSummaryService()
-        result = service.generate(tender_id)
 
-        # 3. Transition state to 'completed'
-        tender.refresh_from_db()
-        tender.ai_summary = result
-        summary_meta = tender.summary_meta or {}
-        summary_meta.update({
+        result = service.generate_summary(
+            tender_id=tender_id,
+            retrieval_limit=8,
+            batch_size=8,
+        )
+
+        if not isinstance(result, dict) or not result.get("sections"):
+            raise ValueError(
+                "Summary generation returned an invalid result."
+            )
+
+        if len(result["sections"]) != len(SUMMARY_KEYWORDS):
+            raise ValueError(
+                "Generated summary does not contain all expected sections."
+            )
+
+        # -------------------------------------------------
+        # STEP 3: SAVE SUMMARY AND MARK COMPLETED
+        # -------------------------------------------------
+
+        with transaction.atomic():
+
+            tender = (
+                Tender.objects
+                .select_for_update()
+                .filter(tender_id=tender_id)
+                .first()
+            )
+
+            if tender is None:
+                raise RuntimeError(
+                    "Tender disappeared during summary generation."
+                )
+
+            summary_meta = tender.summary_meta or {}
+
+            # Do not overwrite a newer task's result.
+            if summary_meta.get("task_id") != task_id:
+
+                logger.warning(
+                    "Task ownership changed before save | "
+                    "tender_id=%s | task_id=%s",
+                    tender_id,
+                    task_id,
+                )
+
+                return {
+                    "success": False,
+                    "status": "ignored",
+                    "message": "Task ownership changed.",
+                }
+
+            tender.ai_summary = result
+
+            summary_meta.update({
+                "status": "completed",
+                "task_id": task_id,
+                "error": "",
+                "completed_at": timezone.now().isoformat(),
+                "generated_at": timezone.now().isoformat(),
+                "retry_count": self.request.retries,
+            })
+
+            tender.summary_meta = summary_meta
+
+            tender.save(
+                update_fields=[
+                    "ai_summary",
+                    "summary_meta",
+                    "updated_at",
+                ]
+            )
+
+        logger.info(
+            "Tender summary completed | tender_id=%s | task_id=%s",
+            tender_id,
+            task_id,
+        )
+
+        return {
+            "success": True,
+            "tender_id": tender_id,
+            "task_id": task_id,
             "status": "completed",
-            "error": "",
-            "completed_at": timezone.now().isoformat(),
-            "task_id": self.request.id,
-        })
-        tender.summary_meta = summary_meta
-        tender.save(update_fields=["ai_summary", "summary_meta", "updated_at"])
-
-        return {"success": True, "tender_id": tender_id, "status": "completed"}
+            "total_sections": len(result["sections"]),
+        }
 
     except Exception as exc:
+
         logger.exception(
-            "Tender summary failed for tender_id=%s",
-            tender_id
+            "Tender summary failed | tender_id=%s | task_id=%s",
+            tender_id,
+            task_id,
         )
-        tender.refresh_from_db()
-        summary_meta = tender.summary_meta or {}
-        summary_meta.update({
-            "status": "failed",
-            "error": str(exc),
-            "task_id": self.request.id,
-        })
-        tender.summary_meta = summary_meta
-        tender.save(update_fields=["summary_meta", "updated_at"])
-        raise self.retry(exc=exc)
+
+        # -------------------------------------------------
+        # STEP 4: RETRY OR MARK FAILED
+        # -------------------------------------------------
+
+        if self.request.retries < self.max_retries:
+
+            try:
+                with transaction.atomic():
+
+                    tender = (
+                        Tender.objects
+                        .select_for_update()
+                        .filter(tender_id=tender_id)
+                        .first()
+                    )
+
+                    if tender:
+
+                        summary_meta = tender.summary_meta or {}
+
+                        if summary_meta.get("task_id") == task_id:
+
+                            # Keep status running during retry.
+                            summary_meta.update({
+                                "status": "running",
+                                "retry_count": self.request.retries + 1,
+                                "last_retry_error": str(exc),
+                            })
+
+                            tender.summary_meta = summary_meta
+
+                            tender.save(
+                                update_fields=[
+                                    "summary_meta",
+                                    "updated_at",
+                                ]
+                            )
+
+            except Exception:
+                logger.exception(
+                    "Could not update retry metadata | tender_id=%s",
+                    tender_id,
+                )
+
+            raise self.retry(exc=exc)
+
+        # Maximum retries exhausted.
+        try:
+
+            with transaction.atomic():
+
+                tender = (
+                    Tender.objects
+                    .select_for_update()
+                    .filter(tender_id=tender_id)
+                    .first()
+                )
+
+                if tender:
+
+                    summary_meta = tender.summary_meta or {}
+
+                    # Never overwrite another task's status.
+                    if summary_meta.get("task_id") == task_id:
+
+                        summary_meta.update({
+                            "status": "failed",
+                            "error": str(exc),
+                            "failed_at": timezone.now().isoformat(),
+                            "retry_count": self.request.retries,
+                        })
+
+                        tender.summary_meta = summary_meta
+
+                        tender.save(
+                            update_fields=[
+                                "summary_meta",
+                                "updated_at",
+                            ]
+                        )
+
+        except Exception:
+            logger.exception(
+                "Could not update final failure status | tender_id=%s",
+                tender_id,
+            )
+
+        raise

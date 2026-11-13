@@ -8,7 +8,7 @@ from django.views.decorators.http import require_http_methods
 from django.utils import timezone
 from ai.models import TenderPQAnalysis
 from api_gateway.models import DocumentChunk, Tender
-
+import uuid
 from .models import ChatConversation, ChatMessage
 import logging
 from ai.services.documents.answer_generation_service import (

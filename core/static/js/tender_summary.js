@@ -209,6 +209,7 @@ document.addEventListener("DOMContentLoaded", function () {
     // Render structured summary
     // --------------------------------------------------
 
+
     function renderSummary(summary, generatedAt) {
         $("summaryLoading").hidden = true;
         $("summaryEmpty").hidden = true;
@@ -216,96 +217,113 @@ document.addEventListener("DOMContentLoaded", function () {
 
         clearError();
 
-        $("summaryExecutive").textContent =
-            summary.executive_summary || "Not available in the documents.";
+        // Hide/remove the old Executive Summary content.
+        $("summaryExecutive").textContent = "";
 
         const sectionsContainer = $("summarySections");
         sectionsContainer.replaceChildren();
 
-        const sectionGroups = [
-            ["tender_overview", "Tender Overview"],
-            ["scope_of_work", "Scope of Work"],
-            ["key_dates", "Key Dates"],
-            ["financial_details", "Financial Details"],
-            ["project_details", "Project Details"],
-            ["eligibility_highlights", "Eligibility Highlights"],
-            ["important_conditions", "Important Conditions"],
-            ["important_notes", "Important Notes"],
-        ];
+        // Render summary statistics
+        const stats = summary.statistics || {};
 
-        sectionGroups.forEach(([key, heading]) => {
-            const items = summary[key] || [];
+        const statsContainer = document.createElement("div");
+        statsContainer.className = "row g-2 mb-4";
 
-            if (!items.length) return;
+        ["found", "not_found", "unclear", "conflicting"].forEach(status => {
+            const col = document.createElement("div");
+            col.className = "col-6 col-md-3";
 
-            const section = document.createElement("section");
+            col.innerHTML = `
+            <div class="border rounded-3 p-3">
+                <div class="small text-secondary text-capitalize">
+                    ${status.replace("_", " ")}
+                </div>
+                <div class="fs-4 fw-bold">
+                    ${stats[status] || 0}
+                </div>
+            </div>
+        `;
 
-            const title = document.createElement("h6");
-            title.className = "fw-bold mb-3";
-            title.textContent = heading;
+            statsContainer.appendChild(col);
+        });
 
-            section.appendChild(title);
+        sectionsContainer.appendChild(statsContainer);
 
-            items.forEach((item) => {
-                const card = document.createElement("div");
-                card.className = "border rounded-3 p-3 mb-2";
+        // Render all individual heading sections
+        (summary.sections || []).forEach(item => {
+            const section = document.createElement("div");
+            section.className = "border rounded-3 p-3 mb-3";
 
-                const itemTitle = document.createElement("div");
-                itemTitle.className = "fw-semibold small mb-2";
-                itemTitle.textContent = item.title || "Information";
+            const header = document.createElement("div");
+            header.className =
+                "d-flex justify-content-between align-items-start gap-2 mb-2";
 
-                const content = document.createElement("div");
-                content.className = "small text-secondary";
-                content.style.whiteSpace = "pre-wrap";
-                content.textContent = item.content || "—";
+            const heading = document.createElement("h6");
+            heading.className = "fw-bold mb-0";
+            heading.textContent = `${item.sr_no}. ${item.heading}`;
 
-                card.append(itemTitle, content);
+            const status = document.createElement("span");
+            status.className = "badge rounded-pill " + ({
+                found: "bg-success",
+                not_found: "bg-secondary",
+                unclear: "bg-warning text-dark",
+                conflicting: "bg-danger"
+            }[item.status] || "bg-secondary");
 
-                if (item.source_ids?.length) {
-                    const sources = document.createElement("div");
-                    sources.className = "small text-primary mt-2";
-                    sources.textContent =
-                        "Sources: " + item.source_ids.join(", ");
+            status.textContent = (item.status || "unclear")
+                .replace("_", " ");
 
-                    card.appendChild(sources);
-                }
+            header.append(heading, status);
 
-                section.appendChild(card);
-            });
+            const content = document.createElement("div");
+            content.className = "small text-secondary";
+            content.style.whiteSpace = "pre-wrap";
+            content.textContent = item.summary || "No information available.";
+
+            section.append(header, content);
+
+            // Individual citations for this heading
+            if (item.citations?.length) {
+                const citationsContainer = document.createElement("div");
+                citationsContainer.className = "mt-3 pt-2 border-top";
+
+                const citationTitle = document.createElement("div");
+                citationTitle.className = "small fw-semibold mb-2";
+                citationTitle.textContent = "Source Evidence";
+
+                citationsContainer.appendChild(citationTitle);
+
+                item.citations.forEach(citation => {
+                    const citationCard = document.createElement("div");
+                    citationCard.className =
+                        "bg-light rounded-2 p-2 mb-2";
+
+                    const source = document.createElement("div");
+                    source.className = "small fw-semibold";
+                    source.textContent =
+                        `${citation.document || "Document"} | Page ${citation.page ?? "Unknown"}`;
+
+                    const quote = document.createElement("div");
+                    quote.className = "small text-secondary mt-1";
+                    quote.style.whiteSpace = "pre-wrap";
+                    quote.textContent = `"${citation.quote || ""}"`;
+
+                    citationCard.append(source, quote);
+                    citationsContainer.appendChild(citationCard);
+                });
+
+                section.appendChild(citationsContainer);
+            }
 
             sectionsContainer.appendChild(section);
         });
-
-        renderCitations(summary.citations || []);
-
-        const missing = summary.missing_information || [];
-
-        if (missing.length) {
-            const section = document.createElement("section");
-            section.className = "border rounded-3 p-3";
-
-            const heading = document.createElement("h6");
-            heading.className = "fw-bold mb-2";
-            heading.textContent = "Information Not Found";
-
-            const list = document.createElement("ul");
-            list.className = "small text-secondary mb-0";
-
-            missing.forEach((item) => {
-                const li = document.createElement("li");
-                li.textContent = item;
-                list.appendChild(li);
-            });
-
-            section.append(heading, list);
-            sectionsContainer.appendChild(section);
-        }
 
         $("summaryGeneratedAt").textContent =
             generatedAt ? formatDateTime(generatedAt) : "—";
 
         setStatus("Completed");
     }
+
 
     function renderCitations(citations) {
         const container = $("summaryCitations");
