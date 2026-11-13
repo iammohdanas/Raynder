@@ -45,21 +45,4 @@ class RerankerService:
             key=lambda item: item["rerank_score"],
             reverse=True,
         )
-
-        logger.info(
-            "RERANK DEBUG | query=%r | candidates=%d | top_results=%s",
-            query,
-            len(reranked),
-            [
-                {
-                    "document": item["document"],
-                    "page": item["page"],
-                    "chunk_id": item["chunk_id"],
-                    "retrieval_score": item["score"],
-                    "rerank_score": item["rerank_score"],
-                }
-                for item in reranked[:10]
-            ],
-        )
-
         return reranked[:limit]

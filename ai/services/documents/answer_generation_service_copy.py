@@ -113,17 +113,7 @@ class AnswerGenerationService:
             len(results),
         )
 
-        for rank, item in enumerate(results, start=1):
-            logger.info(
-                "RAG RESULT #%d | document=%s | page=%s "
-                "| chunk_id=%s | score=%s | text=%r",
-                rank,
-                item.get("document"),
-                item.get("page"),
-                item.get("chunk_id"),
-                item.get("score"),
-                item.get("text", "")[:500],
-            )
+
                 
         if not results:
             return {

@@ -30,6 +30,7 @@ class SummaryCitation(BaseModel):
 class SummarySectionAnswer(BaseModel):
     sr_no: int
     answer: str
+    one_liner: str
     status: Literal["found", "not_found", "unclear", "conflicting"]
     citations: list[SummaryCitation] = Field(default_factory=list)
 
@@ -390,6 +391,13 @@ Answer style:
 - Do not omit important qualifications or exceptions.
 - Do not write generic explanations when the document does
   not contain the required information.
+
+One-liner:
+- Provide exactly one concise sentence summarizing the most
+  important information from the detailed answer.
+- Preserve critical figures, dates, thresholds, and conditions.
+- Ensure the sentence communicates the key finding independently.
+- Do not introduce information that is not supported by the evidence.
 """
 
         user_prompt = (
@@ -498,6 +506,7 @@ Answer style:
             answers_by_id[sr_no] = {
                 "sr_no": sr_no,
                 "answer": answer,
+                "one_liner": section.one_liner.strip(),
                 "status": status,
                 "citations": valid_citations,
             }
@@ -514,6 +523,7 @@ Answer style:
                     "answer": (
                         "No reliable answer could be generated."
                     ),
+                    "one_liner": "",
                     "status": "unclear",
                     "citations": [],
                 }
@@ -552,6 +562,7 @@ Answer style:
                         "No relevant evidence found in the "
                         "indexed tender documents."
                     ),
+                    "one_liner": "",
                     "status": "not_found",
                     "citations": [],
                 }
@@ -594,6 +605,7 @@ Answer style:
                         "answer": (
                             "Summary generation failed for this section."
                         ),
+                        "one_liner": "",
                         "status": "unclear",
                         "citations": [],
                     }
@@ -807,7 +819,8 @@ Answer style:
                 # Original metadata from summary_keywords.py.
                 "category": item.get("category"),
                 "key_point": item.get("key_point"),
-
+                
+                "one_liner": generated.get("one_liner", ""),
                 # LLM-generated content.
                 "summary": generated.get("answer") or (
                     "No relevant information found in the tender documents."

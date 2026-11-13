@@ -866,7 +866,6 @@ def get_tender_summary(request, tender_id):
             status=404,
         )
     summary_meta = tender.summary_meta or {}
-    print(summary_meta)
     return JsonResponse({
         "success": True,
         "tender_id": tender.tender_id,

@@ -255,19 +255,30 @@ document.addEventListener("DOMContentLoaded", function () {
         sectionsContainer.appendChild(statsContainer);
 
         // Render all individual heading sections
+        // Render all individual heading sections
         (summary.sections || []).forEach(item => {
-            const section = document.createElement("div");
-            section.className = "border rounded-3 p-3 mb-3";
 
-            const header = document.createElement("div");
-            header.className =
-                "d-flex justify-content-between align-items-start gap-2 mb-2";
+            const section = document.createElement("details");
+            section.className = "summary-accordion";
 
-            const heading = document.createElement("h6");
-            heading.className = "fw-bold mb-0";
+            // -----------------------------------------
+            // Always visible heading / one-liner
+            // -----------------------------------------
+
+            const summaryHeader = document.createElement("summary");
+
+            const headerContent = document.createElement("div");
+            headerContent.className = "summary-accordion-header";
+
+            const heading = document.createElement("div");
+            heading.className = "summary-accordion-title";
             heading.textContent = `${item.sr_no}. ${item.heading}`;
 
+            const rightContent = document.createElement("div");
+            rightContent.className = "d-flex align-items-center gap-2 flex-shrink-0";
+
             const status = document.createElement("span");
+
             status.className = "badge rounded-pill " + ({
                 found: "bg-success",
                 not_found: "bg-secondary",
@@ -275,54 +286,98 @@ document.addEventListener("DOMContentLoaded", function () {
                 conflicting: "bg-danger"
             }[item.status] || "bg-secondary");
 
-            status.textContent = (item.status || "unclear")
-                .replace("_", " ");
+            status.textContent = (item.status || "unclear").replace("_", " ");
 
-            header.append(heading, status);
+            const chevron = document.createElement("i");
+            chevron.className = "fa-solid fa-chevron-down summary-accordion-chevron";
 
-            const content = document.createElement("div");
-            content.className = "small text-secondary";
-            content.style.whiteSpace = "pre-wrap";
-            content.textContent = item.summary || "No information available.";
+            rightContent.append(status, chevron);
+            headerContent.append(heading, rightContent);
 
-            section.append(header, content);
+            const oneLiner = document.createElement("div");
+            oneLiner.className = "summary-one-liner";
+            oneLiner.textContent = item.one_liner || "Quick summary not available.";
 
-            // Individual citations for this heading
+            summaryHeader.append(headerContent, oneLiner);
+
+            // -----------------------------------------
+            // Expandable content
+            // -----------------------------------------
+
+            const body = document.createElement("div");
+            body.className = "summary-accordion-body";
+
+            // Detailed summary
+            const summaryLabel = document.createElement("div");
+            summaryLabel.className = "summary-detail-label";
+            summaryLabel.textContent = "Detailed Summary";
+
+            const summaryText = document.createElement("div");
+            summaryText.className = "summary-detail-text";
+            summaryText.textContent = item.summary || "No information available.";
+
+            body.append(summaryLabel, summaryText);
+
+            // -----------------------------------------
+            // Citations
+            // -----------------------------------------
+
+            const citationsSection = document.createElement("div");
+            citationsSection.className = "mt-4 pt-3 border-top";
+
+            const citationTitle = document.createElement("div");
+            citationTitle.className = "summary-detail-label";
+            citationTitle.innerHTML = `
+        <i class="fa-solid fa-book-open me-1"></i>
+        Source Evidence
+    `;
+
+            citationsSection.appendChild(citationTitle);
+
             if (item.citations?.length) {
-                const citationsContainer = document.createElement("div");
-                citationsContainer.className = "mt-3 pt-2 border-top";
-
-                const citationTitle = document.createElement("div");
-                citationTitle.className = "small fw-semibold mb-2";
-                citationTitle.textContent = "Source Evidence";
-
-                citationsContainer.appendChild(citationTitle);
 
                 item.citations.forEach(citation => {
+
                     const citationCard = document.createElement("div");
-                    citationCard.className =
-                        "bg-light rounded-2 p-2 mb-2";
+                    citationCard.className = "summary-citation-card";
 
                     const source = document.createElement("div");
-                    source.className = "small fw-semibold";
-                    source.textContent =
-                        `${citation.document || "Document"} | Page ${citation.page ?? "Unknown"}`;
+                    source.className = "summary-citation-source";
+
+                    const documentName = citation.document ||
+                        citation.source_id ||
+                        "Document";
+
+                    const page = citation.page != null
+                        ? ` | Page ${citation.page}`
+                        : "";
+
+                    source.textContent = `${documentName}${page}`;
 
                     const quote = document.createElement("div");
-                    quote.className = "small text-secondary mt-1";
-                    quote.style.whiteSpace = "pre-wrap";
-                    quote.textContent = `"${citation.quote || ""}"`;
+                    quote.className = "summary-citation-quote";
+                    quote.textContent = citation.quote
+                        ? `"${citation.quote}"`
+                        : "No quotation available.";
 
                     citationCard.append(source, quote);
-                    citationsContainer.appendChild(citationCard);
+                    citationsSection.appendChild(citationCard);
                 });
 
-                section.appendChild(citationsContainer);
+            } else {
+
+                const empty = document.createElement("div");
+                empty.className = "small text-secondary";
+                empty.textContent = "No source citations available.";
+
+                citationsSection.appendChild(empty);
             }
 
+            body.appendChild(citationsSection);
+
+            section.append(summaryHeader, body);
             sectionsContainer.appendChild(section);
         });
-
         $("summaryGeneratedAt").textContent =
             generatedAt ? formatDateTime(generatedAt) : "—";
 
