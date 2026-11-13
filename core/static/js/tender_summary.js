@@ -218,7 +218,12 @@ document.addEventListener("DOMContentLoaded", function () {
         clearError();
 
         // Hide/remove the old Executive Summary content.
-        $("summaryExecutive").textContent = "";
+        const executiveSummary = $("summaryExecutive");
+
+        if (executiveSummary) {
+            executiveSummary.textContent =
+                summary.executive_summary || "Executive summary not available.";
+        }
 
         const sectionsContainer = $("summarySections");
         sectionsContainer.replaceChildren();

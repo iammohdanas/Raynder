@@ -135,3 +135,79 @@
     transform: translateX(30px) scale(0.96) !important;
     margin-top: -50px !important;
 }
+
+
+/* AI Summary Icon */
+.summary-icon {
+    width: 36px;
+    height: 36px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 10px;
+    background: #eff6ff;
+    color: #2563eb;
+    font-size: 15px;
+}
+
+/* Premium Excel Download Button */
+.btn-summary-download {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+
+    padding: 10px 17px;
+
+    background: #172554;
+    color: #ffffff;
+
+    border: 1px solid #172554;
+    border-radius: 9px;
+
+    font-family: inherit;
+    font-size: 0.8125rem;
+    font-weight: 700;
+    letter-spacing: 0.01em;
+
+    cursor: pointer;
+
+    box-shadow: 0 2px 5px rgba(15, 23, 42, 0.12);
+
+    transition:
+        background 0.2s ease,
+        border-color 0.2s ease,
+        box-shadow 0.2s ease,
+        transform 0.2s ease;
+}
+
+.btn-summary-download:hover {
+    background: #1e40af;
+    border-color: #1e40af;
+    color: #ffffff;
+    transform: translateY(-1px);
+    box-shadow: 0 5px 12px rgba(30, 64, 175, 0.2);
+}
+
+.btn-summary-download:active {
+    transform: translateY(0);
+    box-shadow: none;
+}
+
+.btn-summary-download:focus-visible {
+    outline: 3px solid rgba(59, 130, 246, 0.3);
+    outline-offset: 3px;
+}
+
+.btn-summary-download .download-arrow {
+    font-size: 11px;
+    opacity: 0.75;
+    margin-left: 2px;
+}
+
+/* Mobile Layout */
+@media (max-width: 576px) {
+    .btn-summary-download {
+        width: 100%;
+    }
+}

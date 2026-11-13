@@ -1,5 +1,6 @@
 from django.urls import include, path
 from . import views
+from ai.views import download_tender_summary_excel
 
 urlpatterns = [
     path("", views.index, name="main"),
@@ -11,6 +12,7 @@ urlpatterns = [
     path("priority-tenders/", views.priority_tenders_list_page, name="priority_tenders_list"),
     path("tenders/<int:tender_id>/edit/", views.edit_tender_page,name="edit_tender_page",),
     path("tenders/<int:tender_id>/pq-analysis/",views.pq_analysis_page,name="pq_analysis_page",),
-    
+    path("tenders/<int:tender_id>/summary/download/", download_tender_summary_excel, name="download_tender_summary_excel",),
+
 
 ]

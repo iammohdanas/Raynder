@@ -7,6 +7,7 @@ from django.utils import timezone
 from django.views.decorators.http import require_http_methods
 from django.utils import timezone
 from ai.models import TenderPQAnalysis
+from ai.utils.summary_export_views import build_tender_summary_excel
 from api_gateway.models import DocumentChunk, Tender
 import uuid
 from .models import ChatConversation, ChatMessage
@@ -19,7 +20,11 @@ import json
 from ai.services.chat.answer_memory_service import AnswerMemoryService
 from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
-
+import logging
+import re
+from django.http import HttpResponse, JsonResponse
+from django.shortcuts import get_object_or_404
+from django.views.decorators.http import require_GET
 from api_gateway.models import Tender
 from ai.models import EvaluationRun
 from ai.tasks import run_document_pipeline, run_rag_evaluation,evaluate_live_rag_answer, run_pq_analysis, run_tender_summary
@@ -861,6 +866,7 @@ def get_tender_summary(request, tender_id):
             status=404,
         )
     summary_meta = tender.summary_meta or {}
+    print(summary_meta)
     return JsonResponse({
         "success": True,
         "tender_id": tender.tender_id,
@@ -872,3 +878,48 @@ def get_tender_summary(request, tender_id):
         "summary": tender.ai_summary or {},
         "found": bool(tender.ai_summary),
     })
+
+
+@require_GET
+def download_tender_summary_excel(request, tender_id):
+    if not request.user.is_authenticated:
+        return JsonResponse(
+            {"error": "Authentication required."},
+            status=401,
+        )
+    tender = get_object_or_404(Tender, pk=tender_id)
+    summary = tender.ai_summary
+    if not summary or not summary.get("sections"):
+        return JsonResponse(
+            {"error": "Tender summary is not available."},
+            status=404,
+        )
+    try:
+        excel_content = build_tender_summary_excel(summary)
+        filename_id = re.sub(
+            r"[^A-Za-z0-9_-]",
+            "_",
+            str(tender.tender_id),
+        )
+        response = HttpResponse(
+            excel_content,
+            content_type=(
+                "application/vnd.openxmlformats-officedocument."
+                "spreadsheetml.sheet"
+            ),
+        )
+        response["Content-Disposition"] = (
+            f'attachment; filename="Tender_Summary_{filename_id}.xlsx"'
+        )
+        return response
+    except Exception:
+
+        logger.exception(
+            "Failed to generate tender summary Excel | tender=%s",
+            tender.tender_id,
+        )
+
+        return JsonResponse(
+            {"error": "Unable to generate Excel file."},
+            status=500,
+        )

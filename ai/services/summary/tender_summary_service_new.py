@@ -33,6 +33,8 @@ class SummarySectionAnswer(BaseModel):
     status: Literal["found", "not_found", "unclear", "conflicting"]
     citations: list[SummaryCitation] = Field(default_factory=list)
 
+class ExecutiveSummaryResponse(BaseModel):
+    executive_summary: str
 
 class SummaryBatchResponse(BaseModel):
     sections: list[SummarySectionAnswer] = Field(default_factory=list)
@@ -859,6 +861,9 @@ Answer style:
             )
             for status in valid_statuses
         }
+        executive_summary = self.generate_executive_summary(
+            sections=sections
+        )
 
         # STEP 6: Construct final response.
         result = {
@@ -866,6 +871,7 @@ Answer style:
             "total_sections": expected_count,
             "statistics": statistics,
             "sections": sections,
+            "executive_summary": executive_summary,
         }
 
         logger.info(
@@ -877,3 +883,102 @@ Answer style:
         )
 
         return result
+
+        
+    def generate_executive_summary(self, sections):
+        """
+        Generate a short overall tender summary using the
+        already-generated individual section answers.
+        """
+        # Only use sections with meaningful information.
+        relevant_sections = [
+            {
+                "sr_no": section["sr_no"],
+                "heading": section["heading"],
+                "summary": section["summary"],
+                "status": section["status"],
+            }
+            for section in sections
+            if section["status"] in ("found", "conflicting", "unclear")
+            and section.get("summary")
+        ]
+
+        if not relevant_sections:
+            return (
+                "The available tender documents did not provide "
+                "sufficient verified information to generate an "
+                "overall executive summary."
+            )
+
+        system_prompt = """
+                You are a senior tender analyst preparing an executive summary
+                for a company's bidding and management team.
+
+                Generate one concise paragraph summarizing the overall tender.
+
+                Instructions:
+
+                1. Keep the summary between 80 and 100 words.
+                2. Write only one paragraph.
+                3. Summarize the overall tender opportunity.
+                4. Prioritize important information such as:
+                - Project scope and nature of work
+                - Project capacity or major specifications
+                - Procuring authority
+                - Financial requirements and EMD
+                - Eligibility requirements
+                - Important deadlines
+                - Major contractual conditions and risks
+                5. Include only information available in the supplied summaries.
+                6. Do not invent missing values, dates, capacities or conditions.
+                7. Do not list all 74 headings individually.
+                8. Do not repeat the same information.
+                9. If important information is unavailable, do not assume it.
+                10. Write in professional, clear business English.
+                11. Do not include a heading or bullet points.
+                12. Return only the executive_summary field.
+                """
+
+        user_prompt = (
+            "Prepare a concise executive summary from these "
+            "individual tender analysis results:\n\n"
+            + json.dumps(relevant_sections, ensure_ascii=False)
+        )
+
+        try:
+
+            response = self.client.responses.parse(
+                model=self.deployment,
+                input=[
+                    {
+                        "role": "system",
+                        "content": system_prompt,
+                    },
+                    {
+                        "role": "user",
+                        "content": user_prompt,
+                    },
+                ],
+                text_format=ExecutiveSummaryResponse,
+            )
+
+            parsed = response.output_parsed
+
+            if parsed is None or not parsed.executive_summary.strip():
+                raise RuntimeError(
+                    "Executive summary generation returned an empty response."
+                )
+
+            return parsed.executive_summary.strip()
+
+        except Exception:
+
+            logger.exception(
+                "Executive summary generation failed."
+            )
+
+            return (
+                "The individual tender analysis is available below. "
+                "An overall executive summary could not be generated."
+            )
+

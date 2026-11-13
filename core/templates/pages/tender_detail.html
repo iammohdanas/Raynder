@@ -469,10 +469,20 @@
                         AI-generated overview based on the tender's processed documents.
                     </p>
                 </div>
+                <div class="d-flex align-items-center gap-3 flex-wrap">
 
-                <span id="summaryStatus" class="status-pill badge-source">
-                    Not generated
-                </span>
+                    <span id="summaryStatus" class="status-pill badge-source">
+                        Not generated
+                    </span>
+
+                    <button type="button" id="downloadSummaryExcelBtn" class="btn-summary-download"
+                        data-download-url="{% url 'download_tender_summary_excel' tender_id=tender_id %}">
+                        <i class="fa-solid fa-file-excel"></i>
+                        <span>Export to Excel</span>
+                        <i class="fa-solid fa-arrow-down download-arrow"></i>
+                    </button>
+
+                </div>
             </div>
 
             <div id="summaryError" class="alert alert-danger small" hidden></div>
@@ -662,4 +672,32 @@
 <script src="{% static 'js/tender_detail.js' %}"></script>
 <script src="{% static 'js/rag/rag_evaluation.js' %}"></script>
 <script src="{% static 'js/tender_summary.js' %}"></script>
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+
+        const downloadBtn = document.getElementById(
+            "downloadSummaryExcelBtn"
+        );
+
+        if (!downloadBtn) {
+            console.error("Download Excel button not found.");
+            return;
+        }
+
+        downloadBtn.addEventListener("click", function () {
+
+            const downloadUrl = downloadBtn.dataset.downloadUrl;
+
+            if (!downloadUrl) {
+                console.error("Excel download URL is missing.");
+                return;
+            }
+
+            console.log("Downloading tender summary:", downloadUrl);
+
+            window.location.href = downloadUrl;
+        });
+
+    });
+</script>
 {% endblock %}
