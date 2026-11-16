@@ -1,0 +1,105 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link
+    href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap"
+    rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css">
+
+<!-- Your same CSS -->
+<link rel="stylesheet" href="{% static 'css/tender_data_table.css' %}">
+
+<div class="dashboard-container pb-5 px-3 px-md-4">
+
+    <!-- Header Section -->
+    <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center mb-4 gap-3">
+        <div>
+            <div class="d-flex align-items-center gap-2 mb-1 flex-wrap">
+                <h4 class="fw-bold mb-0 text-dark">Tender Intelligence</h4>
+                <span class="ai-badge">
+                    <span class="pulse-dot"></span>
+                    LangGraph Agents Active
+                </span>
+            </div>
+            <p class="text-secondary mb-0 small">
+                Automated crawlers sync every 4h. Evaluated via AI Fit, Capacity Risk & Recommendation pipelines.
+            </p>
+        </div>
+
+        <div class="d-flex align-items-center gap-2 flex-shrink-0">
+            <button id="btnTriggerCrawl"
+                class="btn btn-white border bg-white btn-sm px-3 py-2 rounded-3 text-secondary fw-semibold d-inline-flex align-items-center gap-2 shadow-sm">
+                <i class="fa-solid fa-arrows-rotate text-muted"></i>
+                <span>Sync TenderTiger</span>
+            </button>
+            <a href="#"
+                class="btn btn-primary btn-sm px-3 py-2 rounded-3 fw-semibold d-inline-flex align-items-center gap-2 shadow-sm"
+                style="background-color: var(--brand-accent); border-color: var(--brand-accent);">
+                <i class="fa-solid fa-wand-magic-sparkles"></i>
+                <span>Semantic Search (RAG)</span>
+            </a>
+        </div>
+    </div>
+
+    <!-- Telemetry Cards -->
+    <div class="row g-3 mb-4">
+        <div class="col-sm-6 col-xl-3">
+            <div class="premium-card kpi-card d-flex align-items-center gap-3">
+                <div class="kpi-icon-box" style="background-color: #eff6ff; color: #2563eb;">
+                    <i class="fa-solid fa-layer-group"></i>
+                </div>
+                <div>
+                    <span class="text-muted small d-block mb-1">Tracked Tenders</span>
+                    <div class="kpi-value text-dark" id="stat-total-tenders">79</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-sm-6 col-xl-3">
+            <div class="premium-card kpi-card d-flex align-items-center gap-3">
+                <div class="kpi-icon-box" style="background-color: #ecfdf5; color: #059669;">
+                    <i class="fa-solid fa-square-check"></i>
+                </div>
+                <div>
+                    <span class="text-muted small d-block mb-1">Recommended Buys</span>
+                    <div class="kpi-value text-success" id="stat-recommended">0</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-sm-6 col-xl-3">
+            <div class="premium-card kpi-card d-flex align-items-center gap-3">
+                <div class="kpi-icon-box" style="background-color: #fffbeb; color: #d97706;">
+                    <i class="fa-solid fa-bolt"></i>
+                </div>
+                <div>
+                    <span class="text-muted small d-block mb-1">Analyzed Capacity</span>
+                    <div class="kpi-value text-dark" id="stat-capacity">0 MW</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-sm-6 col-xl-3">
+            <div class="premium-card kpi-card d-flex align-items-center gap-3">
+                <div class="kpi-icon-box" style="background-color: #f0fdf4; color: #0284c7;">
+                    <i class="fa-solid fa-rotate"></i>
+                </div>
+                <div>
+                    <span class="text-muted small d-block mb-1">Last Sync (Celery)</span>
+                    <div class="fw-bold text-dark fs-6" id="stat-last-sync">Just now</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% include "partial_pages/_tender_table.html" with table_api_url="/api/my-tenders/" table_type="my_tenders" %}
+
+</div>
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
+
+{% endblock %}

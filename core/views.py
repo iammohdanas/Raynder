@@ -81,3 +81,11 @@ def pq_analysis_page(request, tender_id):
             "tender_id": tender_id,
         },
     )
+
+@login_required
+@role_required(['admin', 'manager', 'customer'])
+def my_tenders_page(request):
+    return render(
+        request,
+        "pages/my_tenders.html",
+    )

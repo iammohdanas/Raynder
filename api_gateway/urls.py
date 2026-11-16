@@ -16,5 +16,5 @@ urlpatterns = [
     path("ai/chat/<uuid:conversation_id>/", views.chat_conversation_detail, name="chat_conversation_detail",),
     path("ai/chat/<uuid:conversation_id>/delete/", views.delete_chat_conversation, name="delete_chat_conversation",),
     path("tenders/<int:tender_id>/decision/", views.make_tender_decision, name="make_tender_decision"),
-    
+    path("my-tenders/", views.get_my_tenders, name="get_my_tenders",),
 ]

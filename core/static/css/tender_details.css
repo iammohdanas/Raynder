@@ -1,0 +1,84 @@
+
+.workflow-timeline {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+}
+
+.workflow-step {
+    display: flex;
+    align-items: flex-start;
+    gap: 15px;
+    position: relative;
+    min-height: 65px;
+}
+
+.workflow-step:not(:last-child)::before {
+    content: "";
+    position: absolute;
+    left: 15px;
+    top: 32px;
+    height: calc(100% - 12px);
+    width: 2px;
+    background: #dee2e6;
+}
+
+.workflow-step.completed:not(:last-child)::before {
+    background: #198754;
+}
+
+.workflow-step.current:not(:last-child)::before {
+    background: linear-gradient(
+        to bottom,
+        #0d6efd 0%,
+        #dee2e6 100%
+    );
+}
+
+.workflow-step-icon {
+    width: 32px;
+    height: 32px;
+    min-width: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #e9ecef;
+    color: #6c757d;
+    font-size: 13px;
+    z-index: 1;
+}
+
+.workflow-step.completed .workflow-step-icon {
+    background: #d1e7dd;
+    color: #198754;
+}
+
+.workflow-step.current .workflow-step-icon {
+    background: #cfe2ff;
+    color: #0d6efd;
+    border: 2px solid #0d6efd;
+}
+
+.workflow-step-content {
+    padding: 5px 0 20px;
+}
+
+.workflow-step-title {
+    font-weight: 500;
+    color: #6c757d;
+}
+
+.workflow-step.completed .workflow-step-title {
+    color: #198754;
+}
+
+.workflow-step.current .workflow-step-title {
+    color: #0d6efd;
+    font-weight: 700;
+}
+
+.workflow-step-description {
+    font-size: 12px;
+    color: #6c757d;
+}

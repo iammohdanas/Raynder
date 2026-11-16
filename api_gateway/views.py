@@ -186,6 +186,18 @@ def get_tender_detail(request, tender_id):
 
         # Add documents to tender response
         data["documents"] = document_serializer.data
+        try:
+            my_tender = tender.my_tender
+            data["my_tender"] = {
+                "status": my_tender.status,
+                "status_display": my_tender.get_status_display(),
+                "remarks": my_tender.remarks,
+                "added_at": my_tender.added_at.isoformat(),
+                "updated_at": my_tender.updated_at.isoformat(),
+            }
+
+        except MyTender.DoesNotExist:
+            data["my_tender"] = None
 
         return Response(
             {
@@ -987,4 +999,120 @@ def make_tender_decision(request, tender_id):
         logger.exception("Failed to record tender decision.")
         return Response({"success": False,"error": "Unable to record tender decision."},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+@api_view(["GET"])
+def get_my_tenders(request):
+    """
+    Server-side DataTables API for management-approved tenders.
+
+    Supports:
+    - Pagination
+    - Search
+    - My Tender lifecycle statistics
+    """
+    try:
+        start = max(0, int(request.GET.get("start", 0)))
+        length = max(1, min(int(request.GET.get("length", 10)), 100))
+        search_value = request.GET.get("search[value]", "").strip()
+
+        # Only tenders added to My Tenders
+        queryset = MyTender.objects.select_related("tender", "tender__priority")
+        records_total = queryset.count()
+
+        # Search across original tender details and lifecycle status
+        if search_value:
+            search_filter = (
+                Q(tender__tender_id__icontains=search_value)
+                | Q(tender__source_tender_id__icontains=search_value)
+                | Q(tender__tender_ref_no__icontains=search_value)
+                | Q(tender__title__icontains=search_value)
+                | Q(tender__description__icontains=search_value)
+                | Q(tender__company_name__icontains=search_value)
+                | Q(tender__state__icontains=search_value)
+                | Q(tender__city__icontains=search_value)
+                | Q(status__icontains=search_value)
+            )
+            if search_value.isdigit():
+                search_filter |= Q(tender__pk=int(search_value)) | Q(pk=int(search_value))
+
+            queryset = queryset.filter(search_filter)
+
+        records_filtered = queryset.count()
+        queryset = queryset.order_by("-added_at")
+
+        # Pagination
+        paginator = Paginator(queryset, length)
+        page_number = (start // length) + 1
+        page = paginator.get_page(page_number)
+
+        data = []
+        for my_tender in page.object_list:
+            tender = my_tender.tender
+            # TenderPriority is optional
+            priority = getattr(tender, "priority", None)
+            location_parts = [value for value in [tender.city, tender.state] if value]
+
+            data.append({
+                "id": tender.id,
+                "my_tender_id": my_tender.id,
+                "tender_id": tender.tender_id,
+                "title": tender.title,
+                "tender_ref_no": tender.tender_ref_no,
+                "authority": tender.company_name,
+                "location": ", ".join(location_parts) if location_parts else "Pan India",
+                "capacity_mw": float(priority.capacity_mw) if priority and priority.capacity_mw is not None else None,
+                "amount_crore": float(priority.amount_crore) if priority and priority.amount_crore is not None else None,
+                "tender_value": float(tender.tender_value) if tender.tender_value is not None else None,
+                "due_date": tender.closing_date.strftime("%d-%m-%Y") if tender.closing_date else None,
+                "closing_date": tender.closing_date.isoformat() if tender.closing_date else None,
+                "status": my_tender.status,
+                "status_label": my_tender.get_status_display(),
+                "added_at": my_tender.added_at.isoformat(),
+                # Workspace URL will be connected in the next step
+                "view_url": f"/tenders/{tender.id}/",
+            })
+
+        # Statistics across all My Tenders, not just the current page
+        today = timezone.localdate()
+        all_my_tenders = MyTender.objects.all()
+        total_count = all_my_tenders.count()
+
+        active_count = all_my_tenders.exclude(
+            status__in=[
+                MyTender.Status.WON,
+                MyTender.Status.LOST,
+                MyTender.Status.CLOSED,
+            ]
+        ).count()
+
+        submitted_count = all_my_tenders.filter(status=MyTender.Status.SUBMITTED).count()
+        won_count = all_my_tenders.filter(status=MyTender.Status.WON).count()
+        lost_count = all_my_tenders.filter(status=MyTender.Status.LOST).count()
+        upcoming_deadlines = all_my_tenders.filter(tender__closing_date__gte=today).count()
+        capacity_total = all_my_tenders.aggregate(total=Sum("tender__priority__capacity_mw"))["total"]
+
+        return Response(
+            {
+                "draw": int(request.GET.get("draw", 1)),
+                "recordsTotal": records_total,
+                "recordsFiltered": records_filtered,
+                "data": data,
+                "stats": {
+                    "total_tenders": total_count,
+                    "active_tenders": active_count,
+                    "submitted_count": submitted_count,
+                    "won_count": won_count,
+                    "lost_count": lost_count,
+                    "upcoming_deadlines": upcoming_deadlines,
+                    "total_capacity_mw": float(capacity_total) if capacity_total is not None else 0,
+                },
+            },
+            status=status.HTTP_200_OK,
+        )
+    except Exception:
+        logger.exception("Failed to retrieve My Tenders.")
+        return Response(
+            {"success": False, "error": "Unable to retrieve My Tenders."},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )

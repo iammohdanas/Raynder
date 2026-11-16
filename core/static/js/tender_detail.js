@@ -330,7 +330,151 @@ function populateTender(tender) {
     setupLink("originalSource", tender.original_source);
 
     renderDocuments(tender.documents || []);
+
+    renderExecutionWorkflow(tender.my_tender);
 }
+
+
+function renderExecutionWorkflow(myTender) {
+    const panel = document.getElementById("workflowPanel");
+    const timeline = document.getElementById("workflowTimeline");
+    const statusBadge = document.getElementById("workflowStatusBadge");
+    const remarksContainer = document.getElementById("workflowRemarksContainer");
+    const remarksElement = document.getElementById("workflowRemarks");
+
+    // Hide workflow for tenders not added to My Tenders
+    if (!myTender) {
+        panel.style.display = "none";
+        return;
+    }
+
+    panel.style.display = "block";
+
+    const stages = [
+        { code: "GO_APPROVED", label: "Go Approved" },
+        { code: "DOCUMENT_REVIEW", label: "Document Review" },
+        { code: "PRE_BID", label: "Pre-Bid" },
+        { code: "BID_PREPARATION", label: "Bid Preparation" },
+        { code: "PRICING", label: "Pricing" },
+        { code: "APPROVAL", label: "Approval" },
+        { code: "SUBMITTED", label: "Submitted" },
+        { code: "UNDER_EVALUATION", label: "Under Evaluation" }
+    ];
+
+    const terminalOutcomes = {
+        WON: "Won",
+        LOST: "Lost",
+        CLOSED: "Closed"
+    };
+
+    const currentStatus = myTender.status;
+
+    const isTerminal = Object.prototype.hasOwnProperty.call(
+        terminalOutcomes,
+        currentStatus
+    );
+
+    const currentIndex = stages.findIndex(
+        stage => stage.code === currentStatus
+    );
+
+    let workflowStages = [...stages];
+
+    // Add final outcome when tender reaches a terminal status
+    if (isTerminal) {
+        workflowStages.push({
+            code: currentStatus,
+            label: `Final Outcome: ${terminalOutcomes[currentStatus]}`
+        });
+    }
+
+    // Update current status badge
+    statusBadge.textContent = myTender.status_display || currentStatus;
+
+    if (isTerminal) {
+        statusBadge.className = "badge bg-success";
+        if (currentStatus === "LOST") {
+            statusBadge.className = "badge bg-danger";
+        } else if (currentStatus === "CLOSED") {
+            statusBadge.className = "badge bg-secondary";
+        }
+    } else {
+        statusBadge.className = "badge bg-primary";
+    }
+
+    // Handle an unknown status safely
+    if (currentIndex === -1 && !isTerminal) {
+        timeline.textContent = "Unknown workflow status.";
+        return;
+    }
+
+    const activeIndex = isTerminal ? stages.length : currentIndex;
+
+    timeline.innerHTML = workflowStages.map((stage, index) => {
+        let state = "upcoming";
+        let icon = '<i class="fas fa-circle"></i>';
+        let description = "Pending";
+
+        if (index < activeIndex) {
+            state = "completed";
+            icon = '<i class="fas fa-check"></i>';
+            description = "Completed";
+        } else if (index === activeIndex) {
+            state = "current";
+            icon = '<i class="fas fa-clock"></i>';
+            description = isTerminal
+                ? "Final outcome"
+                : "Current stage";
+        }
+
+        return `
+            <div class="workflow-step ${state}">
+                <div class="workflow-step-icon">
+                    ${icon}
+                </div>
+
+                <div class="workflow-step-content">
+                    <div class="workflow-step-title">
+                        ${stage.label}
+                    </div>
+
+                    <div class="workflow-step-description">
+                        ${description}
+                    </div>
+                </div>
+            </div>
+        `;
+    }).join("");
+
+    // Display remarks only when available
+    if (myTender.remarks) {
+        remarksElement.textContent = myTender.remarks;
+        remarksContainer.style.display = "block";
+    } else {
+        remarksContainer.style.display = "none";
+    }
+}
+
+
+document.addEventListener("DOMContentLoaded", function () {
+
+    const collapseElement = document.getElementById("workflowCollapse");
+    const toggleIcon = document.getElementById("workflowToggleIcon");
+
+    if (!collapseElement || !toggleIcon) return;
+
+    collapseElement.addEventListener("show.bs.collapse", function () {
+        toggleIcon.classList.remove("fa-chevron-down");
+        toggleIcon.classList.add("fa-chevron-up");
+    });
+
+    collapseElement.addEventListener("hide.bs.collapse", function () {
+        toggleIcon.classList.remove("fa-chevron-up");
+        toggleIcon.classList.add("fa-chevron-down");
+    });
+
+});
+
 
 function renderDocuments(documents) {
 
