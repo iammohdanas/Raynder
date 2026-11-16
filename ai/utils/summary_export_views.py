@@ -40,7 +40,7 @@ def build_tender_summary_excel(summary):
     # REPORT TITLE AND TENDER STATISTICS
     # -------------------------------------------------
 
-    ws.merge_cells("A1:H1")
+    ws.merge_cells("A1:I1")
     ws["A1"] = "TENDER SUMMARY REPORT"
     ws["A1"].font = Font(
         bold=True,
@@ -86,12 +86,12 @@ def build_tender_summary_excel(summary):
         "Heading",
         "Category",
         "Key Point",
+        "One-liner",
         "Summary",
         "Status",
         "Retrieval Status",
         "Citations",
     ]
-
     header_row = 5
 
     for col, header in enumerate(headers, start=1):
@@ -134,12 +134,12 @@ def build_tender_summary_excel(summary):
             safe_excel_value(section.get("heading")),
             safe_excel_value(section.get("category")),
             safe_excel_value(section.get("key_point")),
+            safe_excel_value(section.get("one_liner")),
             safe_excel_value(section.get("summary")),
             safe_excel_value(section.get("status")),
             safe_excel_value(section.get("retrieval_status")),
             safe_excel_value(citations_text),
         ]
-
         ws.append(row)
 
     # -------------------------------------------------
@@ -198,15 +198,16 @@ def build_tender_summary_excel(summary):
     # -------------------------------------------------
 
     column_widths = {
-        "A": 10,
-        "B": 35,
-        "C": 22,
-        "D": 30,
-        "E": 65,
-        "F": 16,
-        "G": 20,
-        "H": 65,
-    }
+            "A": 10,
+            "B": 35,
+            "C": 22,
+            "D": 30,
+            "E": 45,  # One-liner
+            "F": 65,  # Detailed Summary
+            "G": 16,
+            "H": 20,
+            "I": 65,  # Citations
+        }   
 
     for column, width in column_widths.items():
         ws.column_dimensions[column].width = width
@@ -215,9 +216,7 @@ def build_tender_summary_excel(summary):
     ws.freeze_panes = "A6"
 
     # Enable Excel filters.
-    ws.auto_filter.ref = (
-        f"A{header_row}:H{ws.max_row}"
-    )
+    ws.auto_filter.ref = f"A{header_row}:I{ws.max_row}"
 
     # Print settings.
     ws.sheet_properties.pageSetUpPr.fitToPage = True

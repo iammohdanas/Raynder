@@ -3,6 +3,7 @@ import os
 import random
 from django.db import models
 
+from django.conf import settings
 from api_gateway.utils.utils import tender_document_upload_path
 
 
@@ -128,3 +129,44 @@ class DocumentChunk(models.Model):
                 name="unique_document_chunk"
             )
         ]
+
+class MyTender(models.Model):
+    class Status(models.TextChoices):
+        GO_APPROVED = "GO_APPROVED", "Go Approved"
+        DOCUMENT_REVIEW = "DOCUMENT_REVIEW", "Document Review"
+        PRE_BID = "PRE_BID", "Pre-Bid"
+        BID_PREPARATION = "BID_PREPARATION", "Bid Preparation"
+        PRICING = "PRICING", "Pricing"
+        APPROVAL = "APPROVAL", "Approval"
+        SUBMITTED = "SUBMITTED", "Submitted"
+        UNDER_EVALUATION = "UNDER_EVALUATION", "Under Evaluation"
+        WON = "WON", "Won"
+        LOST = "LOST", "Lost"
+        CLOSED = "CLOSED", "Closed"
+
+    tender = models.OneToOneField(Tender, on_delete=models.PROTECT, related_name="my_tender")
+    status = models.CharField(max_length=30, choices=Status.choices, default=Status.GO_APPROVED)
+    remarks = models.TextField(blank=True, null=True)
+    added_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.tender.tender_id} - {self.status}"
+
+
+class TenderDecision(models.Model):
+
+    class Decision(models.TextChoices):
+        GO = "GO", "Go"
+        NO_GO = "NO_GO", "No Go"
+        HOLD = "HOLD", "Hold"
+
+    tender = models.ForeignKey(Tender,on_delete=models.CASCADE,related_name="decisions")
+    decision = models.CharField(max_length=10,choices=Decision.choices)
+    remarks = models.TextField(blank=True, null=True)
+    decided_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True)
+    decided_at = models.DateTimeField(auto_now_add=True)
+    class Meta:
+        ordering = ["-decided_at"]
+    def __str__(self):
+        return f"{self.tender.tender_id} - {self.decision}"

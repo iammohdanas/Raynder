@@ -113,31 +113,31 @@
 
             columns: [
 
-    // Tender ID
-    {
-        data: 'id',
-        render: function (data) {
-            return `
+                // Tender ID
+                {
+                    data: 'id',
+                    render: function (data) {
+                        return `
                 <span class="badge-code">
                     ${data || 'NA'}
                 </span>
             `;
-        }
-    },
+                    }
+                },
 
-    // Tender Title
-    {
-        data: 'title',
-        render: function (data, type, row) {
+                // Tender Title
+                {
+                    data: 'title',
+                    render: function (data, type, row) {
 
-            const fullTitle = data || 'Untitled Tender';
-            const maxChars = 60;
+                        const fullTitle = data || 'Untitled Tender';
+                        const maxChars = 60;
 
-            const displayTitle = fullTitle.length > maxChars
-                ? fullTitle.substring(0, maxChars) + '...'
-                : fullTitle;
+                        const displayTitle = fullTitle.length > maxChars
+                            ? fullTitle.substring(0, maxChars) + '...'
+                            : fullTitle;
 
-            return `
+                        return `
                 <div class="d-flex flex-column">
                     <a href="${row.view_url || '#'}"
                        class="fw-semibold text-dark text-decoration-none mb-1"
@@ -151,14 +151,14 @@
                     </span>
                 </div>
             `;
-        }
-    },
+                    }
+                },
 
-    // Authority & Location
-    {
-        data: 'authority',
-        render: function (data, type, row) {
-            return `
+                // Authority & Location
+                {
+                    data: 'authority',
+                    render: function (data, type, row) {
+                        return `
                 <div class="fw-medium text-dark">
                     ${data || 'TenderTiger Sourced'}
                 </div>
@@ -167,82 +167,82 @@
                     ${row.location || 'Pan India'}
                 </div>
             `;
-        }
-    },
+                    }
+                },
 
-    // Capacity
-    {
-        data: 'capacity_mw',
-        render: function (data) {
-            if (!data) return `<span class="text-muted">—</span>`;
+                // Capacity
+                {
+                    data: 'capacity_mw',
+                    render: function (data) {
+                        if (!data) return `<span class="text-muted">—</span>`;
 
-            return `
+                        return `
                 <span class="fw-bold text-dark">
                     <i class="fa-solid fa-bolt text-warning me-1"></i>
                     ${data} MW
                 </span>
             `;
-        }
-    },
+                    }
+                },
 
-    // Access
-    {
-        data: 'is_paid',
-        render: function (data) {
-            if (data === null || data === undefined) {
-                return `<span class="text-muted">—</span>`;
-            }
+                // Access
+                {
+                    data: 'is_paid',
+                    render: function (data) {
+                        if (data === null || data === undefined) {
+                            return `<span class="text-muted">—</span>`;
+                        }
 
-            return data
-                ? `<span class="badge-paid"><i class="fa-solid fa-lock me-1"></i>Paid Tender</span>`
-                : `<span class="badge-free"><i class="fa-solid fa-file-arrow-down me-1"></i>Free Docs</span>`;
-        }
-    },
+                        return data
+                            ? `<span class="badge-paid"><i class="fa-solid fa-lock me-1"></i>Paid Tender</span>`
+                            : `<span class="badge-free"><i class="fa-solid fa-file-arrow-down me-1"></i>Free Docs</span>`;
+                    }
+                },
 
-    // Fit Score
-    {
-        data: 'fit_score',
-        render: function (data) {
-            if (!data) return `<span class="text-muted">—</span>`;
+                // Fit Score
+                {
+                    data: 'fit_score',
+                    render: function (data) {
+                        if (!data) return `<span class="text-muted">—</span>`;
 
-            let scoreClass = 'score-low';
+                        let scoreClass = 'score-low';
 
-            if (data >= 75) scoreClass = 'score-high';
-            else if (data >= 50) scoreClass = 'score-mid';
+                        if (data >= 75) scoreClass = 'score-high';
+                        else if (data >= 50) scoreClass = 'score-mid';
 
-            return `
+                        return `
                 <span class="badge ${scoreClass} fw-bold px-2 py-1 rounded-pill">
                     <i class="fa-solid fa-brain me-1"></i>
                     ${data}% Fit
                 </span>
             `;
-        }
-    },
+                    }
+                },
 
-    // AI Verdict
-    {
-        data: 'recommendation',
-        render: function (data) {
+                // AI Verdict
+                {
+                    data: 'recommendation',
+                    render: function (data) {
 
-            if (data === 'BUY') {
-                return `<span class="badge bg-success-subtle text-success border rounded-pill px-2 py-1">Recommended</span>`;
-            }
+                        if (data === 'BUY') {
+                            return `<span class="badge bg-success-subtle text-success border rounded-pill px-2 py-1">Recommended</span>`;
+                        }
 
-            if (data === 'SKIP') {
-                return `<span class="badge bg-danger-subtle text-danger border rounded-pill px-2 py-1">Not Recommended</span>`;
-            }
+                        if (data === 'SKIP') {
+                            return `<span class="badge bg-danger-subtle text-danger border rounded-pill px-2 py-1">Not Recommended</span>`;
+                        }
 
-            return `<span class="badge bg-secondary-subtle text-secondary rounded-pill px-2 py-1">Pending Review</span>`;
-        }
-    },
+                        return `<span class="badge bg-secondary-subtle text-secondary rounded-pill px-2 py-1">Pending Review</span>`;
+                    }
+                },
 
-    // Actions
-    {
-        data: 'id',
-        orderable: false,
-        searchable: false,
-        render: function (data, type, row) {
-            return `
+                // Actions
+                {
+                    data: 'id',
+                    orderable: false,
+                    searchable: false,
+                    render: function (data, type, row) {
+                        return `
                 <div class="d-flex align-items-center gap-2">
                     <a href="${row.view_url || '#'}"
                        class="btn btn-light btn-sm border rounded-2"
@@ -250,20 +250,25 @@
                         <i class="fa-solid fa-eye text-secondary"></i>
                     </a>
 
-                    <button onclick="submitFeedback('${data}', 'BID')"
+                    <button onclick="submitFeedback('${data}', 'GO')"
                             class="btn btn-outline-success btn-sm rounded-2">
                         <i class="fa-solid fa-check"></i>
                     </button>
 
-                    <button onclick="submitFeedback('${data}', 'NO_BID')"
+                    <button onclick="submitFeedback('${data}', 'NO_GO')"
                             class="btn btn-outline-danger btn-sm rounded-2">
                         <i class="fa-solid fa-xmark"></i>
                     </button>
+                    <button onclick="submitFeedback('${data}', 'HOLD')"
+                            class="btn btn-outline-warning btn-sm rounded-2"
+                            title="On Hold">
+                        <i class="fa-solid fa-clock"></i>
+                    </button>
                 </div>
             `;
-        }
-    }
-]
+                    }
+                }
+            ]
         });
 
 
@@ -383,8 +388,10 @@
 
         $.ajax({
 
-            url: `/api/tenders/${tenderId}/feedback/`,
-
+            url: `/api/tenders/${tenderId}/decision/`,
+            headers: {
+                "X-CSRFToken": getCookie("csrftoken")
+            },
             type: 'POST',
 
             data: JSON.stringify({
@@ -400,5 +407,20 @@
                 );
             }
         });
+    }
+
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== "") {
+            const cookies = document.cookie.split(";");
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + "=")) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
     }
 </script>

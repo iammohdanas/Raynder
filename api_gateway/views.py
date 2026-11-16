@@ -7,7 +7,7 @@ from rest_framework.response import Response
 from django.db.models.aggregates import Sum
 from ai.services.tender_discovery import TenderDiscoveryService
 from ai.services.tender_research import KEYWORDS
-from api_gateway.models import Tender, TenderDocument
+from api_gateway.models import MyTender, Tender, TenderDecision, TenderDocument
 from api_gateway.serializers import TenderDocumentSerializer, TenderSerializer
 from api_gateway.services.all_tenders_sync import AllTenderSyncService
 from api_gateway.utils.filter_keywords import get_search_keywords
@@ -39,7 +39,8 @@ from rest_framework.response import Response
 from rest_framework import status
 from api_gateway.models import Tender
 from ai.models import ChatConversation, ChatMessage
-
+import logging
+logger = logging.getLogger(__name__)
 load_dotenv()
 
 @api_view(["POST"])
@@ -943,4 +944,47 @@ def send_chat_message(request):
                 "user_message_id": str(user_message.id),
             },
             status=status.HTTP_502_BAD_GATEWAY,
+        )
+
+
+@role_required_api(["admin", "manager"])
+@api_view(["POST"])
+def make_tender_decision(request, tender_id):
+    decision = request.data.get("decision")
+    remarks = request.data.get("remarks", "")
+    valid_decisions = [
+        TenderDecision.Decision.GO,
+        TenderDecision.Decision.NO_GO,
+        TenderDecision.Decision.HOLD,
+    ]
+    if decision not in valid_decisions:
+        return Response({
+                "success": False,
+                "error": "Invalid decision. Choose GO, NO_GO or HOLD."
+            },
+            status=status.HTTP_400_BAD_REQUEST)
+    try:
+        with transaction.atomic():
+            tender = get_object_or_404(Tender.objects.select_for_update(), pk=tender_id)
+            # Record every management decision
+            TenderDecision.objects.create(tender=tender, decision=decision, remarks=remarks, decided_by=request.user)
+            my_tender = None
+            # Add tender to My Tenders only for GO
+            if decision == TenderDecision.Decision.GO:
+                my_tender, created = MyTender.objects.get_or_create(tender=tender)
+            return Response(
+                {
+                    "success": True,
+                    "message": f"Tender decision recorded: {decision}",
+                    "decision": decision,
+                    "tender_id": tender.id,
+                    "my_tender_id": my_tender.id if my_tender else None,
+                    "added_to_my_tenders": my_tender is not None,
+                },
+                status=status.HTTP_200_OK
+            )
+    except Exception:
+        logger.exception("Failed to record tender decision.")
+        return Response({"success": False,"error": "Unable to record tender decision."},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
