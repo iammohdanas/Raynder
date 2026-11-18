@@ -502,6 +502,60 @@
             <div id="description" class="description-panel">—</div>
         </div>
 
+                <!-- Verification Sources & System Telemetry -->
+        <div class="row g-3">
+            <div class="col-lg-6">
+                <div class="detail-card p-4 h-100 d-flex flex-column justify-content-between">
+                    <div>
+                        <div class="section-heading">
+                            <i class="fa-solid fa-arrow-up-right-from-square text-primary"></i>
+                            <span>External Verification</span>
+                        </div>
+                        <p class="text-secondary small mb-3">Inspect raw bidding notices and portal endpoints across
+                            sourcing partners.</p>
+                    </div>
+                    <div class="d-flex flex-wrap gap-2">
+                        <a id="descriptionUrl" href="#" target="_blank"
+                            class="btn btn-white border bg-white btn-sm px-3 py-2 rounded-3 text-primary fw-semibold d-inline-flex align-items-center gap-2 shadow-sm">
+                            <i class="fa-solid fa-arrow-up-right-from-square"></i>
+                            <span>View Tender</span>
+                        </a>
+                        <a id="originalSource" href="#" target="_blank"
+                            class="btn btn-white border bg-white btn-sm px-3 py-2 rounded-3 text-secondary fw-semibold d-inline-flex align-items-center gap-2 shadow-sm">
+                            <i class="fa-solid fa-globe"></i>
+                            <span>Original Portal</span>
+                        </a>
+                        {% if can_edit %}
+                        <a href="/tenders/{{ tender_id }}/edit/"
+                            class="btn btn-white border bg-white btn-sm px-3 py-2 rounded-3 text-secondary fw-semibold d-inline-flex align-items-center gap-2 shadow-sm">
+                            <i class="fa-solid fa-pen-to-square me-1"></i>
+                            Edit Tender
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-6">
+                <div class="detail-card p-4 h-100">
+                    <div class="section-heading">
+                        <i class="fa-solid fa-fingerprint text-primary"></i>
+                        <span>System Identifiers</span>
+                    </div>
+                    <div class="row g-3">
+                        <div class="col-6">
+                            <span class="field-label d-block">Internal UUID</span>
+                            <div class="badge-code text-truncate w-100" id="databaseId">—</div>
+                        </div>
+                        <div class="col-6">
+                            <span class="field-label d-block">Source Identifier</span>
+                            <div class="badge-code text-truncate w-100" id="sourceTenderId">—</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- Tender AI Summary Panel -->
         <div id="tenderSummaryPanel" class="detail-card p-4 mb-4" hidden>
 
@@ -646,59 +700,7 @@
         </div>
         <!-- ======================= END UPGRADED DOCUMENT SECTION ======================= -->
 
-        <!-- Verification Sources & System Telemetry -->
-        <div class="row g-3">
-            <div class="col-lg-6">
-                <div class="detail-card p-4 h-100 d-flex flex-column justify-content-between">
-                    <div>
-                        <div class="section-heading">
-                            <i class="fa-solid fa-arrow-up-right-from-square text-primary"></i>
-                            <span>External Verification</span>
-                        </div>
-                        <p class="text-secondary small mb-3">Inspect raw bidding notices and portal endpoints across
-                            sourcing partners.</p>
-                    </div>
-                    <div class="d-flex flex-wrap gap-2">
-                        <a id="descriptionUrl" href="#" target="_blank"
-                            class="btn btn-white border bg-white btn-sm px-3 py-2 rounded-3 text-primary fw-semibold d-inline-flex align-items-center gap-2 shadow-sm">
-                            <i class="fa-solid fa-arrow-up-right-from-square"></i>
-                            <span>View Tender</span>
-                        </a>
-                        <a id="originalSource" href="#" target="_blank"
-                            class="btn btn-white border bg-white btn-sm px-3 py-2 rounded-3 text-secondary fw-semibold d-inline-flex align-items-center gap-2 shadow-sm">
-                            <i class="fa-solid fa-globe"></i>
-                            <span>Original Portal</span>
-                        </a>
-                        {% if can_edit %}
-                        <a href="/tenders/{{ tender_id }}/edit/"
-                            class="btn btn-white border bg-white btn-sm px-3 py-2 rounded-3 text-secondary fw-semibold d-inline-flex align-items-center gap-2 shadow-sm">
-                            <i class="fa-solid fa-pen-to-square me-1"></i>
-                            Edit Tender
-                        </a>
-                        {% endif %}
-                    </div>
-                </div>
-            </div>
 
-            <div class="col-lg-6">
-                <div class="detail-card p-4 h-100">
-                    <div class="section-heading">
-                        <i class="fa-solid fa-fingerprint text-primary"></i>
-                        <span>System Identifiers</span>
-                    </div>
-                    <div class="row g-3">
-                        <div class="col-6">
-                            <span class="field-label d-block">Internal UUID</span>
-                            <div class="badge-code text-truncate w-100" id="databaseId">—</div>
-                        </div>
-                        <div class="col-6">
-                            <span class="field-label d-block">Source Identifier</span>
-                            <div class="badge-code text-truncate w-100" id="sourceTenderId">—</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
 
     </div>
 </div>

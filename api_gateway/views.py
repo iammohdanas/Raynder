@@ -42,6 +42,27 @@ from ai.models import ChatConversation, ChatMessage
 import logging
 logger = logging.getLogger(__name__)
 load_dotenv()
+import copy
+from api_gateway.models import TenderExecution, ExecutionActivity
+from api_gateway.services.execution_workflow.execution_service import (
+    calculate_execution_progress,configure_task_approvers,submit_task_approval, add_task_attachment,
+    delete_task_attachment, update_custom_task,create_execution_plan,
+)
+from django.core.exceptions import ValidationError
+from django.http import Http404
+from api_gateway.models import TenderExecution
+from api_gateway.services.execution_workflow.execution_service import (
+    set_task_applicability,
+    add_custom_task,
+    set_task_assignees,
+    update_task_status,
+    add_task_comment,
+    update_task_remarks,
+    calculate_execution_progress,
+)
+from django.contrib.auth import get_user_model
+
+
 
 @api_view(["POST"])
 def sync_tenders(request):
@@ -964,42 +985,70 @@ def send_chat_message(request):
 def make_tender_decision(request, tender_id):
     decision = request.data.get("decision")
     remarks = request.data.get("remarks", "")
+
     valid_decisions = [
         TenderDecision.Decision.GO,
         TenderDecision.Decision.NO_GO,
         TenderDecision.Decision.HOLD,
     ]
+
     if decision not in valid_decisions:
         return Response({
-                "success": False,
-                "error": "Invalid decision. Choose GO, NO_GO or HOLD."
-            },
-            status=status.HTTP_400_BAD_REQUEST)
+            "success": False,
+            "error": "Invalid decision. Choose GO, NO_GO or HOLD."
+        }, status=status.HTTP_400_BAD_REQUEST)
+
     try:
         with transaction.atomic():
-            tender = get_object_or_404(Tender.objects.select_for_update(), pk=tender_id)
-            # Record every management decision
-            TenderDecision.objects.create(tender=tender, decision=decision, remarks=remarks, decided_by=request.user)
-            my_tender = None
-            # Add tender to My Tenders only for GO
-            if decision == TenderDecision.Decision.GO:
-                my_tender, created = MyTender.objects.get_or_create(tender=tender)
-            return Response(
-                {
-                    "success": True,
-                    "message": f"Tender decision recorded: {decision}",
-                    "decision": decision,
-                    "tender_id": tender.id,
-                    "my_tender_id": my_tender.id if my_tender else None,
-                    "added_to_my_tenders": my_tender is not None,
-                },
-                status=status.HTTP_200_OK
+            tender = get_object_or_404(
+                Tender.objects.select_for_update(),
+                pk=tender_id
             )
+
+            # Record management decision
+            TenderDecision.objects.create(
+                tender=tender,
+                decision=decision,
+                remarks=remarks,
+                decided_by=request.user
+            )
+
+            my_tender = None
+            execution = None
+            execution_created = False
+
+            # GO: Add to My Tenders and create execution workflow
+            if decision == TenderDecision.Decision.GO:
+                my_tender, _ = MyTender.objects.get_or_create(
+                    tender=tender
+                )
+
+                execution, execution_created = create_execution_plan(
+                    my_tender=my_tender,
+                    created_by=request.user
+                )
+
+            return Response({
+                "success": True,
+                "message": f"Tender decision recorded: {decision}",
+                "decision": decision,
+                "tender_id": tender.id,
+                "my_tender_id": my_tender.id if my_tender else None,
+                "added_to_my_tenders": my_tender is not None,
+                "execution_id": execution.id if execution else None,
+                "execution_created": execution_created,
+                "workspace_url": (
+                    f"/my-tenders/{my_tender.id}/execution/"
+                    if execution else None
+                )
+            }, status=status.HTTP_200_OK)
+
     except Exception:
         logger.exception("Failed to record tender decision.")
-        return Response({"success": False,"error": "Unable to record tender decision."},
-            status=status.HTTP_500_INTERNAL_SERVER_ERROR
-        )
+        return Response({
+            "success": False,
+            "error": "Unable to process tender decision."
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 @api_view(["GET"])
 def get_my_tenders(request):
@@ -1071,6 +1120,7 @@ def get_my_tenders(request):
                 "added_at": my_tender.added_at.isoformat(),
                 # Workspace URL will be connected in the next step
                 "view_url": f"/tenders/{tender.id}/",
+                "workspace_url": f"/my-tenders/{my_tender.id}/execution/",
             })
 
         # Statistics across all My Tenders, not just the current page
@@ -1116,3 +1166,986 @@ def get_my_tenders(request):
             {"success": False, "error": "Unable to retrieve My Tenders."},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
+
+
+def execution_api_error(exc):
+    if isinstance(exc, Http404):
+        return Response({
+            "success": False,
+            "error": "Execution plan not found."
+        }, status=status.HTTP_404_NOT_FOUND)
+
+    if isinstance(exc, ValidationError):
+        return Response({
+            "success": False,
+            "error": exc.messages
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+    logger.exception("Execution API error")
+    return Response({
+        "success": False,
+        "error": "Unable to process execution request."
+    }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+@api_view(["GET"])
+def get_tender_execution_workspace(request, my_tender_id):
+    """
+    Retrieve complete Tender Execution Workspace data.
+    """
+    if not request.user.is_authenticated:
+        return Response(
+            {
+                "success": False,
+                "error": "Authentication required.",
+            },
+            status=status.HTTP_401_UNAUTHORIZED,
+        )
+
+    try:
+        execution = (
+            TenderExecution.objects
+            .select_related(
+                "my_tender__tender",
+                "template",
+            )
+            .filter(my_tender_id=my_tender_id)
+            .first()
+        )
+
+        if not execution:
+            return Response(
+                {
+                    "success": False,
+                    "error": "Execution plan not found for this tender.",
+                },
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        my_tender = execution.my_tender
+        tender = my_tender.tender
+
+        # Calculate progress dynamically.
+        progress = calculate_execution_progress(execution)
+
+        # Copy JSON so response formatting doesn't modify stored data.
+        workflow_data = copy.deepcopy(execution.workflow_data)
+
+        # Do not expose internal storage paths.
+        for phase in workflow_data.get("phases", []):
+            for task in phase.get("tasks", []):
+                for attachment in task.get("attachments", []):
+                    attachment.pop("file_path", None)
+
+        # Fetch recent execution activities.
+        activities = (
+            ExecutionActivity.objects
+            .filter(execution=execution)
+            .select_related("performed_by")
+            .order_by("-created_at")[:100]
+        )
+
+        activity_data = [
+            {
+                "id": activity.id,
+                "task_id": activity.task_id,
+                "activity_type": activity.activity_type,
+                "description": activity.description,
+                "metadata": activity.metadata,
+                "performed_by": (
+                    {
+                        "id": activity.performed_by_id,
+                        "username": activity.performed_by.get_username(),
+                    }
+                    if activity.performed_by else None
+                ),
+                "created_at": activity.created_at.isoformat(),
+            }
+            for activity in activities
+        ]
+
+        data = {
+            "execution": {
+                "id": execution.id,
+                "template_id": execution.template_id,
+                "template_name": (
+                    execution.template.name
+                    if execution.template else None
+                ),
+                "template_version": (
+                    execution.template.version
+                    if execution.template else None
+                ),
+                "started_at": execution.started_at.isoformat(),
+                "updated_at": execution.updated_at.isoformat(),
+            },
+
+            "tender": {
+                "id": tender.id,
+                "tender_id": tender.tender_id,
+                "title": tender.title,
+                "reference_number": tender.tender_ref_no,
+                "organization": tender.company_name,
+                "location": ", ".join(
+                    value for value in [tender.city, tender.state]
+                    if value
+                ),
+                "tender_value": (
+                    float(tender.tender_value)
+                    if tender.tender_value is not None else None
+                ),
+                "closing_date": (
+                    tender.closing_date.isoformat()
+                    if tender.closing_date else None
+                ),
+            },
+
+            "my_tender": {
+                "id": my_tender.id,
+                "status": my_tender.status,
+                "status_display": my_tender.get_status_display(),
+                "remarks": my_tender.remarks,
+            },
+
+            "progress": progress,
+
+            "workflow_data": workflow_data,
+
+            "activities": activity_data,
+        }
+
+        return Response(
+            {
+                "success": True,
+                "data": data,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+    except Exception:
+        logger.exception(
+            "Failed to retrieve execution workspace for MyTender %s",
+            my_tender_id,
+        )
+
+        return Response(
+            {
+                "success": False,
+                "error": "Unable to retrieve tender execution workspace.",
+            },
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+
+
+def get_execution_for_api(my_tender_id):
+    return get_object_or_404(
+        TenderExecution.objects.select_related("my_tender"),
+        my_tender_id=my_tender_id
+    )
+
+
+def execution_api_error(exc):
+    if isinstance(exc, ValidationError):
+        return Response({
+            "success": False,
+            "error": exc.messages
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+    logger.exception("Execution API error")
+    return Response({
+        "success": False,
+        "error": "Unable to process execution request."
+    }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+@api_view(["POST"])
+def update_execution_task_applicability(request, my_tender_id, task_id):
+    if not request.user.is_authenticated:
+        return Response(
+            {"success": False, "error": "Authentication required."},
+            status=status.HTTP_401_UNAUTHORIZED
+        )
+
+    if "is_applicable" not in request.data:
+        return Response({
+            "success": False,
+            "error": "is_applicable is required."
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        execution = get_execution_for_api(my_tender_id)
+
+        set_task_applicability(
+            execution_id=execution.id,
+            task_id=str(task_id),
+            is_applicable=request.data["is_applicable"],
+            performed_by=request.user,
+            remarks=request.data.get("remarks", "")
+        )
+
+        return Response({
+            "success": True,
+            "message": "Task applicability updated successfully."
+        })
+
+    except ValidationError as exc:
+        return execution_api_error(exc)
+    except Exception as exc:
+        return execution_api_error(exc)
+
+@api_view(["POST"])
+def create_execution_custom_task(request, my_tender_id):
+    if not request.user.is_authenticated:
+        return Response(
+            {"success": False, "error": "Authentication required."},
+            status=status.HTTP_401_UNAUTHORIZED
+        )
+
+    required_fields = ["phase_code", "title"]
+
+    missing_fields = [
+        field for field in required_fields
+        if not request.data.get(field)
+    ]
+
+    if missing_fields:
+        return Response({
+            "success": False,
+            "error": f"Required fields: {', '.join(missing_fields)}"
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        execution = get_execution_for_api(my_tender_id)
+
+        task = add_custom_task(
+            execution_id=execution.id,
+            phase_code=request.data["phase_code"],
+            title=request.data["title"],
+            description=request.data.get("description", ""),
+            department=request.data.get("department", ""),
+            priority=request.data.get("priority", "MEDIUM"),
+            due_date=request.data.get("due_date"),
+            dependencies=request.data.get("dependencies", []),
+            created_by=request.user
+        )
+
+        return Response({
+            "success": True,
+            "message": "Custom task created successfully.",
+            "data": task
+        }, status=status.HTTP_201_CREATED)
+
+    except ValidationError as exc:
+        return execution_api_error(exc)
+    except Exception as exc:
+        return execution_api_error(exc)
+
+
+@api_view(["POST"])
+def update_execution_custom_task(request, my_tender_id, task_id):
+    if not request.user.is_authenticated:
+        return Response(
+            {
+                "success": False,
+                "error": "Authentication required."
+            },
+            status=status.HTTP_401_UNAUTHORIZED
+        )
+
+    required_fields = ["title"]
+
+    missing_fields = [
+        field for field in required_fields
+        if not request.data.get(field)
+    ]
+
+    if missing_fields:
+        return Response(
+            {
+                "success": False,
+                "error": f"Required fields: {', '.join(missing_fields)}"
+            },
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    try:
+        execution = get_execution_for_api(my_tender_id)
+
+        execution, task = update_custom_task(
+            execution_id=execution.id,
+            task_id=str(task_id),
+            title=request.data["title"],
+            description=request.data.get("description", ""),
+            department=request.data.get("department", ""),
+            priority=request.data.get("priority", "MEDIUM"),
+            due_date=request.data.get("due_date"),
+            dependencies=request.data.get("dependencies", []),
+            updated_by=request.user,
+        )
+
+        return Response({
+            "success": True,
+            "message": "Custom task updated successfully.",
+            "data": task
+        })
+
+    except ValidationError as exc:
+        return execution_api_error(exc)
+
+    except Exception as exc:
+        return execution_api_error(exc)
+
+
+@api_view(["POST"])
+def assign_execution_task(request, my_tender_id, task_id):
+    if not request.user.is_authenticated:
+        return Response(
+            {"success": False, "error": "Authentication required."},
+            status=status.HTTP_401_UNAUTHORIZED
+        )
+
+    assignee_ids = request.data.get("assignee_ids")
+
+    if not isinstance(assignee_ids, list):
+        return Response({
+            "success": False,
+            "error": "assignee_ids must be a list."
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        execution = get_execution_for_api(my_tender_id)
+
+        set_task_assignees(
+            execution_id=execution.id,
+            task_id=str(task_id),
+            assignee_ids=assignee_ids,
+            performed_by=request.user
+        )
+
+        return Response({
+            "success": True,
+            "message": "Task assignees updated successfully."
+        })
+
+    except ValidationError as exc:
+        return execution_api_error(exc)
+    except Exception as exc:
+        return execution_api_error(exc)
+
+@api_view(["POST"])
+def update_execution_task_status(request, my_tender_id, task_id):
+    if not request.user.is_authenticated:
+        return Response(
+            {"success": False, "error": "Authentication required."},
+            status=status.HTTP_401_UNAUTHORIZED
+        )
+
+    new_status = request.data.get("status")
+
+    if not new_status:
+        return Response({
+            "success": False,
+            "error": "status is required."
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        execution = get_execution_for_api(my_tender_id)
+
+        update_task_status(
+            execution_id=execution.id,
+            task_id=str(task_id),
+            new_status=new_status,
+            performed_by=request.user,
+            remarks=request.data.get("remarks", "")
+        )
+
+        return Response({
+            "success": True,
+            "message": "Task status updated successfully.",
+            "progress": calculate_execution_progress(execution)
+        })
+
+    except ValidationError as exc:
+        return execution_api_error(exc)
+    except Exception as exc:
+        return execution_api_error(exc)
+
+@api_view(["POST"])
+def add_execution_task_comment(request, my_tender_id, task_id):
+    if not request.user.is_authenticated:
+        return Response(
+            {"success": False, "error": "Authentication required."},
+            status=status.HTTP_401_UNAUTHORIZED
+        )
+
+    comment = request.data.get("comment", "").strip()
+
+    if not comment:
+        return Response({
+            "success": False,
+            "error": "Comment cannot be empty."
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        execution = get_execution_for_api(my_tender_id)
+
+        add_task_comment(
+            execution_id=execution.id,
+            task_id=str(task_id),
+            comment=comment,
+            performed_by=request.user
+        )
+
+        return Response({
+            "success": True,
+            "message": "Comment added successfully."
+        }, status=status.HTTP_201_CREATED)
+
+    except ValidationError as exc:
+        return execution_api_error(exc)
+    except Exception as exc:
+        return execution_api_error(exc)
+
+@api_view(["POST"])
+def update_execution_task_remarks(request, my_tender_id, task_id):
+    if not request.user.is_authenticated:
+        return Response(
+            {"success": False, "error": "Authentication required."},
+            status=status.HTTP_401_UNAUTHORIZED
+        )
+
+    if "remarks" not in request.data:
+        return Response({
+            "success": False,
+            "error": "remarks is required."
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        execution = get_execution_for_api(my_tender_id)
+
+        update_task_remarks(
+            execution_id=execution.id,
+            task_id=str(task_id),
+            remarks=request.data["remarks"],
+            performed_by=request.user
+        )
+
+        return Response({
+            "success": True,
+            "message": "Task remarks updated successfully."
+        })
+
+    except ValidationError as exc:
+        return execution_api_error(exc)
+    except Exception as exc:
+        return execution_api_error(exc)
+
+
+@api_view(["POST"])
+def configure_execution_task_approvers(request, my_tender_id, task_id):
+    if not request.user.is_authenticated:
+        return Response({
+            "success": False,
+            "error": "Authentication required."
+        }, status=status.HTTP_401_UNAUTHORIZED)
+
+    approver_ids = request.data.get("approver_ids")
+    approval_mode = request.data.get("approval_mode", "ALL")
+
+    if not isinstance(approver_ids, list) or not approver_ids:
+        return Response({
+            "success": False,
+            "error": "approver_ids must be a non-empty list."
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+    if approval_mode not in ["ALL", "ANY"]:
+        return Response({
+            "success": False,
+            "error": "approval_mode must be ALL or ANY."
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        execution = get_execution_for_api(my_tender_id)
+
+        configure_task_approvers(
+            execution_id=execution.id,
+            task_id=str(task_id),
+            approver_ids=approver_ids,
+            approval_mode=approval_mode,
+            performed_by=request.user
+        )
+
+        return Response({
+            "success": True,
+            "message": "Task approvers configured successfully.",
+            "data": {
+                "approver_ids": approver_ids,
+                "approval_mode": approval_mode
+            }
+        }, status=status.HTTP_200_OK)
+
+    except (ValidationError, Http404) as exc:
+        return execution_api_error(exc)
+    except Exception as exc:
+        return execution_api_error(exc)
+
+@api_view(["POST"])
+def submit_execution_task_approval(request, my_tender_id, task_id):
+    if not request.user.is_authenticated:
+        return Response({
+            "success": False,
+            "error": "Authentication required."
+        }, status=status.HTTP_401_UNAUTHORIZED)
+
+    decision = request.data.get("decision", "").upper()
+    remarks = request.data.get("remarks", "")
+
+    if decision not in ["APPROVED", "REJECTED"]:
+        return Response({
+            "success": False,
+            "error": "decision must be APPROVED or REJECTED."
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        execution = get_execution_for_api(my_tender_id)
+
+        submit_task_approval(
+            execution_id=execution.id,
+            task_id=str(task_id),
+            decision=decision,
+            approver=request.user,
+            remarks=remarks
+        )
+
+        # Read the updated approval state from the execution snapshot.
+        execution.refresh_from_db()
+
+        task_data = next(
+            (
+                task
+                for phase in execution.workflow_data.get("phases", [])
+                for task in phase.get("tasks", [])
+                if task.get("id") == str(task_id)
+            ),
+            None
+        )
+
+        if task_data is None:
+            return Response({
+                "success": False,
+                "error": "Task not found."
+            }, status=status.HTTP_404_NOT_FOUND)
+
+        approval_data = {
+            "approval_required": task_data.get("approval_required", False),
+            "approval_status": task_data.get("approval_status"),
+            "approval_mode": task_data.get("approval_mode"),
+            "approval_round": task_data.get("approval_round"),
+            "approver_ids": task_data.get("approver_ids", []),
+            "approvals": task_data.get("approvals", [])
+        }
+
+        return Response({
+            "success": True,
+            "message": "Approval decision submitted successfully.",
+            "data": approval_data
+        }, status=status.HTTP_200_OK)
+
+    except (ValidationError, Http404) as exc:
+        return execution_api_error(exc)
+    except Exception as exc:
+        return execution_api_error(exc)
+
+@api_view(["POST"])
+def upload_execution_task_attachment(request, my_tender_id, task_id):
+    if not request.user.is_authenticated:
+        return Response({
+            "success": False,
+            "error": "Authentication required."
+        }, status=status.HTTP_401_UNAUTHORIZED)
+
+    uploaded_file = request.FILES.get("file")
+
+    if not uploaded_file:
+        return Response({
+            "success": False,
+            "error": "Please select a file to upload."
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        execution = get_execution_for_api(my_tender_id)
+
+        attachment = add_task_attachment(
+            execution_id=execution.id,
+            task_id=str(task_id),
+            uploaded_file=uploaded_file,
+            uploaded_by=request.user
+        )
+
+        # Never expose the internal storage path.
+        if isinstance(attachment, dict):
+            attachment.pop("file_path", None)
+
+        return Response({
+            "success": True,
+            "message": "Attachment uploaded successfully.",
+            "data": attachment
+        }, status=status.HTTP_201_CREATED)
+
+    except (ValidationError, Http404) as exc:
+        return execution_api_error(exc)
+    except Exception as exc:
+        return execution_api_error(exc)
+
+@api_view(["DELETE"])
+def delete_execution_task_attachment(request, my_tender_id, task_id, attachment_id):
+    if not request.user.is_authenticated:
+        return Response({
+            "success": False,
+            "error": "Authentication required."
+        }, status=status.HTTP_401_UNAUTHORIZED)
+
+    try:
+        execution = get_execution_for_api(my_tender_id)
+
+        delete_task_attachment(
+            execution_id=execution.id,
+            task_id=str(task_id),
+            attachment_id=str(attachment_id),
+            deleted_by=request.user
+        )
+
+        return Response({
+            "success": True,
+            "message": "Attachment deleted successfully."
+        }, status=status.HTTP_200_OK)
+
+    except (ValidationError, Http404) as exc:
+        return execution_api_error(exc)
+    except Exception as exc:
+        return execution_api_error(exc)
+
+@api_view(["GET"])
+def download_execution_task_attachment(
+    request,
+    my_tender_id,
+    task_id,
+    attachment_id
+):
+    try:
+        execution = get_execution_for_api(my_tender_id)
+
+        # Find the requested task.
+        task_data = None
+
+        for phase in execution.workflow_data.get("phases", []):
+            for task in phase.get("tasks", []):
+                if task.get("id") == str(task_id):
+                    task_data = task
+                    break
+
+            if task_data:
+                break
+
+        if not task_data:
+            return Response({
+                "success": False,
+                "error": "Task not found."
+            }, status=status.HTTP_404_NOT_FOUND)
+
+        # Find the requested attachment.
+        attachment = next(
+            (
+                item
+                for item in task_data.get("attachments", [])
+                if item.get("id") == str(attachment_id)
+            ),
+            None
+        )
+
+        if not attachment:
+            return Response({
+                "success": False,
+                "error": "Attachment not found."
+            }, status=status.HTTP_404_NOT_FOUND)
+
+        file_path = attachment.get("file_path")
+
+        if not file_path:
+            return Response({
+                "success": False,
+                "error": "Attachment file reference is missing."
+            }, status=status.HTTP_404_NOT_FOUND)
+
+        # Check whether the file exists in configured storage.
+        if not default_storage.exists(file_path):
+            return Response({
+                "success": False,
+                "error": "Attachment file does not exist in storage."
+            }, status=status.HTTP_404_NOT_FOUND)
+
+        file_obj = default_storage.open(file_path, "rb")
+
+        filename = (
+            attachment.get("original_name")
+            or attachment.get("file_name")
+            or attachment.get("name")
+            or "attachment"
+        )
+
+        content_type = attachment.get(
+            "content_type",
+            "application/octet-stream"
+        )
+
+        return FileResponse(
+            file_obj,
+            as_attachment=True,
+            filename=filename,
+            content_type=content_type
+        )
+
+    except Http404 as exc:
+        return execution_api_error(exc)
+
+    except Exception as exc:
+        logger.exception(
+            "Failed to download attachment %s for task %s",
+            attachment_id,
+            task_id
+        )
+        return Response({
+            "success": False,
+            "error": "Unable to download attachment."
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+@api_view(["GET"])
+def get_execution_activities(request, my_tender_id):
+    try:
+        execution = get_execution_for_api(my_tender_id)
+
+        activities = (
+            ExecutionActivity.objects
+            .filter(execution=execution)
+            .select_related("performed_by")
+            .order_by("-created_at")
+        )
+
+        # Optional task-level filtering.
+        task_id = request.query_params.get("task_id")
+
+        if task_id:
+            activities = activities.filter(task_id=task_id)
+
+        # Get total count before applying the limit.
+        total_count = activities.count()
+
+        # Validate and apply response limit.
+        try:
+            limit = int(request.query_params.get("limit", 100))
+        except (TypeError, ValueError):
+            return Response({
+                "success": False,
+                "error": "limit must be a valid integer."
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        if limit < 1:
+            return Response({
+                "success": False,
+                "error": "limit must be greater than zero."
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        limit = min(limit, 200)
+        activities = activities[:limit]
+
+        activity_data = [
+            {
+                "id": activity.id,
+                "task_id": activity.task_id or None,
+                "activity_type": activity.activity_type,
+                "description": activity.description,
+                "metadata": activity.metadata,
+                "performed_by": (
+                    {
+                        "id": activity.performed_by_id,
+                        "username": activity.performed_by.get_username()
+                    }
+                    if activity.performed_by else None
+                ),
+                "created_at": activity.created_at.isoformat(),
+            }
+            for activity in activities
+        ]
+
+        return Response({
+            "success": True,
+            "data": {
+                "activities": activity_data,
+                "count": total_count
+            }
+        }, status=status.HTTP_200_OK)
+
+    except Http404 as exc:
+        return execution_api_error(exc)
+
+    except Exception:
+        logger.exception(
+            "Failed to retrieve execution activities for MyTender %s",
+            my_tender_id
+        )
+        return Response({
+            "success": False,
+            "error": "Unable to retrieve execution activities."
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+
+@api_view(["GET"])
+def get_execution_dashboard(request, my_tender_id):
+    try:
+        execution = get_execution_for_api(my_tender_id)
+
+        progress = calculate_execution_progress(execution)
+
+        workflow_data = execution.workflow_data or {}
+        phases = workflow_data.get("phases", [])
+
+        task_counts = {
+            "PENDING": 0,
+            "IN_PROGRESS": 0,
+            "COMPLETED": 0,
+            "BLOCKED": 0,
+            "CANCELLED": 0,
+            "NOT_APPLICABLE": 0,
+            "UNDECIDED": 0,
+        }
+
+        # The progress service returns phases as a LIST.
+        # Create a lookup using phase_code.
+        progress_phases = {
+            phase.get("phase_code"): phase
+            for phase in progress.get("phases", [])
+        }
+
+        phase_data = []
+
+        for phase in phases:
+            tasks = phase.get("tasks", [])
+
+            phase_counts = {
+                "PENDING": 0,
+                "IN_PROGRESS": 0,
+                "COMPLETED": 0,
+                "BLOCKED": 0,
+                "CANCELLED": 0,
+                "NOT_APPLICABLE": 0,
+                "UNDECIDED": 0,
+            }
+
+            for task in tasks:
+                task_status = task.get("status", "PENDING")
+
+                # Handle optional/conditional tasks not yet decided.
+                if (
+                    task.get("is_applicable") is None
+                    and (task.get("optional") or task.get("condition"))
+                ):
+                    task_status = "UNDECIDED"
+
+                if task_status not in phase_counts:
+                    task_status = "PENDING"
+
+                phase_counts[task_status] += 1
+                task_counts[task_status] += 1
+
+            phase_progress = progress_phases.get(
+                phase.get("code"), {}
+            )
+
+            phase_data.append({
+                "code": phase.get("code"),
+                "name": phase.get("name"),
+                "sequence": phase.get("sequence"),
+                "progress": phase_progress.get("progress", 0),
+                "total_tasks": phase_progress.get("total_tasks", 0),
+                "completed_tasks": phase_progress.get("completed_tasks", 0),
+                "pending_tasks": phase_progress.get("pending_tasks", 0),
+                "undecided_tasks": phase_progress.get("undecided_tasks", 0),
+                "not_applicable_tasks": phase_progress.get(
+                    "not_applicable_tasks", 0
+                ),
+                "task_counts": phase_counts,
+            })
+
+        return Response({
+            "success": True,
+            "data": {
+                "overall_progress": progress.get("overall_progress", 0),
+
+                # Applicable tasks only (excludes N/A and undecided).
+                "total_tasks": progress.get("total_tasks", 0),
+
+                # All tasks in the original workflow template.
+                "all_workflow_tasks": sum(
+                    len(phase.get("tasks", []))
+                    for phase in phases
+                ),
+
+                "task_counts": task_counts,
+                "phases": phase_data,
+                "progress_details": progress,
+            }
+        }, status=status.HTTP_200_OK)
+
+    except Http404 as exc:
+        return execution_api_error(exc)
+
+    except Exception:
+        logger.exception(
+            "Failed to retrieve execution dashboard for MyTender %s",
+            my_tender_id
+        )
+        return Response({
+            "success": False,
+            "error": "Unable to retrieve execution dashboard."
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+
+
+@api_view(["GET"])
+def get_execution_available_users(request):
+    """
+    Return active users available for execution task assignment.
+    """
+    if not request.user.is_authenticated:
+        return Response(
+            {
+                "success": False,
+                "error": "Authentication required."
+            },
+            status=status.HTTP_401_UNAUTHORIZED
+        )
+
+    User = get_user_model()
+
+    users = User.objects.filter(
+        is_active=True
+    ).only(
+        "id",
+        "username",
+        "first_name",
+        "last_name"
+    ).order_by("first_name", "last_name", "username")
+
+    user_data = [
+        {
+            "id": user.id,
+            "username": user.username,
+            "full_name": user.get_full_name() or user.username
+        }
+        for user in users
+    ]
+
+    return Response({
+        "success": True,
+        "data": user_data
+    }, status=status.HTTP_200_OK)

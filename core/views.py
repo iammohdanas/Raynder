@@ -1,6 +1,6 @@
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, render
-
+from api_gateway.models import MyTender
 from authenticator.decorators import admin_required, role_required
 from core.utils.blueprint_loader import load_workflow_blueprint
 from django.contrib.auth.decorators import login_required
@@ -88,4 +88,20 @@ def my_tenders_page(request):
     return render(
         request,
         "pages/my_tenders.html",
+    )
+
+@login_required
+@role_required(['admin', 'manager', 'customer'])
+def tender_execution_page(request, my_tender_id):
+    my_tender = get_object_or_404(
+        MyTender.objects.select_related("tender"),
+        id=my_tender_id
+    )
+    return render(
+        request,
+        "pages/tender_execution.html",
+        {
+            "my_tender_id": my_tender.id,
+            "tender_id": my_tender.tender.id,
+        }
     )

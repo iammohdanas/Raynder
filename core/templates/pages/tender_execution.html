@@ -1,0 +1,2834 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+
+<style>
+    /* Scoped strictly to this workspace so base.html navbar & icons are untouched */
+    .execution-workspace-wrapper {
+        --ws-bg: #f4f7fb;
+        --ws-card: #ffffff;
+        --ws-subtle: #f8fafc;
+        --ws-border: #e2e8f0;
+        --ws-border-hover: #cbd5e1;
+        --ws-text-primary: #0f172a;
+        --ws-text-secondary: #475569;
+        --ws-text-muted: #64748b;
+        --ws-accent: #2563eb;
+        --ws-accent-hover: #1d4ed8;
+        --ws-accent-soft: #eff6ff;
+        --ws-accent-glow: rgba(37, 99, 235, 0.14);
+        --ws-shadow-xs: 0 1px 2px rgba(15, 23, 42, 0.04);
+        --ws-shadow-sm: 0 4px 12px -2px rgba(15, 23, 42, 0.05), 0 2px 6px -2px rgba(15, 23, 42, 0.03);
+        --ws-shadow-md: 0 12px 24px -4px rgba(15, 23, 42, 0.08), 0 4px 10px -2px rgba(15, 23, 42, 0.04);
+        --ws-ease: cubic-bezier(0.16, 1, 0.3, 1);
+
+        min-height: 100vh;
+        width: 100%;
+        background-color: var(--ws-bg);
+        color: var(--ws-text-primary);
+        font-family: 'Plus Jakarta Sans', sans-serif;
+        -webkit-font-smoothing: antialiased;
+    }
+
+    .execution-workspace-wrapper .workflow-phase-heading-content {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        width: 100%;
+        min-width: 0;
+    }
+
+    .execution-workspace-wrapper .workflow-phase-title {
+        order: 1;
+    }
+
+    .execution-workspace-wrapper .workflow-phase-meta {
+        order: 2;
+    }
+
+    .execution-workspace-wrapper .workflow-phase-progress {
+        order: 3;
+    }
+
+    .execution-workspace-wrapper .workflow-phase-status-summary {
+        order: 4;
+    }
+
+    .execution-workspace-wrapper .workflow-phase-progress {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-top: 9px;
+        max-width: 280px;
+    }
+
+
+    .execution-workspace-wrapper .workflow-phase-status-summary {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 7px;
+        margin-top: 9px;
+    }
+
+    .execution-workspace-wrapper .workflow-phase-status {
+        display: inline-flex;
+        align-items: center;
+        padding: 3px 8px;
+        border-radius: 5px;
+        font-size: 10px;
+        font-weight: 600;
+    }
+
+
+    .execution-workspace-wrapper .task-assignee-list {
+        max-height: 240px;
+        overflow-y: auto;
+        border: 1px solid var(--ws-border);
+        border-radius: 9px;
+        background: #fff;
+    }
+
+    .execution-workspace-wrapper .task-assignee-option {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 10px 12px;
+        border-bottom: 1px solid var(--ws-border);
+        cursor: pointer;
+        transition: background 0.2s ease;
+    }
+
+    .execution-workspace-wrapper .task-assignee-option:last-child {
+        border-bottom: none;
+    }
+
+    .execution-workspace-wrapper .task-assignee-option:hover {
+        background: var(--ws-subtle);
+    }
+
+    .execution-workspace-wrapper .task-assignee-option .form-check-input {
+        margin: 0;
+        flex-shrink: 0;
+        cursor: pointer;
+    }
+
+
+    .execution-workspace-wrapper .status-in-progress {
+        color: #1d4ed8;
+        background: #eff6ff;
+    }
+
+    .execution-workspace-wrapper .status-blocked {
+        color: #b91c1c;
+        background: #fef2f2;
+    }
+
+    .execution-workspace-wrapper .status-overdue {
+        color: #b45309;
+        background: #fffbeb;
+    }
+
+
+    .execution-workspace-wrapper .workflow-phase-progress-track {
+        height: 6px;
+        flex: 1;
+        min-width: 100px;
+        background: #e2e8f0;
+        border-radius: 999px;
+        overflow: hidden;
+    }
+
+    .execution-workspace-wrapper .workflow-phase-progress-fill {
+        height: 100%;
+        background: var(--ws-accent);
+        border-radius: 999px;
+        transition: width 0.3s ease;
+    }
+
+    .execution-workspace-wrapper .workflow-phase-progress-text {
+        min-width: 34px;
+        font-size: 11px;
+        font-weight: 700;
+        color: var(--ws-text-secondary);
+        text-align: right;
+    }
+
+
+    @keyframes wsFadeSlideUp {
+        from {
+            opacity: 0;
+            transform: translateY(14px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    @keyframes wsPulseDot {
+
+        0%,
+        100% {
+            transform: scale(1);
+            opacity: 1;
+        }
+
+        50% {
+            transform: scale(1.45);
+            opacity: 0.55;
+        }
+    }
+
+    @keyframes wsShimmerSweep {
+        0% {
+            transform: translateX(-100%);
+        }
+
+        100% {
+            transform: translateX(100%);
+        }
+    }
+
+    .execution-workspace-wrapper .execution-container {
+        width: 100%;
+        max-width: 1320px;
+        margin: 0 auto;
+        padding: 96px 32px 56px;
+        box-sizing: border-box;
+    }
+
+    @media (max-width: 768px) {
+        .execution-workspace-wrapper .execution-container {
+            padding: 88px 16px 40px;
+        }
+    }
+
+    /* Staggered Card Entrance */
+    .execution-workspace-wrapper .animate-enter {
+        animation: wsFadeSlideUp 0.55s var(--ws-ease) both;
+    }
+
+    .execution-workspace-wrapper .delay-1 {
+        animation-delay: 0.05s;
+    }
+
+    .execution-workspace-wrapper .delay-2 {
+        animation-delay: 0.1s;
+    }
+
+    .execution-workspace-wrapper .delay-3 {
+        animation-delay: 0.15s;
+    }
+
+    .execution-workspace-wrapper .delay-4 {
+        animation-delay: 0.2s;
+    }
+
+    /* Navigation & Header */
+    .execution-workspace-wrapper .breadcrumb-tag {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--ws-accent);
+        background: var(--ws-accent-soft);
+        padding: 4px 10px;
+        border-radius: 6px;
+        margin-bottom: 8px;
+    }
+
+    .execution-workspace-wrapper .btn-back-tenders {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        background: var(--ws-card);
+        border: 1px solid var(--ws-border);
+        color: var(--ws-text-primary);
+        font-size: 13px;
+        font-weight: 600;
+        padding: 9px 16px;
+        border-radius: 10px;
+        text-decoration: none;
+        box-shadow: var(--ws-shadow-xs);
+        transition: all 0.22s var(--ws-ease);
+    }
+
+    .execution-workspace-wrapper .btn-back-tenders:hover {
+        background: var(--ws-subtle);
+        border-color: var(--ws-border-hover);
+        color: var(--ws-accent);
+        transform: translateX(-3px);
+        box-shadow: var(--ws-shadow-sm);
+    }
+
+    /* Cards */
+    .execution-workspace-wrapper .execution-card {
+        background: var(--ws-card);
+        border: 1px solid var(--ws-border);
+        border-radius: 16px;
+        padding: 24px 28px;
+        margin-bottom: 20px;
+        box-shadow: var(--ws-shadow-sm);
+        transition: box-shadow 0.28s var(--ws-ease), border-color 0.28s ease;
+    }
+
+    .execution-workspace-wrapper .execution-card:hover {
+        box-shadow: var(--ws-shadow-md);
+        border-color: var(--ws-border-hover);
+    }
+
+    .execution-workspace-wrapper .tender-hero-card {
+        border-left: 4px solid var(--ws-accent);
+    }
+
+    .execution-workspace-wrapper .section-heading {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 15px;
+        font-weight: 700;
+        color: var(--ws-text-primary);
+        margin-bottom: 18px;
+    }
+
+    .execution-workspace-wrapper .section-icon-box {
+        width: 32px;
+        height: 32px;
+        min-width: 32px;
+        border-radius: 9px;
+        background: var(--ws-accent-soft);
+        color: var(--ws-accent);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 14px;
+    }
+
+    .execution-workspace-wrapper .field-label {
+        font-size: 11px;
+        color: var(--ws-text-muted);
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        margin-bottom: 5px;
+    }
+
+    .execution-workspace-wrapper .field-value {
+        font-size: 14px;
+        color: var(--ws-text-primary);
+        font-weight: 600;
+    }
+
+    .execution-workspace-wrapper .ws-accent-text {
+        color: var(--ws-accent) !important;
+    }
+
+    .execution-workspace-wrapper .overview-item {
+        background: var(--ws-subtle);
+        border: 1px solid var(--ws-border);
+        border-radius: 12px;
+        padding: 14px 16px;
+        height: 100%;
+        transition: all 0.22s var(--ws-ease);
+    }
+
+    .execution-workspace-wrapper .overview-item:hover {
+        background: #ffffff;
+        border-color: #bfdbfe;
+        transform: translateY(-2px);
+        box-shadow: var(--ws-shadow-xs);
+    }
+
+    /* Status Pill on Header */
+    .execution-workspace-wrapper .status-pill-live {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        background: #ecfdf5;
+        color: #059669;
+        border: 1px solid #a7f3d0;
+        font-size: 12px;
+        font-weight: 700;
+        padding: 7px 14px;
+        border-radius: 999px;
+        white-space: nowrap;
+    }
+
+    .execution-workspace-wrapper .status-pill-live::before {
+        content: "";
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: #10b981;
+        animation: wsPulseDot 2s infinite ease-in-out;
+    }
+
+    /* Progress Bar */
+    .execution-workspace-wrapper .progress-track {
+        height: 12px;
+        background: #e2e8f0;
+        border-radius: 999px;
+        overflow: hidden;
+        box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.08);
+    }
+
+    .execution-workspace-wrapper .progress-fill-animated {
+        position: relative;
+        background: linear-gradient(90deg, #2563eb 0%, #3b82f6 50%, #0ea5e9 100%);
+        border-radius: 999px;
+        transition: width 0.85s var(--ws-ease);
+        overflow: hidden;
+    }
+
+    .execution-workspace-wrapper .progress-fill-animated::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(90deg,
+                transparent 0%,
+                rgba(255, 255, 255, 0.35) 50%,
+                transparent 100%);
+        animation: wsShimmerSweep 2.4s infinite linear;
+    }
+
+    /* Stat Tiles */
+    .execution-workspace-wrapper .stat-tile {
+        position: relative;
+        background: var(--ws-card);
+        border: 1px solid var(--ws-border);
+        border-radius: 14px;
+        padding: 16px;
+        height: 100%;
+        overflow: hidden;
+        transition: transform 0.24s var(--ws-ease), box-shadow 0.24s var(--ws-ease), border-color 0.24s ease;
+    }
+
+    .execution-workspace-wrapper .stat-tile::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 3px;
+        background: var(--tile-accent, #94a3b8);
+    }
+
+    .execution-workspace-wrapper .stat-tile:hover {
+        transform: translateY(-3px);
+        box-shadow: var(--ws-shadow-md);
+        border-color: var(--ws-border-hover);
+    }
+
+    .execution-workspace-wrapper .stat-tile-total {
+        --tile-accent: #1e293b;
+    }
+
+    .execution-workspace-wrapper .stat-tile-completed {
+        --tile-accent: #10b981;
+        background: linear-gradient(180deg, rgba(16, 185, 129, 0.04) 0%, #fff 100%);
+    }
+
+    .execution-workspace-wrapper .stat-tile-progress {
+        --tile-accent: #2563eb;
+        background: linear-gradient(180deg, rgba(37, 99, 235, 0.04) 0%, #fff 100%);
+    }
+
+    .execution-workspace-wrapper .stat-tile-pending {
+        --tile-accent: #f59e0b;
+    }
+
+    .execution-workspace-wrapper .stat-tile-blocked {
+        --tile-accent: #ef4444;
+        background: linear-gradient(180deg, rgba(239, 68, 68, 0.04) 0%, #fff 100%);
+    }
+
+    .execution-workspace-wrapper .stat-tile-na {
+        --tile-accent: #cbd5e1;
+    }
+
+    /* Execution Workflow Phases */
+    .execution-workspace-wrapper .workflow-phase {
+        border: 1px solid var(--ws-border);
+        border-radius: 14px;
+        margin-bottom: 14px;
+        overflow: hidden;
+        background: var(--ws-card);
+        box-shadow: var(--ws-shadow-xs);
+        transition: border-color 0.25s ease, box-shadow 0.25s ease;
+    }
+
+    .execution-workspace-wrapper .workflow-phase:hover {
+        border-color: var(--ws-border-hover);
+        box-shadow: var(--ws-shadow-sm);
+    }
+
+    .execution-workspace-wrapper .workflow-phase-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        width: 100%;
+        padding: 16px 20px;
+        border: none;
+        background: var(--ws-card);
+        text-align: left;
+        cursor: pointer;
+        transition: background-color 0.2s ease;
+    }
+
+    .execution-workspace-wrapper .workflow-phase-header:hover {
+        background: var(--ws-subtle);
+    }
+
+    .execution-workspace-wrapper .workflow-phase-header[aria-expanded="true"] {
+        background: #f8fafc;
+        border-bottom: 1px solid var(--ws-border);
+    }
+
+    .execution-workspace-wrapper .workflow-phase-title {
+        font-size: 14px;
+        font-weight: 700;
+        color: var(--ws-text-primary);
+        transition: color 0.2s ease;
+    }
+
+    .execution-workspace-wrapper .workflow-phase-header:hover .workflow-phase-title {
+        color: var(--ws-accent);
+    }
+
+    .execution-workspace-wrapper .workflow-phase-meta {
+        font-size: 12px;
+        font-weight: 500;
+        color: var(--ws-text-muted);
+        margin-top: 3px;
+    }
+
+    .execution-workspace-wrapper .workflow-phase-arrow {
+        width: 28px;
+        height: 28px;
+        border-radius: 8px;
+        background: var(--ws-subtle);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 12px;
+        transition: transform 0.28s var(--ws-ease), background-color 0.2s ease, color 0.2s ease;
+        color: var(--ws-text-secondary);
+    }
+
+    .execution-workspace-wrapper .workflow-phase-header:hover .workflow-phase-arrow {
+        background: var(--ws-accent-soft);
+        color: var(--ws-accent);
+    }
+
+    .execution-workspace-wrapper .workflow-phase-header[aria-expanded="true"] .workflow-phase-arrow {
+        transform: rotate(180deg);
+        background: var(--ws-accent);
+        color: #ffffff;
+    }
+
+    .execution-workspace-wrapper .workflow-phase-content {
+        padding: 6px 20px 18px;
+        background: #fbfdff;
+        animation: wsFadeSlideUp 0.28s var(--ws-ease);
+    }
+
+    .execution-workspace-wrapper .workflow-task {
+        position: relative;
+        padding: 15px 16px;
+        border: 1px solid var(--ws-border);
+        border-left: 3px solid #cbd5e1;
+        border-radius: 11px;
+        margin-top: 12px;
+        background: #ffffff;
+        cursor: pointer;
+        box-shadow: var(--ws-shadow-xs);
+        transition: transform 0.22s var(--ws-ease), box-shadow 0.22s var(--ws-ease), border-color 0.22s ease;
+    }
+
+    .execution-workspace-wrapper .workflow-task:hover {
+        border-color: #93c5fd;
+        border-left-color: var(--ws-accent);
+        transform: translateX(4px);
+        box-shadow: var(--ws-shadow-sm);
+    }
+
+    .execution-workspace-wrapper .workflow-task-title {
+        font-size: 13.5px;
+        font-weight: 600;
+        color: var(--ws-text-primary);
+        transition: color 0.2s ease;
+    }
+
+    .execution-workspace-wrapper .workflow-task:hover .workflow-task-title {
+        color: var(--ws-accent);
+    }
+
+    .execution-workspace-wrapper .workflow-task-meta {
+        font-size: 12px;
+        color: var(--ws-text-muted);
+        margin-top: 7px;
+    }
+
+    /* Color-Coded Status Badges */
+    .execution-workspace-wrapper .workflow-task-status {
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.03em;
+        text-transform: uppercase;
+        padding: 5px 11px;
+        border-radius: 999px;
+        background: #f1f5f9;
+        color: #475569;
+        border: 1px solid #e2e8f0;
+        white-space: nowrap;
+    }
+
+    .execution-workspace-wrapper .workflow-task-status.status-completed {
+        background: #ecfdf5;
+        color: #059669;
+        border-color: #a7f3d0;
+    }
+
+    .execution-workspace-wrapper .workflow-task-status.status-in-progress {
+        background: #eff6ff;
+        color: #2563eb;
+        border-color: #bfdbfe;
+    }
+
+    .execution-workspace-wrapper .workflow-task-status.status-blocked {
+        background: #fef2f2;
+        color: #dc2626;
+        border-color: #fecaca;
+    }
+
+    .execution-workspace-wrapper .workflow-task-status.status-pending {
+        background: #fffbeb;
+        color: #d97706;
+        border-color: #fde68a;
+    }
+
+    .execution-workspace-wrapper .workflow-task-status.status-not-applicable,
+    .execution-workspace-wrapper .workflow-task-status.status-cancelled {
+        background: #f8fafc;
+        color: #64748b;
+        border-color: #e2e8f0;
+    }
+
+    /* Task Details Modal */
+    #taskDetailsModal .modal-content {
+        border: 1px solid var(--ws-border);
+    }
+
+    #taskDetailsModal .modal-header {
+        padding: 20px 24px;
+    }
+
+    #taskDetailsModal .modal-body {
+        background: #ffffff;
+        max-height: 75vh;
+        overflow-y: auto;
+        padding: 22px 24px;
+    }
+
+    #taskDetailsModal .modal-dialog {
+        max-width: 950px;
+    }
+
+    #taskDetailsModal .modal-backdrop {
+        background: rgba(15, 23, 42, 0.45);
+    }
+
+    .execution-workspace-wrapper .task-detail-section {
+        background: var(--ws-subtle);
+        border: 1px solid var(--ws-border);
+        border-radius: 12px;
+        padding: 16px 18px;
+        margin-bottom: 18px;
+    }
+
+    .execution-workspace-wrapper .task-detail-heading {
+        font-size: 13px;
+        font-weight: 700;
+        color: var(--ws-text-primary);
+        margin-bottom: 14px;
+        padding-bottom: 8px;
+        border-bottom: 1px solid var(--ws-border);
+    }
+
+    .execution-workspace-wrapper .task-detail-item {
+        margin-bottom: 12px;
+    }
+
+    .execution-workspace-wrapper .task-detail-item:last-child {
+        margin-bottom: 0;
+    }
+
+    .execution-workspace-wrapper .task-detail-label {
+        font-size: 11px;
+        font-weight: 700;
+        color: var(--ws-text-muted);
+        margin-bottom: 4px;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+    }
+
+    .execution-workspace-wrapper .task-detail-value {
+        font-size: 13px;
+        color: var(--ws-text-primary);
+        overflow-wrap: anywhere;
+        white-space: pre-wrap;
+        line-height: 1.5;
+    }
+
+    .execution-workspace-wrapper .form-select,
+    .execution-workspace-wrapper .form-control {
+        border-radius: 9px;
+        border-color: var(--ws-border);
+    }
+
+    .execution-workspace-wrapper .form-select:focus,
+    .execution-workspace-wrapper .form-control:focus {
+        border-color: var(--ws-accent);
+        box-shadow: 0 0 0 3px var(--ws-accent-glow);
+    }
+
+    .execution-workspace-wrapper .btn-ws-primary {
+        background: var(--ws-accent);
+        border: 1px solid var(--ws-accent);
+        color: #ffffff;
+        border-radius: 9px;
+        font-weight: 600;
+        padding: 7px 14px;
+        transition: all 0.2s var(--ws-ease);
+    }
+
+    .execution-workspace-wrapper .btn-ws-primary:hover:not(:disabled) {
+        background: var(--ws-accent-hover);
+        border-color: var(--ws-accent-hover);
+        color: #ffffff;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);
+    }
+
+    /* Execution Activity Timeline */
+    .execution-workspace-wrapper .activity-list {
+        position: relative;
+        padding-left: 22px;
+    }
+
+    .execution-workspace-wrapper .activity-item {
+        position: relative;
+        padding: 0 0 20px 18px;
+        border-left: 2px solid var(--ws-border);
+    }
+
+    .execution-workspace-wrapper .activity-item:last-child {
+        border-left-color: transparent;
+        padding-bottom: 0;
+    }
+
+    .execution-workspace-wrapper .activity-item::before {
+        content: "";
+        position: absolute;
+        left: -7px;
+        top: 3px;
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        background: var(--ws-accent);
+        border: 2px solid #fff;
+        box-shadow: 0 0 0 2px #bfdbfe;
+    }
+
+    .execution-workspace-wrapper .activity-title {
+        font-size: 12px;
+        font-weight: 700;
+        color: var(--ws-text-primary);
+        margin-bottom: 4px;
+    }
+
+    .execution-workspace-wrapper .activity-description {
+        font-size: 13px;
+        color: var(--ws-text-secondary);
+        line-height: 1.5;
+        overflow-wrap: anywhere;
+    }
+
+    .execution-workspace-wrapper .activity-meta {
+        font-size: 11px;
+        color: var(--ws-text-muted);
+        margin-top: 6px;
+    }
+
+    .execution-workspace-wrapper .activity-type {
+        display: inline-block;
+        font-size: 10px;
+        font-weight: 700;
+        padding: 3px 8px;
+        border-radius: 20px;
+        background: var(--ws-accent-soft);
+        color: var(--ws-accent);
+        margin-bottom: 5px;
+    }
+</style>
+
+<div class="execution-workspace-wrapper">
+    <div class="execution-container">
+
+        <!-- Page Header -->
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-4 animate-enter">
+            <div>
+                <div class="breadcrumb-tag">
+                    <span>Tender Execution / Workspace</span>
+                </div>
+                <h3 class="fw-bold mb-1" style="letter-spacing: -0.02em;">Tender Execution Workspace</h3>
+                <p class="text-muted small mb-0">
+                    Manage the execution activities of this approved tender.
+                </p>
+            </div>
+
+            <a href="{% url 'my_tenders_page' %}" class="btn-back-tenders">
+                <span>&larr;</span>
+                <span>Back to My Tenders</span>
+            </a>
+        </div>
+
+        <!-- Tender Header -->
+        <div class="execution-card tender-hero-card animate-enter delay-1">
+            <div class="d-flex justify-content-between align-items-start flex-wrap gap-3">
+                <div>
+                    <div class="field-label">TENDER TITLE</div>
+                    <h5 class="fw-bold mb-2" id="executionTenderTitle" style="letter-spacing: -0.01em;">
+                        Loading tender...
+                    </h5>
+                    <div class="text-muted small d-flex align-items-center gap-2">
+                        <span class="badge bg-light text-secondary border fw-semibold">
+                            ID: <span id="executionTenderId">—</span>
+                        </span>
+                    </div>
+                </div>
+
+                <span class="status-pill-live" id="executionStatus">
+                    Go Approved
+                </span>
+            </div>
+        </div>
+
+        <!-- Execution Overview -->
+        <div class="execution-card animate-enter delay-2">
+            <h5 class="section-heading">
+                <span class="section-icon-box">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+                        stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="18" y1="20" x2="18" y2="10"></line>
+                        <line x1="12" y1="20" x2="12" y2="4"></line>
+                        <line x1="6" y1="20" x2="6" y2="14"></line>
+                    </svg>
+                </span>
+                Execution Overview
+            </h5>
+
+            <div class="row g-3">
+                <div class="col-md-3">
+                    <div class="overview-item">
+                        <div class="field-label">Tender Value</div>
+                        <div class="field-value ws-accent-text" id="executionTenderValue">—</div>
+                    </div>
+                </div>
+
+                <div class="col-md-3">
+                    <div class="overview-item">
+                        <div class="field-label">Submission Deadline</div>
+                        <div class="field-value" id="executionClosingDate">—</div>
+                    </div>
+                </div>
+
+                <div class="col-md-3">
+                    <div class="overview-item">
+                        <div class="field-label">Organization</div>
+                        <div class="field-value" id="executionOrganization">—</div>
+                    </div>
+                </div>
+
+                <div class="col-md-3">
+                    <div class="overview-item">
+                        <div class="field-label">Location</div>
+                        <div class="field-value" id="executionLocation">—</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Execution Dashboard -->
+        <div class="execution-card animate-enter delay-3">
+
+            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-4">
+                <h5 class="section-heading mb-0">
+                    <span class="section-icon-box">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21.21 15.89A10 10 0 1 1 8 2.83"></path>
+                            <path d="M22 12A10 10 0 0 0 12 2v10z"></path>
+                        </svg>
+                    </span>
+                    Execution Progress
+                </h5>
+
+                <span class="badge bg-light text-secondary border px-3 py-2 fw-semibold" id="executionTaskSummary">
+                    Loading progress...
+                </span>
+            </div>
+
+            <!-- Overall Progress -->
+            <div class="mb-4">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span class="fw-semibold small text-secondary">Overall Completion</span>
+                    <span class="fw-bold ws-accent-text fs-6" id="overallProgressText">0%</span>
+                </div>
+
+                <div class="progress progress-track">
+                    <div class="progress-bar progress-fill-animated" id="overallProgressBar" role="progressbar"
+                        style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Task Statistics -->
+            <div class="row g-3">
+
+                <div class="col-6 col-md-4 col-lg-2">
+                    <div class="stat-tile stat-tile-total">
+                        <div class="field-label">Total Tasks</div>
+                        <div class="fs-4 fw-bold mt-1" id="totalTasksCount">0</div>
+                    </div>
+                </div>
+
+                <div class="col-6 col-md-4 col-lg-2">
+                    <div class="stat-tile stat-tile-completed">
+                        <div class="field-label">Completed</div>
+                        <div class="fs-4 fw-bold text-success mt-1" id="completedTasksCount">0</div>
+                    </div>
+                </div>
+
+                <div class="col-6 col-md-4 col-lg-2">
+                    <div class="stat-tile stat-tile-progress">
+                        <div class="field-label">In Progress</div>
+                        <div class="fs-4 fw-bold ws-accent-text mt-1" id="inProgressTasksCount">0</div>
+                    </div>
+                </div>
+
+                <div class="col-6 col-md-4 col-lg-2">
+                    <div class="stat-tile stat-tile-pending">
+                        <div class="field-label">Pending</div>
+                        <div class="fs-4 fw-bold text-warning mt-1" id="pendingTasksCount">0</div>
+                    </div>
+                </div>
+
+                <div class="col-6 col-md-4 col-lg-2">
+                    <div class="stat-tile stat-tile-blocked">
+                        <div class="field-label">Blocked</div>
+                        <div class="fs-4 fw-bold text-danger mt-1" id="blockedTasksCount">0</div>
+                    </div>
+                </div>
+
+                <div class="col-6 col-md-4 col-lg-2">
+                    <div class="stat-tile stat-tile-na">
+                        <div class="field-label">Not Applicable</div>
+                        <div class="fs-4 fw-bold text-muted mt-1" id="notApplicableTasksCount">0</div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- Execution Activity Timeline -->
+        <div class="execution-card animate-enter delay-4">
+            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+                <h5 class="section-heading mb-0">
+                    <span class="section-icon-box">
+                        <i class="bi bi-activity"></i>
+                    </span>
+                    Recent Activity
+                </h5>
+
+                <button type="button" class="btn btn-sm btn-outline-secondary" id="refreshExecutionActivitiesBtn">
+                    <i class="bi bi-arrow-clockwise me-1"></i> Refresh
+                </button>
+            </div>
+
+            <div id="executionActivityTimeline">
+                <p class="text-muted small mb-0">Loading recent activity...</p>
+            </div>
+
+            <div class="text-center mt-3" id="activityExpandContainer" hidden>
+                <button type="button" class="btn btn-sm btn-link text-decoration-none" id="toggleAllActivitiesBtn">
+                    View All Activity <i class="bi bi-chevron-down ms-1"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Execution Workflow -->
+        <div class="execution-card animate-enter delay-4">
+            <h5 class="section-heading">
+                <span class="section-icon-box">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+                        stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="3" y="3" width="7" height="7"></rect>
+                        <rect x="14" y="3" width="7" height="7"></rect>
+                        <rect x="14" y="14" width="7" height="7"></rect>
+                        <path d="M10 6.5h4M17.5 10v4"></path>
+                    </svg>
+                </span>
+                Execution Workflow
+            </h5>
+
+            <!-- Workflow Filters -->
+            <div class="row g-2 mb-3" id="workflowFilters">
+
+                <div class="col-md-3">
+                    <select class="form-select form-select-sm" id="filterTaskStatus">
+                        <option value="">All Statuses</option>
+                        <option value="PENDING">Pending</option>
+                        <option value="IN_PROGRESS">In Progress</option>
+                        <option value="COMPLETED">Completed</option>
+                        <option value="BLOCKED">Blocked</option>
+                        <option value="CANCELLED">Cancelled</option>
+                    </select>
+                </div>
+
+                <div class="col-md-3">
+                    <select class="form-select form-select-sm" id="filterTaskDepartment">
+                        <option value="">All Departments</option>
+                    </select>
+                </div>
+
+                <div class="col-md-3">
+                    <select class="form-select form-select-sm" id="filterTaskPriority">
+                        <option value="">All Priorities</option>
+                    </select>
+                </div>
+
+                <div class="col-md-3">
+                    <select class="form-select form-select-sm" id="filterTaskAssignee">
+                        <option value="">All Assignees</option>
+                    </select>
+                </div>
+
+                <div class="col-12 d-flex justify-content-between align-items-center">
+                    <small class="text-muted" id="workflowFilterSummary">
+                        Showing all workflow tasks
+                    </small>
+                    <button type="button" id="createCustomTaskBtn" class="btn btn-ws-primary btn-sm">
+                        <i class="bi bi-plus-lg me-1"></i> Add Custom Task
+                    </button>
+
+                    <button type="button" class="btn btn-sm btn-outline-secondary" id="resetWorkflowFilters">
+                        Reset Filters
+                    </button>
+                </div>
+
+            </div>
+
+            <div id="executionWorkflowTimeline">
+                <p class="text-muted small mb-0">
+                    Workflow information will appear here.
+                </p>
+            </div>
+        </div>
+        <!-- Task Details Modal -->
+        <div class="modal fade" id="taskDetailsModal" tabindex="-1" aria-labelledby="taskDetailsTitle"
+            aria-hidden="true">
+
+            <div class="modal-dialog modal-dialog-centered modal-xl modal-dialog-scrollable">
+
+                <div class="modal-content border-0 shadow-lg" style="border-radius: 16px; overflow: hidden;">
+
+                    <div class="modal-header border-bottom px-4 py-3" style="background: #f8fafc;">
+
+                        <div>
+                            <div class="field-label ws-accent-text">
+                                EXECUTION TASK
+                            </div>
+
+                            <h5 class="modal-title fw-bold mb-0" id="taskDetailsTitle">
+                                Task Details
+                            </h5>
+                        </div>
+
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close">
+                        </button>
+
+                    </div>
+
+                    <div class="modal-body p-4" id="taskDetailsBody">
+
+                        <p class="text-muted small">
+                            Select a task to view its details.
+                        </p>
+
+                    </div>
+
+                </div>
+
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<script>
+    const MY_TENDER_ID = "{{ my_tender_id  }}";
+</script>
+<script>
+
+
+    document.addEventListener("DOMContentLoaded", function () {
+
+        function setText(id, value, fallback = "—") {
+            const element = document.getElementById(id);
+            if (element) {
+                element.textContent = value ?? fallback;
+            }
+        }
+
+        function formatCurrency(value) {
+            if (value === null || value === undefined || value === "") {
+                return "Not specified";
+            }
+
+            return "₹" + Number(value).toLocaleString("en-IN");
+        }
+
+        function formatDate(value) {
+            if (!value) return "—";
+
+            const date = new Date(value);
+
+            if (isNaN(date.getTime())) return value;
+
+            return date.toLocaleDateString("en-IN", {
+                day: "2-digit",
+                month: "short",
+                year: "numeric"
+            });
+        }
+
+        function formatActivityDate(value) {
+            if (!value) return "Date unavailable";
+
+            const date = new Date(value);
+
+            if (isNaN(date.getTime())) return value;
+
+            return date.toLocaleString("en-IN", {
+                day: "2-digit",
+                month: "short",
+                year: "numeric",
+                hour: "2-digit",
+                minute: "2-digit"
+            });
+        }
+
+
+        function renderActivityItems(container, activities) {
+            container.replaceChildren();
+
+            if (!Array.isArray(activities) || !activities.length) {
+                const empty = document.createElement("p");
+                empty.className = "text-muted small mb-0";
+                empty.textContent = "No activity recorded yet.";
+                container.appendChild(empty);
+                return;
+            }
+
+            const list = document.createElement("div");
+            list.className = "activity-list";
+
+            activities.forEach(activity => {
+                const item = document.createElement("div");
+                item.className = "activity-item";
+
+                const type = document.createElement("div");
+                type.className = "activity-type";
+                type.textContent = (activity.activity_type || "ACTIVITY")
+                    .replaceAll("_", " ");
+
+                const description = document.createElement("div");
+                description.className = "activity-description";
+                description.textContent =
+                    activity.description || "Activity recorded.";
+
+                const actor = activity.performed_by?.username || "System";
+
+                const meta = document.createElement("div");
+                meta.className = "activity-meta";
+                meta.textContent =
+                    `${actor} • ${formatActivityDate(activity.created_at)}`;
+
+                item.append(type, description, meta);
+                list.appendChild(item);
+            });
+
+            container.appendChild(list);
+        }
+
+
+        let allActivitiesExpanded = false;
+
+        async function loadExecutionActivities() {
+            const container = document.getElementById("executionActivityTimeline");
+            if (!container) return;
+
+            container.textContent = "Loading recent activity...";
+
+            try {
+                const limit = allActivitiesExpanded ? 200 : 5;
+
+                const response = await fetch(
+                    `/api/my-tenders/${MY_TENDER_ID}/execution/activities/?limit=${limit}`,
+                    { credentials: "same-origin" }
+                );
+
+                const result = await response.json();
+
+                if (!response.ok || !result.success) {
+                    throw new Error(
+                        result.error || "Unable to load execution activities."
+                    );
+                }
+
+                const activities = result.data?.activities || [];
+
+                renderActivityItems(container, activities);
+
+                const expandContainer = document.getElementById(
+                    "activityExpandContainer"
+                );
+                const toggleButton = document.getElementById(
+                    "toggleAllActivitiesBtn"
+                );
+
+                if (expandContainer && toggleButton) {
+                    const totalActivities = result.data?.count || 0;
+                    expandContainer.hidden = totalActivities <= 5;
+                    toggleButton.innerHTML = allActivitiesExpanded
+                        ? 'Show Less <i class="bi bi-chevron-up ms-1"></i>'
+                        : 'View All Activity <i class="bi bi-chevron-down ms-1"></i>';
+                }
+
+            } catch (error) {
+                console.error("Execution activity loading error:", error);
+                container.textContent = "Unable to load recent activity.";
+            }
+        }
+
+        async function loadTaskActivityTimeline(taskId, container) {
+            container.textContent = "Loading task activity...";
+
+            try {
+                const response = await fetch(
+                    `/api/my-tenders/${MY_TENDER_ID}/execution/activities/?task_id=${encodeURIComponent(taskId)}&limit=100`,
+                    { credentials: "same-origin" }
+                );
+
+                const result = await response.json();
+
+                if (!response.ok || !result.success) {
+                    throw new Error(
+                        result.error || "Unable to load task activity."
+                    );
+                }
+
+                renderActivityItems(
+                    container,
+                    result.data?.activities || []
+                );
+
+            } catch (error) {
+                console.error("Task activity loading error:", error);
+                container.textContent = "Unable to load task activity.";
+            }
+        }
+
+        function formatTaskValue(value) {
+            if (value === null || value === undefined || value === "") {
+                return "Not specified";
+            }
+
+            if (Array.isArray(value) || typeof value === "object") {
+                return JSON.stringify(value, null, 2);
+            }
+
+            return String(value).replaceAll("_", " ");
+        }
+
+        function getStatusBadgeClass(status) {
+            const normalized = (status || "PENDING").toUpperCase();
+            switch (normalized) {
+                case "COMPLETED":
+                    return "status-completed";
+                case "IN_PROGRESS":
+                    return "status-in-progress";
+                case "BLOCKED":
+                    return "status-blocked";
+                case "PENDING":
+                    return "status-pending";
+                case "NOT_APPLICABLE":
+                    return "status-not-applicable";
+                case "CANCELLED":
+                    return "status-cancelled";
+                default:
+                    return "";
+            }
+        }
+
+        function addTaskDetailSection(container, heading, fields) {
+            const section = document.createElement("div");
+            section.className = "task-detail-section";
+
+            const title = document.createElement("div");
+            title.className = "task-detail-heading";
+            title.textContent = heading;
+
+            section.appendChild(title);
+
+            fields.forEach(([label, value]) => {
+                const item = document.createElement("div");
+                item.className = "task-detail-item";
+
+                const labelElement = document.createElement("div");
+                labelElement.className = "task-detail-label";
+                labelElement.textContent = label;
+
+                const valueElement = document.createElement("div");
+                valueElement.className = "task-detail-value";
+                valueElement.textContent = formatTaskValue(value);
+
+                item.append(labelElement, valueElement);
+                section.appendChild(item);
+            });
+
+            container.appendChild(section);
+        }
+
+        function getCSRFToken() {
+            const cookie = document.cookie
+                .split("; ")
+                .find(row => row.startsWith("csrftoken="));
+
+            return cookie ? decodeURIComponent(cookie.split("=")[1]) : "";
+        }
+
+        async function renderTaskDetails(task, phase) {
+
+            const titleElement = document.getElementById("taskDetailsTitle");
+            const body = document.getElementById("taskDetailsBody");
+
+            if (!titleElement || !body) return;
+
+            titleElement.textContent = task.title || "Task Details";
+            body.replaceChildren();
+
+            // Edit button — custom tasks only
+            if (task.is_custom === true) {
+                const editButton = document.createElement("button");
+                editButton.type = "button";
+                editButton.className = "btn btn-outline-primary btn-sm mb-3";
+                editButton.innerHTML = '<i class="bi bi-pencil-square me-1"></i> Edit Task';
+
+                editButton.addEventListener("click", function () {
+                    renderCustomTaskEditForm(task, phase);
+                });
+
+                body.appendChild(editButton);
+            }
+
+            // 1. TASK STATUS MANAGEMENT
+            const statusSection = document.createElement("div");
+            statusSection.className = "task-detail-section";
+
+            const statusHeading = document.createElement("div");
+            statusHeading.className = "task-detail-heading";
+            statusHeading.textContent = "Update Task Status";
+
+            const statusSelect = document.createElement("select");
+            statusSelect.className = "form-select form-select-sm mb-3";
+
+            const statusOptions = [
+                ["PENDING", "Pending"],
+                ["IN_PROGRESS", "In Progress"],
+                ["COMPLETED", "Completed"],
+                ["BLOCKED", "Blocked"],
+                ["CANCELLED", "Cancelled"]
+            ];
+
+            statusOptions.forEach(([value, label]) => {
+                const option = document.createElement("option");
+                option.value = value;
+                option.textContent = label;
+                option.selected = task.status === value;
+                statusSelect.appendChild(option);
+            });
+
+            const remarksLabel = document.createElement("label");
+            remarksLabel.className = "task-detail-label";
+            remarksLabel.textContent = "Status Remarks";
+
+            const remarksInput = document.createElement("textarea");
+            remarksInput.className = "form-control form-control-sm mb-3";
+            remarksInput.rows = 3;
+            remarksInput.placeholder = "Add remarks about this status update...";
+
+            const saveButton = document.createElement("button");
+            saveButton.type = "button";
+            saveButton.className = "btn btn-ws-primary btn-sm";
+            saveButton.textContent = "Save Status";
+
+            const statusMessage = document.createElement("div");
+            statusMessage.className = "small mt-2";
+
+            statusSection.append(
+                statusHeading,
+                statusSelect,
+                remarksLabel,
+                remarksInput,
+                saveButton,
+                statusMessage
+            );
+
+            if (
+                task.is_applicable === false ||
+                task.status === "NOT_APPLICABLE"
+            ) {
+                statusSelect.disabled = true;
+                remarksInput.disabled = true;
+                saveButton.disabled = true;
+
+                statusMessage.textContent =
+                    "This task is not applicable. Change its applicability separately.";
+                statusMessage.classList.add("text-muted");
+            }
+
+            saveButton.addEventListener("click", async function () {
+
+                const newStatus = statusSelect.value;
+                const remarks = remarksInput.value.trim();
+
+                if (newStatus === task.status && !remarks) {
+                    statusMessage.textContent = "No changes to save.";
+                    statusMessage.className = "small mt-2 text-muted";
+                    return;
+                }
+
+                saveButton.disabled = true;
+                statusMessage.textContent = "Saving status...";
+                statusMessage.className = "small mt-2 text-muted";
+
+                try {
+                    const response = await fetch(
+                        `/api/my-tenders/${MY_TENDER_ID}/execution/tasks/${task.id}/status/`,
+                        {
+                            method: "POST",
+                            credentials: "same-origin",
+                            headers: {
+                                "Content-Type": "application/json",
+                                "X-CSRFToken": getCSRFToken()
+                            },
+                            body: JSON.stringify({
+                                status: newStatus,
+                                remarks: remarks
+                            })
+                        }
+                    );
+
+                    const result = await response.json();
+
+                    if (!response.ok || result.success === false) {
+                        throw new Error(
+                            result.error || "Unable to update task status."
+                        );
+                    }
+
+                    task.status = newStatus;
+                    if (remarks) {
+                        task.remarks = remarks;
+                    }
+
+                    statusMessage.textContent = "Task status updated successfully.";
+                    statusMessage.className = "small mt-2 text-success";
+
+                    await Promise.all([
+                        loadExecutionWorkspace(),
+                        loadExecutionDashboard()
+                    ]);
+
+                    renderTaskDetails(task, phase);
+
+                } catch (error) {
+                    console.error("Task status update error:", error);
+                    statusMessage.textContent = error.message;
+                    statusMessage.className = "small mt-2 text-danger";
+                } finally {
+                    saveButton.disabled = false;
+                }
+            });
+
+            body.appendChild(statusSection);
+
+            // 2. BASIC TASK INFORMATION
+            addTaskDetailSection(body, "Task Information", [
+                ["Task Title", task.title],
+                ["Task Code", task.code],
+                ["Phase", phase.name || phase.title],
+                ["Description", task.description],
+                ["Department", task.department],
+                ["Priority", task.priority],
+                ["Current Status", task.status],
+                ["Due Date", task.due_date]
+            ]);
+
+            // 3. APPLICABILITY
+            addTaskDetailSection(body, "Applicability", [
+                ["Optional Task", task.optional ? "Yes" : "No"],
+                ["Condition", task.condition],
+                [
+                    "Applicable",
+                    task.is_applicable === null
+                        ? "Not decided"
+                        : task.is_applicable ? "Yes" : "No"
+                ]
+            ]);
+
+            // 4. DEPENDENCIES
+            addTaskDetailSection(body, "Dependencies", [
+                ["Depends On", task.dependencies]
+            ]);
+
+            // 5. TASK ASSIGNMENT
+
+            // 5. TASK ASSIGNMENT
+            const assignmentSection = document.createElement("div");
+            assignmentSection.className = "task-detail-section";
+
+            const assignmentHeading = document.createElement("div");
+            assignmentHeading.className = "task-detail-heading";
+            assignmentHeading.textContent = "Task Assignment";
+
+            const assignmentDescription = document.createElement("p");
+            assignmentDescription.className = "text-muted small mb-3";
+            assignmentDescription.textContent =
+                "Select one or more users responsible for completing this task.";
+
+            const selectedAssigneeIds = new Set(
+                (task.assignees || []).map(String)
+            );
+
+            const assignmentSearch = document.createElement("input");
+            assignmentSearch.type = "search";
+            assignmentSearch.className = "form-control form-control-sm mb-2";
+            assignmentSearch.placeholder = "Search users by name...";
+
+            const selectedUsersContainer = document.createElement("div");
+            selectedUsersContainer.className = "mb-3";
+
+            const userList = document.createElement("div");
+            userList.className = "task-assignee-list";
+
+            const assignmentMessage = document.createElement("div");
+            assignmentMessage.className = "small mt-2";
+
+            const saveAssignmentBtn = document.createElement("button");
+            saveAssignmentBtn.type = "button";
+            saveAssignmentBtn.className = "btn btn-ws-primary btn-sm mt-3";
+            saveAssignmentBtn.textContent = "Save Assignment";
+
+            let availableUsers = [];
+
+            function renderSelectedUsers() {
+                selectedUsersContainer.replaceChildren();
+
+                const selectedUsers = availableUsers.filter(user =>
+                    selectedAssigneeIds.has(String(user.id))
+                );
+
+                const selectedHeading = document.createElement("div");
+                selectedHeading.className = "small fw-semibold mb-2";
+                selectedHeading.textContent =
+                    `Selected Assignees (${selectedUsers.length})`;
+
+                selectedUsersContainer.appendChild(selectedHeading);
+
+                if (!selectedUsers.length) {
+                    const empty = document.createElement("div");
+                    empty.className = "text-muted small";
+                    empty.textContent = "No users assigned yet.";
+                    selectedUsersContainer.appendChild(empty);
+                    return;
+                }
+
+                const chips = document.createElement("div");
+                chips.className = "d-flex flex-wrap gap-2";
+
+                selectedUsers.forEach(user => {
+                    const chip = document.createElement("span");
+                    chip.className = "badge bg-primary-subtle text-primary border";
+                    chip.textContent = user.full_name || user.username;
+                    chips.appendChild(chip);
+                });
+
+                selectedUsersContainer.appendChild(chips);
+            }
+
+            function renderAssigneeList(searchTerm = "") {
+                userList.replaceChildren();
+
+                const filteredUsers = availableUsers.filter(user => {
+                    const name = user.full_name || user.username || "";
+                    return name.toLowerCase().includes(searchTerm.toLowerCase());
+                });
+
+                if (!filteredUsers.length) {
+                    const empty = document.createElement("div");
+                    empty.className = "text-muted small p-3";
+                    empty.textContent = "No matching users found.";
+                    userList.appendChild(empty);
+                    return;
+                }
+
+                filteredUsers.forEach(user => {
+                    const userRow = document.createElement("label");
+                    userRow.className = "task-assignee-option";
+
+                    const checkbox = document.createElement("input");
+                    checkbox.type = "checkbox";
+                    checkbox.className = "form-check-input";
+                    checkbox.checked = selectedAssigneeIds.has(String(user.id));
+
+                    const userName = document.createElement("span");
+                    userName.className = "small";
+                    userName.textContent = user.full_name || user.username;
+
+                    const username = document.createElement("small");
+                    username.className = "text-muted";
+                    username.textContent = user.username || "";
+
+                    const userInfo = document.createElement("div");
+                    userInfo.className = "d-flex flex-column";
+                    userInfo.append(userName, username);
+
+                    userRow.append(checkbox, userInfo);
+
+                    checkbox.addEventListener("change", function () {
+                        const userId = String(user.id);
+
+                        if (checkbox.checked) {
+                            selectedAssigneeIds.add(userId);
+                        } else {
+                            selectedAssigneeIds.delete(userId);
+                        }
+
+                        renderSelectedUsers();
+                    });
+
+                    userList.appendChild(userRow);
+                });
+            }
+
+            try {
+                availableUsers = await loadExecutionAvailableUsers();
+
+                renderSelectedUsers();
+                renderAssigneeList();
+
+            } catch (error) {
+                assignmentMessage.textContent = error.message;
+                assignmentMessage.classList.add("text-danger");
+            }
+
+            assignmentSearch.addEventListener("input", function () {
+                renderAssigneeList(assignmentSearch.value.trim());
+            });
+
+            saveAssignmentBtn.addEventListener("click", async function () {
+                const selectedIds = Array.from(selectedAssigneeIds)
+                    .map(Number);
+
+                saveAssignmentBtn.disabled = true;
+                saveAssignmentBtn.textContent = "Saving...";
+                assignmentMessage.textContent = "";
+
+                try {
+                    const response = await fetch(
+                        `/api/my-tenders/${MY_TENDER_ID}/execution/tasks/${task.id}/assign/`,
+                        {
+                            method: "POST",
+                            credentials: "same-origin",
+                            headers: {
+                                "Content-Type": "application/json",
+                                "X-CSRFToken": getCSRFToken()
+                            },
+                            body: JSON.stringify({
+                                assignee_ids: selectedIds
+                            })
+                        }
+                    );
+
+                    const result = await response.json();
+
+                    if (!response.ok || !result.success) {
+                        throw new Error(
+                            result.error || "Unable to save assignment."
+                        );
+                    }
+
+                    assignmentMessage.textContent =
+                        "Task assignment updated successfully.";
+                    assignmentMessage.className = "small mt-2 text-success";
+
+                    await Promise.all([
+                        loadExecutionWorkspace(),
+                        loadExecutionDashboard()
+                    ]);
+
+                    const latestTask = currentWorkflowPhases
+                        .flatMap(item => item.tasks || [])
+                        .find(item => item.id === task.id);
+
+                    const latestPhase = currentWorkflowPhases.find(item =>
+                        (item.tasks || []).some(t => t.id === task.id)
+                    );
+
+                    if (latestTask && latestPhase) {
+                        renderTaskDetails(latestTask, latestPhase);
+                    }
+
+                } catch (error) {
+                    console.error("Task assignment error:", error);
+                    assignmentMessage.textContent = error.message;
+                    assignmentMessage.className = "small mt-2 text-danger";
+
+                } finally {
+                    saveAssignmentBtn.disabled = false;
+                    saveAssignmentBtn.textContent = "Save Assignment";
+                }
+            });
+
+            assignmentSection.append(
+                assignmentHeading,
+                assignmentDescription,
+                selectedUsersContainer,
+                assignmentSearch,
+                userList,
+                saveAssignmentBtn,
+                assignmentMessage
+            );
+
+            body.appendChild(assignmentSection);
+
+            // 6. REMARKS AND DISCUSSION
+            addTaskDetailSection(body, "Remarks & Comments", [
+                ["Current Remarks", task.remarks],
+                ["Comments", task.comments]
+            ]);
+
+            // 7. ATTACHMENTS
+            addTaskDetailSection(body, "Attachments", [
+                ["Attachments", task.attachments]
+            ]);
+
+            // 8. APPROVAL INFORMATION
+            addTaskDetailSection(body, "Approval Information", [
+                ["Approval Required", task.approval_required ? "Yes" : "No"],
+                ["Approvals", task.approvals]
+            ]);
+
+            // 9. TASK ACTIVITY TIMELINE
+            const activitySection = document.createElement("div");
+            activitySection.className = "task-detail-section";
+
+            const activityHeading = document.createElement("div");
+            activityHeading.className = "task-detail-heading";
+            activityHeading.textContent = "Activity History";
+
+            const activityContainer = document.createElement("div");
+            activityContainer.className = "task-activity-container";
+
+            activitySection.append(
+                activityHeading,
+                activityContainer
+            );
+
+            body.appendChild(activitySection);
+
+            await loadTaskActivityTimeline(task.id, activityContainer);
+
+            const modalElement =
+                document.getElementById("taskDetailsModal");
+
+            if (modalElement && window.bootstrap) {
+                bootstrap.Modal
+                    .getOrCreateInstance(modalElement)
+                    .show();
+            }
+        }
+
+
+
+
+        function renderCreateCustomTaskForm() {
+            const body = document.getElementById("taskDetailsBody");
+            const titleElement = document.getElementById("taskDetailsTitle");
+
+            if (!body || !titleElement) return;
+
+            titleElement.textContent = "Create Custom Task";
+            body.replaceChildren();
+
+            const section = document.createElement("div");
+            section.className = "task-detail-section";
+
+            function createField(labelText, type, value = "") {
+                const wrapper = document.createElement("div");
+                wrapper.className = "mb-3";
+
+                const label = document.createElement("label");
+                label.className = "form-label";
+                label.textContent = labelText;
+
+                const input = document.createElement(
+                    type === "textarea" ? "textarea" : "input"
+                );
+
+                input.className = "form-control form-control-sm";
+
+                if (type === "textarea") {
+                    input.rows = 3;
+                } else {
+                    input.type = type;
+                }
+
+                input.value = value;
+
+                wrapper.append(label, input);
+                return { wrapper, input };
+            }
+
+            // Phase selection
+            const phaseWrapper = document.createElement("div");
+            phaseWrapper.className = "mb-3";
+
+            const phaseLabel = document.createElement("label");
+            phaseLabel.className = "form-label";
+            phaseLabel.textContent = "Workflow Phase";
+
+            const phaseSelect = document.createElement("select");
+            phaseSelect.className = "form-select form-select-sm";
+
+            (currentWorkflowPhases || []).forEach(phase => {
+                const option = document.createElement("option");
+                option.value = phase.code;
+                option.textContent = `${phase.sequence}. ${phase.name}`;
+                phaseSelect.appendChild(option);
+            });
+
+            phaseWrapper.append(phaseLabel, phaseSelect);
+
+            // Task fields
+            const titleField = createField("Task Title", "text");
+            const descriptionField = createField("Description", "textarea");
+            const departmentField = createField("Department", "text");
+            const dueDateField = createField("Due Date", "date");
+
+            // Priority
+            const priorityWrapper = document.createElement("div");
+            priorityWrapper.className = "mb-3";
+
+            const priorityLabel = document.createElement("label");
+            priorityLabel.className = "form-label";
+            priorityLabel.textContent = "Priority";
+
+            const prioritySelect = document.createElement("select");
+            prioritySelect.className = "form-select form-select-sm";
+
+            [
+                ["LOW", "Low"],
+                ["MEDIUM", "Medium"],
+                ["HIGH", "High"],
+                ["URGENT", "Urgent"]
+            ].forEach(([value, label]) => {
+                const option = document.createElement("option");
+                option.value = value;
+                option.textContent = label;
+                option.selected = value === "MEDIUM";
+                prioritySelect.appendChild(option);
+            });
+
+            priorityWrapper.append(priorityLabel, prioritySelect);
+
+            // Dependencies
+            const dependencyWrapper = document.createElement("div");
+            dependencyWrapper.className = "mb-3";
+
+            const dependencyLabel = document.createElement("label");
+            dependencyLabel.className = "form-label";
+            dependencyLabel.textContent = "Dependencies";
+
+            const dependencySelect = document.createElement("select");
+            dependencySelect.className = "form-select form-select-sm";
+            dependencySelect.multiple = true;
+            dependencySelect.size = 5;
+
+            const dependencyHelp = document.createElement("small");
+            dependencyHelp.className = "text-muted d-block mt-1";
+            dependencyHelp.textContent =
+                "Hold Ctrl (Windows) or Cmd (Mac) to select multiple tasks.";
+
+            function populateDependencies() {
+                dependencySelect.replaceChildren();
+
+                const selectedPhaseCode = phaseSelect.value;
+
+                const allTasks = (currentWorkflowPhases || [])
+                    .flatMap(phase => phase.tasks || []);
+
+                allTasks
+                    .filter(task =>
+                        task.status !== "NOT_APPLICABLE" &&
+                        task.is_applicable !== false
+                    )
+                    .forEach(task => {
+                        const option = document.createElement("option");
+                        option.value = task.id;
+                        option.textContent = `${task.code} — ${task.title}`;
+                        dependencySelect.appendChild(option);
+                    });
+            }
+
+            phaseSelect.addEventListener("change", populateDependencies);
+            populateDependencies();
+
+            const message = document.createElement("div");
+            message.className = "small mt-2";
+
+            const saveButton = document.createElement("button");
+            saveButton.type = "button";
+            saveButton.className = "btn btn-ws-primary btn-sm";
+            saveButton.textContent = "Create Task";
+
+            const cancelButton = document.createElement("button");
+            cancelButton.type = "button";
+            cancelButton.className = "btn btn-outline-secondary btn-sm ms-2";
+            cancelButton.textContent = "Cancel";
+
+            saveButton.addEventListener("click", async function () {
+                const payload = {
+                    phase_code: phaseSelect.value,
+                    title: titleField.input.value.trim(),
+                    description: descriptionField.input.value.trim(),
+                    department: departmentField.input.value.trim(),
+                    priority: prioritySelect.value,
+                    due_date: dueDateField.input.value || null,
+                    dependencies: Array.from(dependencySelect.selectedOptions)
+                        .map(option => option.value)
+                };
+
+                if (!payload.phase_code || !payload.title) {
+                    message.textContent = "Please select a phase and enter a task title.";
+                    message.className = "small mt-2 text-danger";
+                    return;
+                }
+
+                saveButton.disabled = true;
+                message.textContent = "Creating task...";
+                message.className = "small mt-2 text-muted";
+
+                try {
+                    const response = await fetch(
+                        `/api/my-tenders/${MY_TENDER_ID}/execution/tasks/create/`,
+                        {
+                            method: "POST",
+                            credentials: "same-origin",
+                            headers: {
+                                "Content-Type": "application/json",
+                                "X-CSRFToken": getCSRFToken()
+                            },
+                            body: JSON.stringify(payload)
+                        }
+                    );
+
+                    const result = await response.json();
+
+                    if (!response.ok || !result.success) {
+                        throw new Error(
+                            result.error || "Unable to create custom task."
+                        );
+                    }
+
+                    await Promise.all([
+                        loadExecutionWorkspace(),
+                        loadExecutionDashboard()
+                    ]);
+
+                    // Reapply the existing workflow filters.
+                    applyWorkflowFilters();
+
+                    const newTask = currentWorkflowPhases
+                        .flatMap(phase => phase.tasks || [])
+                        .find(task => task.id === result.data.id);
+
+                    const newPhase = currentWorkflowPhases.find(phase =>
+                        (phase.tasks || []).some(task => task.id === result.data.id)
+                    );
+
+                    if (newTask && newPhase) {
+                        renderTaskDetails(newTask, newPhase);
+                    } else {
+                        const modalElement =
+                            document.getElementById("taskDetailsModal");
+
+                        if (modalElement && window.bootstrap) {
+                            bootstrap.Modal
+                                .getOrCreateInstance(modalElement)
+                                .show();
+                        }
+                    }
+
+                } catch (error) {
+                    console.error("Create custom task error:", error);
+                    message.textContent = error.message;
+                    message.className = "small mt-2 text-danger";
+                } finally {
+                    saveButton.disabled = false;
+                }
+            });
+
+            cancelButton.addEventListener("click", function () {
+                const modalElement =
+                    document.getElementById("taskDetailsModal");
+
+                if (modalElement && window.bootstrap) {
+                    bootstrap.Modal
+                        .getOrCreateInstance(modalElement)
+                        .hide();
+                }
+            });
+
+            section.append(
+                phaseWrapper,
+                titleField.wrapper,
+                descriptionField.wrapper,
+                departmentField.wrapper,
+                priorityWrapper,
+                dueDateField.wrapper,
+                dependencyWrapper,
+                saveButton,
+                cancelButton,
+                message
+            );
+
+            body.appendChild(section);
+
+            const modalElement =
+                document.getElementById("taskDetailsModal");
+
+            if (modalElement && window.bootstrap) {
+                bootstrap.Modal
+                    .getOrCreateInstance(modalElement)
+                    .show();
+            }
+        }
+
+
+        async function renderCustomTaskEditForm(task, phase) {
+            const body = document.getElementById("taskDetailsBody");
+            if (!body) return;
+
+            body.replaceChildren();
+
+            const section = document.createElement("div");
+            section.className = "task-detail-section";
+
+            const heading = document.createElement("div");
+            heading.className = "task-detail-heading";
+            heading.textContent = "Edit Custom Task";
+
+            function createField(labelText, type, value = "") {
+                const wrapper = document.createElement("div");
+                wrapper.className = "mb-3";
+
+                const label = document.createElement("label");
+                label.className = "form-label";
+                label.textContent = labelText;
+
+                const input = document.createElement(
+                    type === "textarea" ? "textarea" : "input"
+                );
+
+                input.className = "form-control form-control-sm";
+
+                if (type === "textarea") {
+                    input.rows = 3;
+                } else {
+                    input.type = type;
+                }
+
+                input.value = value || "";
+
+                wrapper.append(label, input);
+                return { wrapper, input };
+            }
+
+            const titleField = createField("Task Title", "text", task.title);
+            const descriptionField = createField(
+                "Description", "textarea", task.description
+            );
+            const departmentField = createField(
+                "Department", "text", task.department
+            );
+
+            const priorityField = createField("Priority", "select");
+            priorityField.input.innerHTML = `
+        <option value="LOW">Low</option>
+        <option value="MEDIUM">Medium</option>
+        <option value="HIGH">High</option>
+        <option value="URGENT">Urgent</option>
+    `;
+            priorityField.input.value = task.priority || "MEDIUM";
+
+            const dueDateField = createField(
+                "Due Date", "date", task.due_date
+            );
+
+            // Dependencies
+            const dependencyWrapper = document.createElement("div");
+            dependencyWrapper.className = "mb-3";
+
+            const dependencyLabel = document.createElement("label");
+            dependencyLabel.className = "form-label";
+            dependencyLabel.textContent = "Dependencies";
+
+            const dependencySelect = document.createElement("select");
+            dependencySelect.className = "form-select form-select-sm";
+            dependencySelect.multiple = true;
+            dependencySelect.size = 5;
+
+            const allTasks = (currentWorkflowPhases || [])
+                .flatMap(item => item.tasks || []);
+
+            allTasks
+                .filter(item => item.id !== task.id)
+                .forEach(item => {
+                    const option = document.createElement("option");
+                    option.value = item.id;
+                    option.textContent = `${item.code} — ${item.title}`;
+                    option.selected = (task.dependencies || []).includes(item.id);
+                    dependencySelect.appendChild(option);
+                });
+
+            const dependencyHelp = document.createElement("small");
+            dependencyHelp.className = "text-muted d-block mt-1";
+            dependencyHelp.textContent =
+                "Hold Ctrl (Windows) or Cmd (Mac) to select multiple dependencies.";
+
+            dependencyWrapper.append(
+                dependencyLabel,
+                dependencySelect,
+                dependencyHelp
+            );
+
+            const message = document.createElement("div");
+            message.className = "small mt-2";
+
+            const saveButton = document.createElement("button");
+            saveButton.type = "button";
+            saveButton.className = "btn btn-ws-primary btn-sm";
+            saveButton.textContent = "Save Changes";
+
+            const cancelButton = document.createElement("button");
+            cancelButton.type = "button";
+            cancelButton.className = "btn btn-outline-secondary btn-sm ms-2";
+            cancelButton.textContent = "Cancel";
+
+            saveButton.addEventListener("click", async function () {
+                const payload = {
+                    title: titleField.input.value.trim(),
+                    description: descriptionField.input.value.trim(),
+                    department: departmentField.input.value.trim(),
+                    priority: priorityField.input.value,
+                    due_date: dueDateField.input.value || null,
+                    dependencies: Array.from(dependencySelect.selectedOptions)
+                        .map(option => option.value)
+                };
+
+                if (!payload.title) {
+                    message.textContent = "Task title is required.";
+                    message.className = "small mt-2 text-danger";
+                    return;
+                }
+
+                saveButton.disabled = true;
+                message.textContent = "Saving changes...";
+                message.className = "small mt-2 text-muted";
+
+                try {
+                    const response = await fetch(
+                        `/api/my-tenders/${MY_TENDER_ID}/execution/tasks/${task.id}/update/`,
+                        {
+                            method: "POST",
+                            credentials: "same-origin",
+                            headers: {
+                                "Content-Type": "application/json",
+                                "X-CSRFToken": getCSRFToken()
+                            },
+                            body: JSON.stringify(payload)
+                        }
+                    );
+
+                    const result = await response.json();
+
+                    if (!response.ok || !result.success) {
+                        throw new Error(
+                            result.error || "Unable to update task."
+                        );
+                    }
+
+                    await Promise.all([
+                        loadExecutionWorkspace(),
+                        loadExecutionDashboard()
+                    ]);
+
+                    const latestTask = currentWorkflowPhases
+                        .flatMap(item => item.tasks || [])
+                        .find(item => item.id === task.id);
+
+                    const latestPhase = currentWorkflowPhases.find(item =>
+                        (item.tasks || []).some(t => t.id === task.id)
+                    );
+
+                    if (latestTask && latestPhase) {
+                        renderTaskDetails(latestTask, latestPhase);
+                    }
+
+                } catch (error) {
+                    console.error("Custom task update error:", error);
+                    message.textContent = error.message;
+                    message.className = "small mt-2 text-danger";
+                } finally {
+                    saveButton.disabled = false;
+                }
+            });
+
+            cancelButton.addEventListener("click", function () {
+                renderTaskDetails(task, phase);
+            });
+
+            section.append(
+                heading,
+                titleField.wrapper,
+                descriptionField.wrapper,
+                departmentField.wrapper,
+                priorityField.wrapper,
+                dueDateField.wrapper,
+                dependencyWrapper,
+                saveButton,
+                cancelButton,
+                message
+            );
+
+            body.appendChild(section);
+        }
+
+
+        function renderWorkflowPhases(phases) {
+            const container = document.getElementById("executionWorkflowTimeline");
+            if (!container) return;
+
+            container.replaceChildren();
+
+            if (!Array.isArray(phases) || !phases.length) {
+                container.textContent = "No workflow phases available.";
+                return;
+            }
+
+            phases.forEach((phase, index) => {
+                const tasks = phase.tasks || [];
+
+                const phaseElement = document.createElement("div");
+                phaseElement.className = "workflow-phase";
+
+                // Phase header
+                const header = document.createElement("button");
+                header.type = "button";
+                header.className = "workflow-phase-header";
+                header.setAttribute("aria-expanded", "false");
+
+                const headingContent = document.createElement("div");
+                headingContent.className = "workflow-phase-heading-content";
+
+                const title = document.createElement("div");
+                title.className = "workflow-phase-title";
+                title.textContent =
+                    `${index + 1}. ${phase.name || phase.title || "Untitled Phase"}`;
+
+
+                const meta = document.createElement("div");
+                meta.className = "workflow-phase-meta";
+
+                const progress = phase.completion || getPhaseProgress(tasks);
+
+                meta.textContent =
+                    `${progress.completed}/${progress.total} tasks completed`;
+
+                const progressWrapper = document.createElement("div");
+                progressWrapper.className = "workflow-phase-progress";
+
+                const progressTrack = document.createElement("div");
+                progressTrack.className = "workflow-phase-progress-track";
+
+                const progressBar = document.createElement("div");
+                progressBar.className = "workflow-phase-progress-fill";
+                progressBar.style.width = `${progress.percentage}%`;
+
+                progressTrack.appendChild(progressBar);
+
+                const progressPercentage = document.createElement("span");
+                progressPercentage.className = "workflow-phase-progress-text";
+                progressPercentage.textContent = `${progress.percentage}%`;
+
+                progressWrapper.append(progressTrack, progressPercentage);
+
+
+                const statusSummary = document.createElement("div");
+                statusSummary.className = "workflow-phase-status-summary";
+
+                const addStatusIndicator = (label, count, className) => {
+                    if (!count) return;
+
+                    const indicator = document.createElement("span");
+                    indicator.className = `workflow-phase-status ${className}`;
+                    indicator.textContent = `${count} ${label}`;
+
+                    statusSummary.appendChild(indicator);
+                };
+
+                addStatusIndicator(
+                    "In Progress",
+                    progress.in_progress,
+                    "status-in-progress"
+                );
+
+                addStatusIndicator(
+                    "Blocked",
+                    progress.blocked,
+                    "status-blocked"
+                );
+
+                addStatusIndicator(
+                    "Overdue",
+                    progress.overdue,
+                    "status-overdue"
+                );
+
+                if (statusSummary.children.length) {
+                    headingContent.appendChild(statusSummary);
+                }
+
+
+
+                headingContent.append(title, meta, progressWrapper, statusSummary);
+
+                const arrow = document.createElement("span");
+                arrow.className = "workflow-phase-arrow";
+                arrow.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>`;
+
+                header.append(headingContent, arrow);
+
+                // Phase content
+                const content = document.createElement("div");
+                content.className = "workflow-phase-content";
+                content.hidden = true;
+
+                if (tasks.length) {
+                    tasks.forEach(task => {
+                        const taskElement = document.createElement("div");
+                        taskElement.className = "workflow-task";
+                        taskElement.setAttribute("role", "button");
+                        taskElement.setAttribute("tabindex", "0");
+
+                        const taskHeader = document.createElement("div");
+                        taskHeader.className =
+                            "d-flex justify-content-between align-items-start gap-3";
+
+                        const taskTitle = document.createElement("div");
+                        taskTitle.className = "workflow-task-title";
+                        taskTitle.textContent = task.title || "Untitled Task";
+
+                        const status = document.createElement("span");
+                        status.className = `workflow-task-status ${getStatusBadgeClass(task.status)}`;
+                        status.textContent =
+                            (task.status || "PENDING").replaceAll("_", " ");
+
+                        taskHeader.append(taskTitle, status);
+
+                        const taskMeta = document.createElement("div");
+                        taskMeta.className = "workflow-task-meta";
+
+                        const metaItems = [];
+
+                        if (task.department) {
+                            metaItems.push(`Department: ${task.department}`);
+                        }
+
+                        if (task.priority) {
+                            metaItems.push(`Priority: ${task.priority}`);
+                        }
+
+                        if (task.due_date) {
+                            metaItems.push(`Due: ${task.due_date}`);
+                        }
+
+                        const assigneeNames = getAssigneeNames(task.assignees);
+                        metaItems.push(`Assigned to: ${assigneeNames}`);
+
+                        taskMeta.textContent = metaItems.join(" • ");
+
+                        taskElement.appendChild(taskHeader);
+                        if (metaItems.length) taskElement.appendChild(taskMeta);
+
+                        if (task.description) {
+                            const description = document.createElement("p");
+                            description.className = "text-muted small mt-2 mb-0";
+                            description.textContent = task.description;
+                            taskElement.appendChild(description);
+                        }
+
+                        taskElement.addEventListener("click", function () {
+                            renderTaskDetails(task, phase);
+                        });
+
+                        taskElement.addEventListener("keydown", function (event) {
+                            if (event.key === "Enter" || event.key === " ") {
+                                event.preventDefault();
+                                renderTaskDetails(task, phase);
+                            }
+                        });
+
+                        content.appendChild(taskElement);
+                    });
+                } else {
+                    const emptyMessage = document.createElement("p");
+                    emptyMessage.className = "text-muted small mb-0 mt-3";
+                    emptyMessage.textContent = "No tasks available in this phase.";
+                    content.appendChild(emptyMessage);
+                }
+
+                header.addEventListener("click", function () {
+                    const isExpanded = header.getAttribute("aria-expanded") === "true";
+                    header.setAttribute("aria-expanded", String(!isExpanded));
+                    content.hidden = isExpanded;
+                });
+
+                phaseElement.append(header, content);
+                container.appendChild(phaseElement);
+            });
+        }
+
+
+
+
+        function getPhaseProgress(tasks) {
+            const allTasks = tasks || [];
+
+            const applicableTasks = allTasks.filter(task =>
+                task.is_applicable !== false &&
+                task.is_applicable !== null &&
+                task.status !== "NOT_APPLICABLE"
+            );
+
+            const completedTasks = applicableTasks.filter(
+                task => task.status === "COMPLETED"
+            ).length;
+
+            const inProgressTasks = applicableTasks.filter(
+                task => task.status === "IN_PROGRESS"
+            ).length;
+
+            const blockedTasks = applicableTasks.filter(
+                task => task.status === "BLOCKED"
+            ).length;
+
+            // Compare calendar dates, avoiding time-zone differences.
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+
+            const overdueTasks = applicableTasks.filter(task => {
+                if (!task.due_date || task.status === "COMPLETED") {
+                    return false;
+                }
+
+                const dueDate = new Date(`${task.due_date}T00:00:00`);
+
+                return !Number.isNaN(dueDate.getTime()) && dueDate < today;
+            }).length;
+
+            const total = applicableTasks.length;
+
+            return {
+                completed: completedTasks,
+                total,
+                percentage: total
+                    ? Math.round((completedTasks / total) * 100)
+                    : 0,
+                in_progress: inProgressTasks,
+                blocked: blockedTasks,
+                overdue: overdueTasks
+            };
+        }
+
+
+
+        let currentWorkflowPhases = [];
+
+        function populateWorkflowFilters(phases) {
+            const departments = new Set();
+            const priorities = new Set();
+            const assigneeIds = new Set();
+
+            phases.forEach(phase => {
+                (phase.tasks || []).forEach(task => {
+                    if (task.department) departments.add(task.department);
+                    if (task.priority) priorities.add(task.priority);
+
+                    (task.assignees || []).forEach(id => {
+                        assigneeIds.add(String(id));
+                    });
+                });
+            });
+
+            const populateSelect = (elementId, values, defaultLabel) => {
+                const select = document.getElementById(elementId);
+                if (!select) return;
+
+                const previousValue = select.value;
+
+                select.replaceChildren();
+
+                const defaultOption = document.createElement("option");
+                defaultOption.value = "";
+                defaultOption.textContent = defaultLabel;
+                select.appendChild(defaultOption);
+
+                [...values].sort().forEach(value => {
+                    const option = document.createElement("option");
+                    option.value = value;
+                    option.textContent = value;
+                    select.appendChild(option);
+                });
+
+                select.value = values.has?.(previousValue)
+                    ? previousValue
+                    : "";
+            };
+
+            populateSelect(
+                "filterTaskDepartment",
+                departments,
+                "All Departments"
+            );
+
+            populateSelect(
+                "filterTaskPriority",
+                priorities,
+                "All Priorities"
+            );
+
+            const assigneeSelect = document.getElementById("filterTaskAssignee");
+
+            if (assigneeSelect) {
+                const previousValue = assigneeSelect.value;
+
+                assigneeSelect.replaceChildren();
+
+                const defaultOption = document.createElement("option");
+                defaultOption.value = "";
+                defaultOption.textContent = "All Assignees";
+                assigneeSelect.appendChild(defaultOption);
+
+                availableExecutionUsers
+                    .filter(user => assigneeIds.has(String(user.id)))
+                    .forEach(user => {
+                        const option = document.createElement("option");
+                        option.value = String(user.id);
+                        option.textContent = user.full_name || user.username;
+                        assigneeSelect.appendChild(option);
+                    });
+
+                assigneeSelect.value = assigneeIds.has(previousValue)
+                    ? previousValue
+                    : "";
+            }
+        }
+
+        function applyWorkflowFilters() {
+            const status = document.getElementById("filterTaskStatus").value;
+            const department = document.getElementById("filterTaskDepartment").value;
+            const priority = document.getElementById("filterTaskPriority").value;
+            const assignee = document.getElementById("filterTaskAssignee").value;
+
+            let totalTasks = 0;
+            let visibleTasks = 0;
+
+            const filteredPhases = currentWorkflowPhases.map(phase => {
+                const tasks = phase.tasks || [];
+                totalTasks += tasks.length;
+
+                const matchingTasks = tasks.filter(task => {
+                    const matchesStatus = !status || task.status === status;
+                    const matchesDepartment =
+                        !department || task.department === department;
+                    const matchesPriority =
+                        !priority || task.priority === priority;
+                    const matchesAssignee =
+                        !assignee ||
+                        (task.assignees || []).some(
+                            id => String(id) === assignee
+                        );
+
+                    return (
+                        matchesStatus &&
+                        matchesDepartment &&
+                        matchesPriority &&
+                        matchesAssignee
+                    );
+                });
+
+                visibleTasks += matchingTasks.length;
+
+                return {
+                    ...phase,
+                    tasks: matchingTasks,
+                    completion: getPhaseProgress(tasks)
+                };
+            });
+
+            renderWorkflowPhases(filteredPhases);
+
+            const summary = document.getElementById("workflowFilterSummary");
+
+            if (summary) {
+                summary.textContent =
+                    `Showing ${visibleTasks} of ${totalTasks} tasks`;
+            }
+        }
+
+        function initializeWorkflowFilters() {
+            [
+                "filterTaskStatus",
+                "filterTaskDepartment",
+                "filterTaskPriority",
+                "filterTaskAssignee"
+            ].forEach(id => {
+                const element = document.getElementById(id);
+
+                if (element) {
+                    element.addEventListener("change", applyWorkflowFilters);
+                }
+            });
+
+            document.getElementById("resetWorkflowFilters")
+                ?.addEventListener("click", function () {
+                    [
+                        "filterTaskStatus",
+                        "filterTaskDepartment",
+                        "filterTaskPriority",
+                        "filterTaskAssignee"
+                    ].forEach(id => {
+                        document.getElementById(id).value = "";
+                    });
+
+                    applyWorkflowFilters();
+                });
+        }
+
+        async function loadExecutionWorkspace() {
+            try {
+                const response = await fetch(
+                    `/api/my-tenders/${MY_TENDER_ID}/execution/data/`
+                );
+
+                if (!response.ok) {
+                    throw new Error(`API Error: ${response.status}`);
+                }
+
+                const result = await response.json();
+
+                if (!result.success || !result.data) {
+                    throw new Error("Invalid execution workspace response.");
+                }
+
+                const data = result.data;
+                const tender = data.tender || {};
+                const myTender = data.my_tender || {};
+                const workflowData = data.workflow_data || {};
+
+                setText("executionTenderTitle", tender.title, "Untitled Tender");
+                setText("executionTenderId", tender.tender_id);
+                setText(
+                    "executionStatus",
+                    myTender.status_display || myTender.status || "Go Approved"
+                );
+                setText("executionTenderValue", formatCurrency(tender.tender_value));
+                setText("executionClosingDate", formatDate(tender.closing_date));
+                setText("executionOrganization", tender.organization);
+                setText("executionLocation", tender.location);
+
+                try {
+                    await loadExecutionAvailableUsers();
+                } catch (error) {
+                    console.warn("Unable to load execution users:", error);
+                }
+
+
+
+                currentWorkflowPhases = workflowData.phases || [];
+
+                populateWorkflowFilters(currentWorkflowPhases);
+                applyWorkflowFilters();
+
+                await loadExecutionActivities();
+
+            } catch (error) {
+                console.error("Execution workspace loading error:", error);
+                setText("executionTenderTitle", "Unable to load execution workspace");
+
+                const container = document.getElementById("executionWorkflowTimeline");
+                if (container) {
+                    container.textContent = "Unable to load workflow information.";
+                }
+            }
+        }
+
+        async function loadExecutionDashboard() {
+            try {
+                const response = await fetch(
+                    `/api/my-tenders/${MY_TENDER_ID}/execution/dashboard/`
+                );
+
+                if (!response.ok) {
+                    throw new Error(`Dashboard API Error: ${response.status}`);
+                }
+
+                const result = await response.json();
+
+                if (!result.success || !result.data) {
+                    throw new Error("Invalid dashboard response.");
+                }
+
+                const data = result.data;
+                const counts = data.task_counts || {};
+
+                const totalTasks = data.all_workflow_tasks ?? 0;
+                const applicableTasks = data.total_tasks ?? 0;
+
+                const completed = counts.COMPLETED ?? 0;
+                const inProgress = counts.IN_PROGRESS ?? 0;
+                const pending = counts.PENDING ?? 0;
+                const blocked = counts.BLOCKED ?? 0;
+                const notApplicable = counts.NOT_APPLICABLE ?? 0;
+
+                setText("totalTasksCount", totalTasks);
+                setText("completedTasksCount", completed);
+                setText("inProgressTasksCount", inProgress);
+                setText("pendingTasksCount", pending);
+                setText("blockedTasksCount", blocked);
+                setText("notApplicableTasksCount", notApplicable);
+
+                const progress = Number(data.overall_progress || 0);
+                setText("overallProgressText", `${progress}%`);
+
+                const progressBar = document.getElementById("overallProgressBar");
+                if (progressBar) {
+                    progressBar.style.width = `${progress}%`;
+                    progressBar.setAttribute("aria-valuenow", progress);
+                }
+
+                setText(
+                    "executionTaskSummary",
+                    `${completed} completed out of ${applicableTasks} applicable tasks`
+                );
+
+            } catch (error) {
+                console.error("Unable to load execution dashboard:", error);
+            }
+        }
+
+        let availableExecutionUsers = [];
+        let executionUsersLoaded = false;
+
+        async function loadExecutionAvailableUsers() {
+            if (executionUsersLoaded) return availableExecutionUsers;
+
+            const response = await fetch(
+                "/api/execution/available-users/",
+                {
+                    credentials: "same-origin"
+                }
+            );
+            const result = await response.json();
+
+            if (!response.ok || !result.success) {
+                throw new Error(result.error || "Unable to load users.");
+            }
+
+            availableExecutionUsers = result.data || [];
+            executionUsersLoaded = true;
+
+            return availableExecutionUsers;
+        }
+
+        function getAssigneeNames(assigneeIds) {
+            if (!Array.isArray(assigneeIds) || !assigneeIds.length) {
+                return "Unassigned";
+            }
+
+            const userMap = new Map(
+                availableExecutionUsers.map(user => [
+                    String(user.id),
+                    user.full_name || user.username
+                ])
+            );
+
+            return assigneeIds
+                .map(id => userMap.get(String(id)))
+                .filter(Boolean)
+                .join(", ") || "Unassigned";
+        }
+
+        // Initialize workflow filters
+        initializeWorkflowFilters();
+
+        // Initialize Create Custom Task button
+        const createCustomTaskBtn =
+            document.getElementById("createCustomTaskBtn");
+
+        if (createCustomTaskBtn) {
+            createCustomTaskBtn.addEventListener(
+                "click",
+                renderCreateCustomTaskForm
+            );
+        }
+
+        // Initial data loading
+        loadExecutionWorkspace();
+        loadExecutionDashboard();
+        document.getElementById("refreshExecutionActivitiesBtn")?.addEventListener("click", loadExecutionActivities);
+        document.getElementById("toggleAllActivitiesBtn")?.addEventListener("click", function () {
+            allActivitiesExpanded = !allActivitiesExpanded;
+            loadExecutionActivities();
+        });
+    });
+</script>
+{% endblock %}

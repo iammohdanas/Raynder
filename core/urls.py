@@ -14,5 +14,5 @@ urlpatterns = [
     path("tenders/<int:tender_id>/pq-analysis/",views.pq_analysis_page,name="pq_analysis_page",),
     path("tenders/<int:tender_id>/summary/download/", download_tender_summary_excel, name="download_tender_summary_excel",),
     path("my-tenders/", views.my_tenders_page, name="my_tenders_page"),
-
+    path("my-tenders/<int:my_tender_id>/execution/", views.tender_execution_page, name="tender_execution_page",),
 ]

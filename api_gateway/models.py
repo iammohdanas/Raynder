@@ -170,3 +170,84 @@ class TenderDecision(models.Model):
         ordering = ["-decided_at"]
     def __str__(self):
         return f"{self.tender.tender_id} - {self.decision}"
+
+
+
+class ExecutionWorkflowTemplate(models.Model):
+    name = models.CharField(max_length=200)
+    description = models.TextField(blank=True)
+
+    version = models.PositiveIntegerField(default=1)
+    is_active = models.BooleanField(default=True)
+
+    workflow_data = models.JSONField(default=dict, blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return self.name
+
+
+class TenderExecution(models.Model):
+
+    my_tender = models.OneToOneField(
+        "MyTender",
+        on_delete=models.CASCADE,
+        related_name="execution"
+    )
+
+    template = models.ForeignKey(
+        ExecutionWorkflowTemplate,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True
+    )
+
+    workflow_data = models.JSONField(default=dict, blank=True)
+
+    overall_progress = models.PositiveSmallIntegerField(default=0)
+
+    started_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="created_tender_executions"
+    )
+
+    def __str__(self):
+        return f"Execution - {self.my_tender.tender.tender_id}"
+
+
+
+class ExecutionActivity(models.Model):
+
+    execution = models.ForeignKey(
+        TenderExecution,
+        on_delete=models.CASCADE,
+        related_name="activities"
+    )
+
+    task_id = models.CharField(max_length=100, blank=True)
+
+    activity_type = models.CharField(max_length=50)
+
+    description = models.TextField(blank=True)
+
+    metadata = models.JSONField(default=dict, blank=True)
+
+    performed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
