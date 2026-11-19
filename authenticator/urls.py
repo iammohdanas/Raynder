@@ -11,4 +11,6 @@ urlpatterns = [
     path('verify-otp/<str:user_name>/', views.verify_otp, name='verify_otp'),
     path('reset-password/<str:otp_token>/', views.reset_password, name='reset_password'),
     path('logout-all-devices/', views.logout_from_all_devices, name='logout_all_devices'),
+    path("admin/employee-approvals/", views.pending_employee_approvals, name="pending_employee_approvals"),
+    path("admin/employee-approvals/<int:profile_id>/review/", views.review_employee_registration, name="review_employee_registration"),
 ]

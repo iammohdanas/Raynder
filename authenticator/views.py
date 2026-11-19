@@ -1,4 +1,5 @@
 import os
+import secrets
 from django.shortcuts import render, redirect
 from django.contrib.auth import authenticate, login, logout
 from django.contrib import messages
@@ -17,102 +18,223 @@ from django.utils import timezone
 from datetime import timedelta
 from django.contrib.sessions.models import Session
 load_dotenv()
+import logging
+logger = logging.getLogger(__name__)
+from django.db import transaction
+from django.core.exceptions import ValidationError
+from django.contrib.auth.models import User
+from .models import Profile
 
-def send_verification_email(user):
-    token = hashlib.sha256(str(random.random()).encode('utf-8')).hexdigest()
+from django.urls import reverse
+
+def send_verification_email(user, request):
+    token = secrets.token_urlsafe(32)
     user.profile.verification_token = token
-    user.profile.save()
-    verification_url = f'http://localhost:8000/verify-email/{token}/'
+    user.profile.save(update_fields=["verification_token"])
+    verification_url = request.build_absolute_uri(
+        reverse("verify_email", kwargs={"token": token})
+    )
     send_mail(
-        'Email Verification',
-        f'Click the link to verify your email: {verification_url}',
-        os.getenv('EMAIL_HOST_USER'),  # Update with your email as required 
+        "Email Verification",
+        f"Click the link to verify your email: {verification_url}",
+        os.getenv("EMAIL_HOST_USER"),
         [user.email],
         fail_silently=False,
     )
 
 def register(request):
-    if request.method == 'POST':
-        first_name = request.POST['first_name']
-        last_name = request.POST['last_name']
-        username = request.POST['username']
-        email = request.POST['email']
-        password = request.POST['password']
-        confirm_password = request.POST['confirm_password']
-        mobile_number = request.POST['mobile_number']
-        terms_accepted = request.POST.get('terms_accepted')
+    if request.method == "POST":
+        first_name = request.POST.get("first_name", "").strip()
+        last_name = request.POST.get("last_name", "").strip()
+        username = request.POST.get("username", "").strip()
+        email = request.POST.get("email", "").strip().lower()
+        password = request.POST.get("password", "")
+        confirm_password = request.POST.get("confirm_password", "")
+        mobile_number = request.POST.get("mobile_number", "").strip()
+        account_type = request.POST.get("account_type", "CUSTOMER").upper()
+        terms_accepted = request.POST.get("terms_accepted")
+        # Employee information
+        employee_id = request.POST.get("employee_id", "").strip()
+        department = request.POST.get("department", "").strip()
+        designation = request.POST.get("designation", "").strip()
 
+        # Basic validation
         if not terms_accepted:
             messages.error(request, "Please accept the terms and conditions.")
-            return redirect('register')
+            return redirect("register")
 
-        if User.objects.filter(username=username).exists():
+        if not all([first_name, last_name, username, email, password, mobile_number]):
+            messages.error(request, "Please fill in all required fields.")
+            return redirect("register")
+
+        if account_type not in ["CUSTOMER", "EMPLOYEE"]:
+            messages.error(request, "Invalid account type.")
+            return redirect("register")
+
+        if User.objects.filter(username__iexact=username).exists():
             messages.error(request, "Username already taken.")
-            return redirect('register')
-        if User.objects.filter(email=email).exists():
+            return redirect("register")
+
+        if User.objects.filter(email__iexact=email).exists():
             messages.error(request, "Email already registered.")
-            return redirect('register')
+            return redirect("register")
+
         if password != confirm_password:
-            messages.error(request, "Password and Confirm password didn't matched.")
-            return redirect('register')
+            messages.error(request, "Password and confirm password do not match.")
+            return redirect("register")
 
-        user = User.objects.create_user(
-            username=username, email=email, password=password, first_name=first_name, last_name=last_name
-        )
-        profile = Profile.objects.get(user=user)
-        profile.mobile_number = mobile_number
-        profile.save()
+        # Employee-specific validation
+        if account_type == "EMPLOYEE":
+            if not employee_id or not department or not designation:
+                messages.error(
+                    request,
+                    "Employee ID, department and designation are required."
+                )
+                return redirect("register")
 
-        # Generate and send OTP to mobile number
-        otp = profile.generate_otp()
-        profile.mobile_otp = otp
-        profile.mobile_otp_expiration = timezone.now() + timedelta(minutes=10)  # OTP expiration time (e.g., 10 minutes)
-        profile.save()
+            if Profile.objects.filter(employee_id__iexact=employee_id).exists():
+                messages.error(request, "This Employee ID is already registered.")
+                return redirect("register")
 
-        # send_sms_otp(mobile_number, otp)
-        
-        send_verification_email(user)  # For email verification
-        messages.info(request, "Registration successful! Please verify your email and mobile number.")
-        # return redirect('verify_mobile', user_id=user.id)  # Redirect to mobile verification page
-        return redirect('login')
+        try:
+            with transaction.atomic():
+                user = User.objects.create_user(
+                    username=username,
+                    email=email,
+                    password=password,
+                    first_name=first_name,
+                    last_name=last_name
+                )
 
-    return render(request, 'signup.html')
+                # Profile is automatically created by the post_save signal.
+                profile = Profile.objects.get(user=user)
+
+                profile.mobile_number = mobile_number
+                profile.account_type = account_type
+
+                if account_type == "EMPLOYEE":
+                    profile.role = "staff"
+                    profile.employee_id = employee_id
+                    profile.department = department
+                    profile.designation = designation
+                    profile.approval_status = "PENDING"
+
+                    # Assigned by Admin during approval
+                    profile.level = None
+                    profile.reporting_manager = None
+
+                else:
+                    profile.role = "customer"
+                    profile.approval_status = "NOT_REQUIRED"
+                profile.save()
+                profile.generate_otp()
+                send_verification_email(user, request)
+
+            if account_type == "EMPLOYEE":
+                messages.success(
+                    request,
+                    "Registration submitted successfully. "
+                    "Please verify your email. Your account will be activated "
+                    "after Admin approval."
+                )
+            else:
+                messages.success(
+                    request,
+                    "Registration successful! Please verify your email to log in."
+                )
+
+            return redirect("login")
+
+        except Exception:
+            logger.exception("Registration failed.")
+            messages.error(
+                request,
+                "Unable to complete registration. Please try again."
+            )
+            return redirect("register")
+
+    return render(request, "signup.html")
+
 
 def login_view(request):
-    if request.method == 'POST':
-        user_input = request.POST.get('username_or_email').strip()
-        password = request.POST.get('password')
-        remember = request.POST.get('remember')
-        # Initialize username variable
-        username = None
-        
-        if '@' in user_input:
-            user = User.objects.filter(email=user_input).first()
-            if user:
-                username = user.username
-        else:
-            username = user_input  # If not an email, treat it as a username
-        
-        if username:  # Ensure username is set before calling authenticate
-            user = authenticate(request, username=username, password=password)
-            if user:
-                if user.profile.is_email_verified:
-                    login(request, user)
-                    # Set session expiry based on "Remember Me"
-                    if remember:
-                        request.session.set_expiry(21600)  # 6 hrs
-                    else:
-                        request.session.set_expiry(0)  # Browser close = session expiry
-                    messages.success(request, "Login successful!")
-                    return redirect('home')
-                else:
-                    messages.error(request, "Please verify your email first.")
-            else:
-                messages.error(request, "Invalid username or password.")
-        else:
-            messages.error(request, "User doesn't exisit")
+    if request.method == "POST":
+        user_input = request.POST.get("username_or_email", "").strip()
+        password = request.POST.get("password", "")
+        remember = request.POST.get("remember")
 
-    return render(request, 'login.html')
+        if not user_input or not password:
+            messages.error(request, "Please enter your username/email and password.")
+            return render(request, "login.html")
+
+        # Resolve email to username
+        if "@" in user_input:
+            user_record = User.objects.filter(
+                email__iexact=user_input
+            ).first()
+
+            if not user_record:
+                messages.error(request, "Invalid username/email or password.")
+                return render(request, "login.html")
+
+            username = user_record.username
+        else:
+            username = user_input
+
+        user = authenticate(
+            request,
+            username=username,
+            password=password
+        )
+
+        if user is None:
+            messages.error(request, "Invalid username/email or password.")
+            return render(request, "login.html")
+
+        profile = user.profile
+
+        # Email verification check
+        if not profile.is_email_verified:
+            messages.error(request, "Please verify your email before logging in.")
+            return render(request, "login.html")
+
+        # Employee approval check
+        if profile.account_type == "EMPLOYEE":
+
+            if profile.approval_status == "PENDING":
+                messages.warning(
+                    request,
+                    "Your employee registration is awaiting Admin approval."
+                )
+                return render(request, "login.html")
+
+            if profile.approval_status == "REJECTED":
+                messages.error(
+                    request,
+                    "Your employee registration has been rejected. "
+                    "Please contact the administrator."
+                )
+                return render(request, "login.html")
+
+            if profile.approval_status != "APPROVED":
+                messages.error(
+                    request,
+                    "Your employee account is not approved."
+                )
+                return render(request, "login.html")
+
+        # Customer accounts do not require employee approval
+        login(request, user)
+
+        if remember:
+            request.session.set_expiry(21600)
+        else:
+            request.session.set_expiry(0)
+
+        messages.success(request, "Login successful!")
+        return redirect("home")
+
+    return render(request, "login.html")
+
 
 @login_required
 def logout_view(request):
@@ -238,7 +360,7 @@ def verify_mobile(request, user_id):
         otp = request.POST['otp']
         # Check if OTP matches and is still valid
         if profile.mobile_otp == otp and profile.mobile_otp_expiration > timezone.now():
-            profile.is_mobile_verified = True  # Mark mobile as verified
+            profile.is_mobile_number_verified = True  # Mark mobile as verified
             profile.mobile_otp = ''  # Clear OTP after successful verification
             profile.mobile_otp_expiration = None  # Clear expiration time
             profile.save()
@@ -250,3 +372,174 @@ def verify_mobile(request, user_id):
 
     return render(request, 'verify_mobile.html', {'user': user})
 
+
+
+from django.contrib.auth.decorators import login_required
+from django.contrib import messages
+from django.shortcuts import render, redirect, get_object_or_404
+from django.views.decorators.http import require_POST
+from django.db import transaction
+from django.utils import timezone
+from django.core.exceptions import ValidationError
+
+from .models import Profile
+
+
+def is_system_admin(user):
+    if not user.is_authenticated:
+        return False
+
+    return (
+        user.is_superuser
+        or (
+            hasattr(user, "profile")
+            and user.profile.role == "admin"
+        )
+    )
+
+@login_required
+def pending_employee_approvals(request):
+    if not is_system_admin(request.user):
+        messages.error(request, "You are not authorized to access this page.")
+        return redirect("home")
+
+    pending_employees = Profile.objects.filter(
+        account_type="EMPLOYEE",
+        approval_status="PENDING"
+    ).select_related("user").order_by("-created_at")
+
+    approved_managers = Profile.objects.filter(
+        account_type="EMPLOYEE",
+        approval_status="APPROVED",
+        level__in=[2, 3, 4]
+    ).select_related("user").order_by("user__first_name")
+
+    return render(
+        request,
+        "admin/pending_employee_approvals.html",
+        {
+            "pending_employees": pending_employees,
+            "approved_managers": approved_managers,
+        }
+    )
+
+@login_required
+@require_POST
+def review_employee_registration(request, profile_id):
+    if not is_system_admin(request.user):
+        messages.error(request, "You are not authorized to perform this action.")
+        return redirect("home")
+
+    try:
+        with transaction.atomic():
+            profile = get_object_or_404(
+                Profile.objects.select_for_update().select_related("user"),
+                pk=profile_id,
+                account_type="EMPLOYEE",
+                approval_status="PENDING"
+            )
+
+            action = request.POST.get("action")
+
+            if action == "reject":
+                rejection_reason = request.POST.get(
+                    "rejection_reason", ""
+                ).strip()
+
+                if not rejection_reason:
+                    messages.error(
+                        request,
+                        "Please provide a rejection reason."
+                    )
+                    return redirect("pending_employee_approvals")
+
+                profile.approval_status = "REJECTED"
+                profile.rejection_reason = rejection_reason
+                profile.approved_by = request.user
+                profile.approved_at = timezone.now()
+
+                profile.save()
+
+                messages.success(
+                    request,
+                    f"Registration rejected for {profile.user.get_full_name()}."
+                )
+
+            elif action == "approve":
+                level = request.POST.get("level")
+                department = request.POST.get("department", "").strip()
+                designation = request.POST.get("designation", "").strip()
+                reporting_manager_id = request.POST.get(
+                    "reporting_manager"
+                )
+
+                if not level or not department or not designation:
+                    messages.error(
+                        request,
+                        "Level, department and designation are required."
+                    )
+                    return redirect("pending_employee_approvals")
+
+                level = int(level)
+
+                if level not in [1, 2, 3, 4, 5]:
+                    raise ValidationError("Invalid organizational level.")
+
+                reporting_manager = None
+
+                if reporting_manager_id:
+                    reporting_manager = Profile.objects.filter(
+                        pk=reporting_manager_id,
+                        account_type="EMPLOYEE",
+                        approval_status="APPROVED",
+                        level=level + 1
+                    ).first()
+
+                    if not reporting_manager:
+                        raise ValidationError("Invalid reporting manager selected.")
+
+                # Levels 1–3 must have their immediate manager.
+                if level in [1, 2, 3] and not reporting_manager:
+                    raise ValidationError(
+                        "A reporting manager is required for this level."
+                    )
+
+                # MD and Admin have no reporting manager.
+                if level in [4, 5] and reporting_manager:
+                    raise ValidationError(
+                        "MD and Admin cannot have a reporting manager."
+                    )
+
+                profile.level = level
+                profile.department = department
+                profile.designation = designation
+                profile.reporting_manager = reporting_manager
+
+                # Map organizational level to existing system role.
+                profile.role = (
+                    "admin" if level == 5
+                    else "staff" if level == 1
+                    else "manager"
+                )
+
+                profile.approval_status = "APPROVED"
+                profile.approved_by = request.user
+                profile.approved_at = timezone.now()
+                profile.rejection_reason = ""
+
+                profile.full_clean()
+                profile.save()
+
+                messages.success(
+                    request,
+                    f"{profile.user.get_full_name()} has been approved."
+                )
+
+            else:
+                messages.error(request, "Invalid approval action.")
+
+    except (ValidationError, ValueError) as exc:
+        error = exc.messages if isinstance(exc, ValidationError) else str(exc)
+        messages.error(request, error)
+
+    return redirect("pending_employee_approvals")

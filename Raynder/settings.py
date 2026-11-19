@@ -40,8 +40,8 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'core',
-    'authenticator',
     'api_gateway',
+    'authenticator.apps.AuthenticatorConfig',
     'ai',
 ]
 
