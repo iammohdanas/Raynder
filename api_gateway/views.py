@@ -51,17 +51,10 @@ from api_gateway.services.execution_workflow.execution_service import (
 from django.core.exceptions import ValidationError
 from django.http import Http404
 from api_gateway.models import TenderExecution
-from api_gateway.services.execution_workflow.execution_service import (
-    set_task_applicability,
-    add_custom_task,
-    set_task_assignees,
-    update_task_status,
-    add_task_comment,
-    update_task_remarks,
-    calculate_execution_progress,
-)
+from api_gateway.services.execution_workflow.execution_service import ( set_task_applicability, add_custom_task, set_task_assignees, update_task_status, add_task_comment, update_task_remarks, calculate_execution_progress,)
 from django.contrib.auth import get_user_model
-
+from authenticator.permissions import (is_system_admin,is_approved_employee, get_approved_employee_profiles, can_assign_to_employee,)
+from authenticator.permissions import ( get_reporting_tree_profiles, is_system_admin, is_approved_employee, can_assign_to_employee,)
 
 
 @api_view(["POST"])
@@ -1187,6 +1180,46 @@ def execution_api_error(exc):
         "error": "Unable to process execution request."
     }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+def require_approved_employee(request):
+    if not request.user.is_authenticated:
+        return Response({
+            "success": False,
+            "error": "Authentication required."
+        }, status=status.HTTP_401_UNAUTHORIZED)
+
+    if not (
+        is_system_admin(request.user)
+        or is_approved_employee(request.user)
+    ):
+        return Response({
+            "success": False,
+            "error": "Approved employee access required."
+        }, status=status.HTTP_403_FORBIDDEN)
+
+    return None
+
+def require_task_management_permission(request):
+    """
+    Allow Admin and approved employees at Levels 2, 3 and 4
+    to manage all tasks within a tender execution.
+    """
+    access_error = require_approved_employee(request)
+    if access_error:
+        return access_error
+    if is_system_admin(request.user):
+        return None
+    profile = request.user.profile
+    if profile.level not in (2, 3, 4):
+        return Response(
+            {
+                "success": False,
+                "error": "You do not have permission to manage execution tasks."
+            },
+            status=status.HTTP_403_FORBIDDEN
+        )
+    return None
+
+
 @api_view(["GET"])
 def get_tender_execution_workspace(request, my_tender_id):
     """
@@ -1200,6 +1233,9 @@ def get_tender_execution_workspace(request, my_tender_id):
             },
             status=status.HTTP_401_UNAUTHORIZED,
         )
+    access_error = require_approved_employee(request)
+    if access_error:
+        return access_error
 
     try:
         execution = (
@@ -1363,6 +1399,9 @@ def update_execution_task_applicability(request, my_tender_id, task_id):
             {"success": False, "error": "Authentication required."},
             status=status.HTTP_401_UNAUTHORIZED
         )
+    access_error = require_task_management_permission(request)
+    if access_error:
+        return access_error
 
     if "is_applicable" not in request.data:
         return Response({
@@ -1398,6 +1437,9 @@ def create_execution_custom_task(request, my_tender_id):
             {"success": False, "error": "Authentication required."},
             status=status.HTTP_401_UNAUTHORIZED
         )
+    access_error = require_task_management_permission(request)
+    if access_error:
+        return access_error
 
     required_fields = ["phase_code", "title"]
 
@@ -1449,6 +1491,9 @@ def update_execution_custom_task(request, my_tender_id, task_id):
             },
             status=status.HTTP_401_UNAUTHORIZED
         )
+    access_error = require_task_management_permission(request)
+    if access_error:
+        return access_error
 
     required_fields = ["title"]
 
@@ -1496,11 +1541,18 @@ def update_execution_custom_task(request, my_tender_id, task_id):
 
 @api_view(["POST"])
 def assign_execution_task(request, my_tender_id, task_id):
-    if not request.user.is_authenticated:
-        return Response(
-            {"success": False, "error": "Authentication required."},
-            status=status.HTTP_401_UNAUTHORIZED
-        )
+
+    access_error = require_approved_employee(request)
+    if access_error:
+        return access_error
+
+    # Only Admin and Levels 2-4 can assign tasks.
+    if not is_system_admin(request.user):
+        if request.user.profile.level not in (2, 3, 4):
+            return Response({
+                "success": False,
+                "error": "You do not have permission to assign tasks."
+            }, status=status.HTTP_403_FORBIDDEN)
 
     assignee_ids = request.data.get("assignee_ids")
 
@@ -1513,6 +1565,42 @@ def assign_execution_task(request, my_tender_id, task_id):
     try:
         execution = get_execution_for_api(my_tender_id)
 
+        User = get_user_model()
+
+        selected_users = User.objects.filter(
+            pk__in=assignee_ids,
+            is_active=True
+        ).select_related("profile")
+
+        selected_user_map = {
+            str(user.pk): user
+            for user in selected_users
+        }
+
+        normalized_ids = list(dict.fromkeys(
+            str(user_id)
+            for user_id in assignee_ids
+        ))
+
+        for user_id in normalized_ids:
+            target_user = selected_user_map.get(user_id)
+
+            if not target_user:
+                return Response({
+                    "success": False,
+                    "error": f"Invalid or inactive employee: {user_id}"
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+            if not can_assign_to_employee(request.user, target_user):
+                return Response({
+                    "success": False,
+                    "error": (
+                        "You are not authorized to assign tasks to this employee. "
+                        "You can only assign tasks within your permitted "
+                        "organizational hierarchy."
+                    )
+                }, status=status.HTTP_403_FORBIDDEN)
+
         set_task_assignees(
             execution_id=execution.id,
             task_id=str(task_id),
@@ -1523,13 +1611,15 @@ def assign_execution_task(request, my_tender_id, task_id):
         return Response({
             "success": True,
             "message": "Task assignees updated successfully."
-        })
+        }, status=status.HTTP_200_OK)
 
-    except ValidationError as exc:
+    except (ValidationError, Http404) as exc:
         return execution_api_error(exc)
+
     except Exception as exc:
         return execution_api_error(exc)
 
+    
 @api_view(["POST"])
 def update_execution_task_status(request, my_tender_id, task_id):
     if not request.user.is_authenticated:
@@ -1548,6 +1638,9 @@ def update_execution_task_status(request, my_tender_id, task_id):
 
     try:
         execution = get_execution_for_api(my_tender_id)
+        task, access_error = require_task_access(request, execution, task_id)
+        if access_error:
+            return access_error
 
         update_task_status(
             execution_id=execution.id,
@@ -1586,6 +1679,9 @@ def add_execution_task_comment(request, my_tender_id, task_id):
 
     try:
         execution = get_execution_for_api(my_tender_id)
+        task, access_error = require_task_access(request, execution, task_id)
+        if access_error:
+            return access_error
 
         add_task_comment(
             execution_id=execution.id,
@@ -1620,6 +1716,9 @@ def update_execution_task_remarks(request, my_tender_id, task_id):
 
     try:
         execution = get_execution_for_api(my_tender_id)
+        task, access_error = require_task_access(request, execution, task_id)
+        if access_error:
+            return access_error
 
         update_task_remarks(
             execution_id=execution.id,
@@ -1646,7 +1745,9 @@ def configure_execution_task_approvers(request, my_tender_id, task_id):
             "success": False,
             "error": "Authentication required."
         }, status=status.HTTP_401_UNAUTHORIZED)
-
+    access_error = require_task_management_permission(request)
+    if access_error:
+        return access_error
     approver_ids = request.data.get("approver_ids")
     approval_mode = request.data.get("approval_mode", "ALL")
 
@@ -1772,6 +1873,9 @@ def upload_execution_task_attachment(request, my_tender_id, task_id):
 
     try:
         execution = get_execution_for_api(my_tender_id)
+        task, access_error = require_task_access(request, execution, task_id)
+        if access_error:
+            return access_error
 
         attachment = add_task_attachment(
             execution_id=execution.id,
@@ -1805,6 +1909,9 @@ def delete_execution_task_attachment(request, my_tender_id, task_id, attachment_
 
     try:
         execution = get_execution_for_api(my_tender_id)
+        task, access_error = require_task_access(request, execution, task_id)
+        if access_error:
+            return access_error
 
         delete_task_attachment(
             execution_id=execution.id,
@@ -2114,38 +2221,130 @@ def get_execution_dashboard(request, my_tender_id):
 @api_view(["GET"])
 def get_execution_available_users(request):
     """
-    Return active users available for execution task assignment.
+    Return approved employees available for execution assignment.
+    Employee search is organization-wide.
     """
-    if not request.user.is_authenticated:
-        return Response(
-            {
+    access_error = require_approved_employee(request)
+    if access_error:
+        return access_error
+
+    if not is_system_admin(request.user):
+        profile = request.user.profile
+
+        if profile.level not in (2, 3, 4):
+            return Response({
                 "success": False,
-                "error": "Authentication required."
-            },
-            status=status.HTTP_401_UNAUTHORIZED
-        )
+                "error": "You do not have permission to assign tasks."
+            }, status=status.HTTP_403_FORBIDDEN)
 
-    User = get_user_model()
-
-    users = User.objects.filter(
-        is_active=True
-    ).only(
-        "id",
-        "username",
-        "first_name",
-        "last_name"
-    ).order_by("first_name", "last_name", "username")
+    profiles = get_approved_employee_profiles().order_by(
+        "user__first_name",
+        "user__last_name",
+        "user__username"
+    )
 
     user_data = [
         {
-            "id": user.id,
-            "username": user.username,
-            "full_name": user.get_full_name() or user.username
+            "id": profile.user_id,
+            "username": profile.user.username,
+            "full_name": (
+                profile.user.get_full_name()
+                or profile.user.username
+            ),
+            "employee_id": profile.employee_id,
+            "department": profile.department,
+            "designation": profile.designation,
+            "level": profile.level,
+            "reporting_manager": (
+                profile.reporting_manager.user.get_full_name()
+                or profile.reporting_manager.user.username
+                if profile.reporting_manager
+                else None
+            ),
         }
-        for user in users
+        for profile in profiles
     ]
 
     return Response({
         "success": True,
         "data": user_data
     }, status=status.HTTP_200_OK)
+
+
+def get_execution_task(execution, task_id):
+    """Find a task in the execution workflow snapshot."""
+    for phase in execution.workflow_data.get("phases", []):
+        for task in phase.get("tasks", []):
+            if str(task.get("id")) == str(task_id):
+                return task
+
+    return None
+
+
+
+
+
+def can_access_execution_task(user, task):
+    """
+    Access is granted to:
+    - An assigned employee.
+    - Any manager in that employee's reporting chain.
+    - System administrators.
+    """
+    if is_system_admin(user):
+        return True
+
+    if not is_approved_employee(user):
+        return False
+
+    assignee_ids = {
+        str(user_id)
+        for user_id in task.get("assignees", [])
+    }
+
+    if not assignee_ids:
+        return False
+
+    # The assigned employee can access their own task.
+    if str(user.pk) in assignee_ids:
+        return True
+
+    # Managers can access tasks assigned to employees below them.
+    visible_profiles = get_reporting_tree_profiles(
+        user,
+        include_self=True
+    )
+
+    visible_user_ids = {
+        str(profile.user_id)
+        for profile in visible_profiles
+    }
+
+    return bool(assignee_ids.intersection(visible_user_ids))
+
+
+def require_task_access(request, execution, task_id):
+    """Return an API error if the user cannot access this task."""
+    access_error = require_approved_employee(request)
+
+    if access_error:
+        return None, access_error
+
+    task = get_execution_task(execution, task_id)
+
+    if not task:
+        return None, Response(
+            {"success": False, "error": "Task not found."},
+            status=status.HTTP_404_NOT_FOUND
+        )
+
+    if not can_access_execution_task(request.user, task):
+        return None, Response(
+            {
+                "success": False,
+                "error": "You do not have permission to access this task."
+            },
+            status=status.HTTP_403_FORBIDDEN
+        )
+
+    return task, None
