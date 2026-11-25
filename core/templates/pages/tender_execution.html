@@ -934,7 +934,8 @@
         }
     }
 </style>
-
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 <div class="execution-workspace-wrapper">
     <div class="execution-container">
 
@@ -2047,6 +2048,19 @@
                 ? task.due_date.split("-").reverse().join("-")
                 : "";
             dueDateInput.disabled = !canManageExecutionAttachments;
+
+            flatpickr(dueDateInput, {
+                dateFormat: "d-m-Y",
+                allowInput: true,
+                disableMobile: true,
+                clickOpens: true,
+                onChange: function (selectedDates, dateStr) {
+                    // Your existing auto-save request goes here.
+                },
+                onClose: function (selectedDates, dateStr) {
+                    // Validate manually entered dates here if needed.
+                }
+            });
 
             dueDateInput.addEventListener("change", async function () {
                 const enteredDate = dueDateInput.value.trim();
