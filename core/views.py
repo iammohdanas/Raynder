@@ -106,25 +106,61 @@ def tender_execution_page(request, my_tender_id):
         }
     )
 
+# @login_required
+# @role_required(['admin', 'manager', 'customer', 'staff'])
+# def my_tasks_page(request):
+#     return render(request, "task_management/my_tasks.html")
+
+
+# @login_required
+# @role_required(['admin', 'manager'])
+# def assigned_by_me_page(request):
+#     return render(request, "task_management/assigned_by_me.html")
+
+
+# @login_required
+# @role_required(['admin', 'manager'])
+# def team_tasks_page(request):
+#     return render(request, "task_management/team_tasks.html")
+
+
+# @login_required
+# @role_required(['admin'])
+# def all_tasks_page(request):
+#     return render(request, "task_management/all_tasks.html")
+
 @login_required
-@role_required(['admin', 'manager', 'customer', 'staff'])
+@role_required(["admin", "manager", "customer", "staff"])
 def my_tasks_page(request):
-    return render(request, "task_management/my_tasks.html")
-
+    return render(request, "task_management/task_list.html", {
+        "task_scope": "my",
+        "task_page_title": "My Tasks",
+        "task_page_description": "Track, update, and collaborate on execution tasks assigned to you across active tenders.",
+    })
 
 @login_required
-@role_required(['admin', 'manager'])
+@role_required(["admin", "manager"])
 def assigned_by_me_page(request):
-    return render(request, "task_management/assigned_by_me.html")
-
+    return render(request, "task_management/task_list.html", {
+        "task_scope": "assigned",
+        "task_page_title": "Tasks Assigned by Me",
+        "task_page_description": "Track execution tasks that you assigned to employees across active tenders.",
+    })
 
 @login_required
-@role_required(['admin', 'manager'])
+@role_required(["admin", "manager"])
 def team_tasks_page(request):
-    return render(request, "task_management/team_tasks.html")
-
+    return render(request, "task_management/task_list.html", {
+        "task_scope": "team",
+        "task_page_title": "Team Tasks",
+        "task_page_description": "Monitor execution tasks assigned to employees in your reporting team.",
+    })
 
 @login_required
-@role_required(['admin'])
+@role_required(["admin"])
 def all_tasks_page(request):
-    return render(request, "task_management/all_tasks.html")
+    return render(request, "task_management/task_list.html", {
+        "task_scope": "all",
+        "task_page_title": "All Tasks",
+        "task_page_description": "View all execution tasks across active tenders.",
+    })

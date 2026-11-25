@@ -1,0 +1,2108 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+
+<style>
+    .my-tasks-wrapper {
+        --task-bg: #f4f7fb;
+        --task-card: #ffffff;
+        --task-subtle: #f8fafc;
+        --task-border: #e2e8f0;
+        --task-border-hover: #cbd5e1;
+        --task-text: #0f172a;
+        --task-text-secondary: #475569;
+        --task-muted: #64748b;
+        --task-accent: #2563eb;
+        --task-accent-hover: #1d4ed8;
+        --task-accent-soft: #eff6ff;
+        --task-accent-glow: rgba(37, 99, 235, 0.14);
+        --task-shadow-xs: 0 1px 2px rgba(15, 23, 42, 0.04);
+        --task-shadow-sm: 0 4px 12px -2px rgba(15, 23, 42, 0.05), 0 2px 6px -2px rgba(15, 23, 42, 0.03);
+        --task-shadow-md: 0 12px 24px -4px rgba(15, 23, 42, 0.08), 0 4px 10px -2px rgba(15, 23, 42, 0.04);
+        --task-ease: cubic-bezier(0.16, 1, 0.3, 1);
+
+        min-height: 100vh;
+        width: 100%;
+        padding: 96px 32px 56px;
+        background: var(--task-bg);
+        color: var(--task-text);
+        font-family: 'Plus Jakarta Sans', sans-serif;
+        -webkit-font-smoothing: antialiased;
+    }
+
+    @keyframes taskFadeSlideUp {
+        from {
+            opacity: 0;
+            transform: translateY(14px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .my-tasks-wrapper .animate-enter {
+        animation: taskFadeSlideUp 0.55s var(--task-ease) both;
+    }
+    .my-tasks-wrapper .delay-1 { animation-delay: 0.05s; }
+    .my-tasks-wrapper .delay-2 { animation-delay: 0.1s; }
+    .my-tasks-wrapper .delay-3 { animation-delay: 0.15s; }
+
+    .my-tasks-wrapper .tasks-container {
+        max-width: 1320px;
+        margin: 0 auto;
+    }
+
+    /* Page Header */
+    .my-tasks-wrapper .page-tag {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--task-accent);
+        background: var(--task-accent-soft);
+        border: 1px solid #dbeafe;
+        padding: 4px 10px;
+        border-radius: 6px;
+        margin-bottom: 8px;
+    }
+
+    /* Cards */
+    .my-tasks-wrapper .task-card {
+        background: var(--task-card);
+        border: 1px solid var(--task-border);
+        border-radius: 16px;
+        padding: 24px 26px;
+        margin-bottom: 20px;
+        box-shadow: var(--task-shadow-sm);
+        transition: box-shadow 0.28s var(--task-ease), border-color 0.28s ease;
+    }
+
+    .my-tasks-wrapper .task-card:hover {
+        box-shadow: var(--task-shadow-md);
+        border-color: var(--task-border-hover);
+    }
+
+    .my-tasks-wrapper .section-heading {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 15px;
+        font-weight: 700;
+        color: var(--task-text);
+        margin-bottom: 18px;
+    }
+
+    .my-tasks-wrapper .section-icon {
+        width: 32px;
+        height: 32px;
+        min-width: 32px;
+        border-radius: 9px;
+        background: var(--task-accent-soft);
+        color: var(--task-accent);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 14px;
+    }
+
+    /* KPI Stat Cards */
+    .my-tasks-wrapper .stat-card {
+        background: #ffffff;
+        border: 1px solid var(--task-border);
+        border-radius: 14px;
+        padding: 18px 18px 16px;
+        height: 100%;
+        position: relative;
+        overflow: hidden;
+        box-shadow: var(--task-shadow-xs);
+        transition: transform 0.24s var(--task-ease), box-shadow 0.24s var(--task-ease), border-color 0.24s ease;
+    }
+
+    .my-tasks-wrapper .stat-card:hover {
+        transform: translateY(-3px);
+        box-shadow: var(--task-shadow-md);
+        border-color: var(--task-border-hover);
+    }
+
+    .my-tasks-wrapper .stat-card::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 3px;
+        background: var(--stat-color, #64748b);
+    }
+
+    .my-tasks-wrapper .stat-total {
+        --stat-color: #1e293b;
+        --stat-icon-bg: #f1f5f9;
+        --stat-icon-color: #334155;
+    }
+
+    .my-tasks-wrapper .stat-pending {
+        --stat-color: #f59e0b;
+        --stat-icon-bg: #fffbeb;
+        --stat-icon-color: #d97706;
+        background: linear-gradient(180deg, rgba(245, 158, 11, 0.035) 0%, #ffffff 100%);
+    }
+
+    .my-tasks-wrapper .stat-progress {
+        --stat-color: #2563eb;
+        --stat-icon-bg: #eff6ff;
+        --stat-icon-color: #2563eb;
+        background: linear-gradient(180deg, rgba(37, 99, 235, 0.04) 0%, #ffffff 100%);
+    }
+
+    .my-tasks-wrapper .stat-completed {
+        --stat-color: #10b981;
+        --stat-icon-bg: #ecfdf5;
+        --stat-icon-color: #059669;
+        background: linear-gradient(180deg, rgba(16, 185, 129, 0.04) 0%, #ffffff 100%);
+    }
+
+    .my-tasks-wrapper .stat-overdue {
+        --stat-color: #ef4444;
+        --stat-icon-bg: #fef2f2;
+        --stat-icon-color: #dc2626;
+        background: linear-gradient(180deg, rgba(239, 68, 68, 0.04) 0%, #ffffff 100%);
+    }
+
+    .my-tasks-wrapper .stat-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+    }
+
+    .my-tasks-wrapper .stat-label {
+        color: var(--task-muted);
+        font-size: 11px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+
+    .my-tasks-wrapper .stat-icon-pill {
+        width: 28px;
+        height: 28px;
+        border-radius: 8px;
+        background: var(--stat-icon-bg, #f1f5f9);
+        color: var(--stat-icon-color, #475569);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 13px;
+    }
+
+    .my-tasks-wrapper .stat-value {
+        font-size: 28px;
+        font-weight: 700;
+        letter-spacing: -0.02em;
+        margin-top: 8px;
+        line-height: 1.1;
+    }
+
+    /* Filters */
+    .my-tasks-wrapper .filter-label {
+        font-size: 11px;
+        font-weight: 700;
+        color: var(--task-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        margin-bottom: 6px;
+    }
+
+    .my-tasks-wrapper .search-input-wrap {
+        position: relative;
+    }
+
+    .my-tasks-wrapper .search-input-wrap i {
+        position: absolute;
+        left: 12px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: var(--task-muted);
+        font-size: 13px;
+        pointer-events: none;
+    }
+
+    .my-tasks-wrapper .search-input-wrap .form-control {
+        padding-left: 34px;
+    }
+
+    .my-tasks-wrapper .form-control,
+    .my-tasks-wrapper .form-select {
+        border-color: var(--task-border);
+        border-radius: 9px;
+        font-size: 13px;
+        min-height: 40px;
+        background-color: #ffffff;
+        transition: border-color 0.18s ease, box-shadow 0.18s ease;
+    }
+
+    .my-tasks-wrapper .form-control:focus,
+    .my-tasks-wrapper .form-select:focus {
+        border-color: var(--task-accent);
+        box-shadow: 0 0 0 3px var(--task-accent-glow);
+    }
+
+    /* Enterprise Data Table */
+    .my-tasks-wrapper .table-shell {
+        border: 1px solid var(--task-border);
+        border-radius: 12px;
+        overflow: hidden;
+        background: #ffffff;
+    }
+
+    .my-tasks-wrapper .task-table {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+        margin-bottom: 0;
+    }
+
+    .my-tasks-wrapper .task-table th {
+        background: #f8fafc;
+        color: var(--task-muted);
+        font-size: 10.5px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        padding: 13px 16px;
+        white-space: nowrap;
+        border-bottom: 1px solid var(--task-border);
+    }
+
+    .my-tasks-wrapper .task-table td {
+        padding: 16px 16px;
+        border-bottom: 1px solid #f1f5f9;
+        font-size: 12.5px;
+        vertical-align: middle;
+        position: relative;
+    }
+
+    .my-tasks-wrapper .task-table tbody tr:last-child td {
+        border-bottom: none;
+    }
+
+    .my-tasks-wrapper .task-table tbody tr {
+        transition: background-color 0.18s ease;
+        cursor: pointer;
+    }
+
+    .my-tasks-wrapper .task-table tbody tr:hover {
+        background: #f8fbff;
+    }
+
+    .my-tasks-wrapper .task-table tbody tr:hover .task-title {
+        color: var(--task-accent);
+    }
+
+    .my-tasks-wrapper .task-table tbody tr td:first-child::before {
+        content: "";
+        position: absolute;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        width: 3px;
+        background: var(--task-accent);
+        opacity: 0;
+        transition: opacity 0.18s ease;
+    }
+
+    .my-tasks-wrapper .task-table tbody tr:hover td:first-child::before {
+        opacity: 1;
+    }
+
+    .my-tasks-wrapper .task-title {
+        font-size: 13.5px;
+        font-weight: 700;
+        color: var(--task-text);
+        line-height: 1.35;
+        transition: color 0.18s ease;
+    }
+
+    .my-tasks-wrapper .task-subtitle {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 6px;
+        font-size: 11.5px;
+        color: var(--task-muted);
+        margin-top: 5px;
+    }
+
+    .my-tasks-wrapper .code-pill {
+        display: inline-block;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+        font-size: 11px;
+        font-weight: 600;
+        color: #334155;
+        background: #f1f5f9;
+        border: 1px solid #e2e8f0;
+        padding: 1px 6px;
+        border-radius: 5px;
+    }
+
+    .my-tasks-wrapper .tender-title-cell {
+        font-weight: 600;
+        color: #1e293b;
+        max-width: 280px;
+        line-height: 1.35;
+    }
+
+    .my-tasks-wrapper .assignee-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        font-size: 12px;
+        font-weight: 600;
+        color: #334155;
+    }
+
+    .my-tasks-wrapper .assignee-avatar-mini {
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        background: #eff6ff;
+        color: #2563eb;
+        border: 1px solid #dbeafe;
+        font-size: 10px;
+        font-weight: 700;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+    }
+
+    .my-tasks-wrapper .row-chevron {
+        color: #94a3b8;
+        font-size: 13px;
+        transition: transform 0.18s ease, color 0.18s ease;
+    }
+
+    .my-tasks-wrapper .task-table tbody tr:hover .row-chevron {
+        color: var(--task-accent);
+        transform: translateX(3px);
+    }
+
+    /* Badges */
+    .my-tasks-wrapper .status-badge,
+    .my-tasks-wrapper .priority-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 5px 10px;
+        border-radius: 20px;
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.02em;
+        white-space: nowrap;
+    }
+
+    .my-tasks-wrapper .status-dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: currentColor;
+    }
+
+    .my-tasks-wrapper .status-pending {
+        background: #fffbeb;
+        color: #b45309;
+        border: 1px solid #fde68a;
+    }
+
+    .my-tasks-wrapper .status-in-progress {
+        background: #eff6ff;
+        color: #1d4ed8;
+        border: 1px solid #bfdbfe;
+    }
+
+    .my-tasks-wrapper .status-completed {
+        background: #ecfdf5;
+        color: #047857;
+        border: 1px solid #a7f3d0;
+    }
+
+    .my-tasks-wrapper .status-blocked {
+        background: #fef2f2;
+        color: #b91c1c;
+        border: 1px solid #fecaca;
+    }
+
+    .my-tasks-wrapper .priority-high {
+        background: #fef2f2;
+        color: #dc2626;
+        border: 1px solid #fecaca;
+    }
+
+    .my-tasks-wrapper .priority-medium {
+        background: #fff7ed;
+        color: #c2410c;
+        border: 1px solid #fed7aa;
+    }
+
+    .my-tasks-wrapper .priority-low {
+        background: #f1f5f9;
+        color: #475569;
+        border: 1px solid #e2e8f0;
+    }
+
+    .my-tasks-wrapper .empty-state {
+        text-align: center;
+        padding: 60px 20px;
+    }
+
+    .my-tasks-wrapper .empty-state-icon {
+        width: 60px;
+        height: 60px;
+        border-radius: 16px;
+        background: var(--task-accent-soft);
+        color: var(--task-accent);
+        border: 1px solid #dbeafe;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 26px;
+        margin-bottom: 16px;
+    }
+
+    .my-tasks-wrapper .btn-task-primary {
+        background: var(--task-accent);
+        border: 1px solid var(--task-accent);
+        color: #fff;
+        border-radius: 9px;
+        font-weight: 600;
+        font-size: 13px;
+        padding: 8px 16px;
+        transition: all .15s ease;
+    }
+
+    .my-tasks-wrapper .btn-task-primary:hover {
+        background: var(--task-accent-hover);
+        border-color: var(--task-accent-hover);
+        color: #fff;
+        box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);
+    }
+
+    /* =========================================================
+       ENTERPRISE MODAL STYLING
+    ========================================================= */
+    #myTaskDetailsModal {
+        font-family: 'Plus Jakarta Sans', sans-serif;
+    }
+
+    #myTaskDetailsModal .task-modal-content {
+        border: 1px solid #e2e8f0;
+        border-radius: 18px;
+        box-shadow: 0 25px 50px -12px rgba(15, 23, 42, 0.22);
+        overflow: hidden;
+        background: #ffffff;
+    }
+
+    #myTaskDetailsModal .task-modal-header {
+        background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+        border-bottom: 1px solid #e2e8f0;
+        padding: 20px 26px;
+    }
+
+    #myTaskDetailsModal .modal-kicker {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        color: #2563eb;
+        background: #eff6ff;
+        border: 1px solid #dbeafe;
+        padding: 3px 9px;
+        border-radius: 6px;
+        margin-bottom: 6px;
+    }
+
+    #myTaskDetailsModal .modal-title {
+        font-size: 18px;
+        font-weight: 700;
+        color: #0f172a;
+        line-height: 1.35;
+    }
+
+    #myTaskDetailsModal .task-modal-body {
+        padding: 24px 26px;
+        background: #f8fafc;
+    }
+
+    #myTaskDetailsModal .modal-panel {
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        padding: 18px 20px;
+        box-shadow: 0 1px 3px rgba(15, 23, 42, 0.03);
+    }
+
+    #myTaskDetailsModal .modal-panel-title {
+        font-size: 12px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: #475569;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 14px;
+    }
+
+    #myTaskDetailsModal .modal-panel-title i {
+        color: #2563eb;
+        font-size: 14px;
+    }
+
+    #myTaskDetailsModal .description-box {
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 9px;
+        padding: 14px 16px;
+        font-size: 13.5px;
+        line-height: 1.6;
+        color: #1e293b;
+        white-space: pre-line;
+    }
+
+    #myTaskDetailsModal .meta-list-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 12px;
+        padding: 10px 0;
+        border-bottom: 1px solid #f1f5f9;
+        font-size: 12.5px;
+    }
+
+    #myTaskDetailsModal .meta-list-item:last-child {
+        border-bottom: none;
+        padding-bottom: 0;
+    }
+
+    #myTaskDetailsModal .meta-list-item:first-child {
+        padding-top: 0;
+    }
+
+    #myTaskDetailsModal .meta-key {
+        color: #64748b;
+        font-weight: 500;
+        flex-shrink: 0;
+    }
+
+    #myTaskDetailsModal .meta-val {
+        color: #0f172a;
+        font-weight: 600;
+        text-align: right;
+        word-break: break-word;
+    }
+
+    #myTaskDetailsModal .comment-item {
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        padding: 12px 14px;
+        margin-bottom: 10px;
+    }
+
+    #myTaskDetailsModal .comment-avatar {
+        width: 26px;
+        height: 26px;
+        border-radius: 50%;
+        background: #dbeafe;
+        color: #1d4ed8;
+        font-size: 11px;
+        font-weight: 700;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    #myTaskDetailsModal .attachment-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        padding: 10px 14px;
+        margin-bottom: 8px;
+        transition: border-color .15s ease, background .15s ease;
+    }
+
+    #myTaskDetailsModal .attachment-row:hover {
+        background: #f1f5f9;
+        border-color: #cbd5e1;
+    }
+
+    #myTaskDetailsModal .attachment-icon {
+        width: 34px;
+        height: 34px;
+        border-radius: 8px;
+        background: #eff6ff;
+        color: #2563eb;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 16px;
+        flex-shrink: 0;
+    }
+
+    #myTaskDetailsModal .upload-dropzone {
+        border: 1.5px dashed #cbd5e1;
+        border-radius: 10px;
+        background: #f8fafc;
+        padding: 14px;
+        transition: border-color .15s ease;
+    }
+
+    #myTaskDetailsModal .upload-dropzone:hover {
+        border-color: #2563eb;
+    }
+
+    #myTaskDetailsModal .task-modal-footer {
+        background: #ffffff;
+        border-top: 1px solid #e2e8f0;
+        padding: 14px 26px;
+    }
+
+    /* Duplicate status/priority badge definitions inside modal scope */
+    #myTaskDetailsModal .status-badge,
+    #myTaskDetailsModal .priority-badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 4px 10px;
+        border-radius: 20px;
+        font-size: 11px;
+        font-weight: 700;
+    }
+
+    #myTaskDetailsModal .status-pending {
+        background: #fffbeb;
+        color: #b45309;
+        border: 1px solid #fde68a;
+    }
+
+    #myTaskDetailsModal .status-in-progress {
+        background: #eff6ff;
+        color: #1d4ed8;
+        border: 1px solid #bfdbfe;
+    }
+
+    #myTaskDetailsModal .status-completed {
+        background: #ecfdf5;
+        color: #047857;
+        border: 1px solid #a7f3d0;
+    }
+
+    #myTaskDetailsModal .status-blocked {
+        background: #fef2f2;
+        color: #b91c1c;
+        border: 1px solid #fecaca;
+    }
+
+    #myTaskDetailsModal .priority-high {
+        background: #fef2f2;
+        color: #dc2626;
+        border: 1px solid #fecaca;
+    }
+
+    #myTaskDetailsModal .priority-medium {
+        background: #fff7ed;
+        color: #c2410c;
+        border: 1px solid #fed7aa;
+    }
+
+    #myTaskDetailsModal .priority-low {
+        background: #f1f5f9;
+        color: #475569;
+        border: 1px solid #e2e8f0;
+    }
+
+    @media (max-width: 768px) {
+        .my-tasks-wrapper {
+            padding: 88px 14px 35px;
+        }
+
+        .my-tasks-wrapper .task-card {
+            padding: 17px;
+        }
+
+        #myTaskDetailsModal .task-modal-header,
+        #myTaskDetailsModal .task-modal-body,
+        #myTaskDetailsModal .task-modal-footer {
+            padding: 16px;
+        }
+    }
+</style>
+
+<div class="my-tasks-wrapper">
+    <div class="tasks-container">
+
+        <!-- Page Header -->
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-4 animate-enter">
+            <div>
+                <div class="page-tag">
+                    <i class="bi bi-person-check"></i>
+                    <span>Task Management / {{ task_page_title }}</span>
+                </div>
+
+                <h3 class="fw-bold mb-1" style="letter-spacing: -0.02em;">{{ task_page_title }}</h3>
+
+                <p class="text-muted small mb-0">
+                    {{ task_page_description }}
+                </p>
+            </div>
+        </div>
+
+        <!-- Task Statistics -->
+        <div class="row g-3 mb-4 animate-enter delay-1">
+
+            <div class="col-6 col-md">
+                <div class="stat-card stat-total">
+                    <div class="stat-header">
+                        <div class="stat-label">Total Tasks</div>
+                        <span class="stat-icon-pill"><i class="bi bi-layers"></i></span>
+                    </div>
+                    <div class="stat-value" id="myTotalTasks">0</div>
+                </div>
+            </div>
+
+            <div class="col-6 col-md">
+                <div class="stat-card stat-pending">
+                    <div class="stat-header">
+                        <div class="stat-label">Pending</div>
+                        <span class="stat-icon-pill"><i class="bi bi-hourglass-split"></i></span>
+                    </div>
+                    <div class="stat-value text-warning" id="myPendingTasks">0</div>
+                </div>
+            </div>
+
+            <div class="col-6 col-md">
+                <div class="stat-card stat-progress">
+                    <div class="stat-header">
+                        <div class="stat-label">In Progress</div>
+                        <span class="stat-icon-pill"><i class="bi bi-arrow-repeat"></i></span>
+                    </div>
+                    <div class="stat-value text-primary" id="myInProgressTasks">0</div>
+                </div>
+            </div>
+
+            <div class="col-6 col-md">
+                <div class="stat-card stat-completed">
+                    <div class="stat-header">
+                        <div class="stat-label">Completed</div>
+                        <span class="stat-icon-pill"><i class="bi bi-check2-circle"></i></span>
+                    </div>
+                    <div class="stat-value text-success" id="myCompletedTasks">0</div>
+                </div>
+            </div>
+
+            <div class="col-6 col-md">
+                <div class="stat-card stat-overdue">
+                    <div class="stat-header">
+                        <div class="stat-label">Overdue</div>
+                        <span class="stat-icon-pill"><i class="bi bi-exclamation-octagon"></i></span>
+                    </div>
+                    <div class="stat-value text-danger" id="myOverdueTasks">0</div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Filters -->
+        <div class="task-card animate-enter delay-2">
+            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+                <h5 class="section-heading mb-0">
+                    <span class="section-icon">
+                        <i class="bi bi-funnel"></i>
+                    </span>
+                    Filter & Sort Tasks
+                </h5>
+
+                <button type="button" class="btn btn-sm btn-outline-secondary px-3" id="resetMyTaskFilters">
+                    <i class="bi bi-arrow-counterclockwise me-1"></i>
+                    Reset Filters
+                </button>
+            </div>
+
+            <div class="row g-3">
+
+                <div class="col-md-4">
+                    <label class="filter-label" for="myTaskSearch">Search</label>
+                    <div class="search-input-wrap">
+                        <i class="bi bi-search"></i>
+                        <input type="search" class="form-control" id="myTaskSearch" placeholder="Search task code, title, or tender...">
+                    </div>
+                </div>
+
+                <div class="col-md-2">
+                    <label class="filter-label" for="myTaskStatusFilter">Status</label>
+                    <select class="form-select" id="myTaskStatusFilter">
+                        <option value="">All Statuses</option>
+                        <option value="PENDING">Pending</option>
+                        <option value="IN_PROGRESS">In Progress</option>
+                        <option value="COMPLETED">Completed</option>
+                        <option value="BLOCKED">Blocked</option>
+                    </select>
+                </div>
+
+                <div class="col-md-2">
+                    <label class="filter-label" for="myTaskPriorityFilter">Priority</label>
+                    <select class="form-select" id="myTaskPriorityFilter">
+                        <option value="">All Priorities</option>
+                        <option value="HIGH">High</option>
+                        <option value="MEDIUM">Medium</option>
+                        <option value="LOW">Low</option>
+                    </select>
+                </div>
+
+                <div class="col-md-2">
+                    <label class="filter-label" for="myTaskDepartmentFilter">Department</label>
+                    <select class="form-select" id="myTaskDepartmentFilter">
+                        <option value="">All Departments</option>
+                    </select>
+                </div>
+
+                <div class="col-md-2">
+                    <label class="filter-label" for="myTaskSort">Sort By</label>
+                    <select class="form-select" id="myTaskSort">
+                        <option value="due_date">Due Date</option>
+                        <option value="priority">Priority</option>
+                        <option value="created_at">Recently Assigned</option>
+                    </select>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- Task List -->
+        <div class="task-card animate-enter delay-3">
+
+            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+                <h5 class="section-heading mb-0">
+                    <span class="section-icon">
+                        <i class="bi bi-list-task"></i>
+                    </span>
+                    Assigned Tasks
+                </h5>
+
+                <span class="badge bg-light text-secondary border px-3 py-2 fw-semibold" id="myTaskResultCount">
+                    0 Tasks
+                </span>
+            </div>
+
+            <div class="table-shell">
+                <div class="table-responsive">
+                    <table class="task-table">
+                        <thead>
+                            <tr>
+                                <th>Task Details</th>
+                                <th>Associated Tender</th>
+                                <th>Priority</th>
+                                <th>Due Date</th>
+                                <th>Status</th>
+                                <th>Assigned By</th>
+                                <th class="text-end" style="width: 36px;"></th>
+                            </tr>
+                        </thead>
+
+                        <tbody id="myTasksTableBody">
+                            <tr>
+                                <td colspan="7">
+                                    <div class="empty-state">
+                                        <div class="empty-state-icon">
+                                            <i class="bi bi-clipboard-check"></i>
+                                        </div>
+
+                                        <h6 class="fw-bold">No tasks loaded</h6>
+
+                                        <p class="text-muted small mb-0">
+                                            Your assigned tasks will appear here.
+                                        </p>
+                                    </div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+        </div>
+
+    </div>
+</div>
+
+<!-- Enterprise Task Details Modal -->
+<div class="modal fade" id="myTaskDetailsModal" tabindex="-1" aria-labelledby="myTaskDetailsTitle" aria-hidden="true">
+
+    <div class="modal-dialog modal-dialog-centered modal-xl modal-dialog-scrollable">
+
+        <div class="modal-content task-modal-content">
+
+            <!-- Modal Header -->
+            <div class="modal-header task-modal-header align-items-start">
+                <div class="pe-3">
+                    <div class="modal-kicker" id="myTaskModalKicker">
+                        <i class="bi bi-kanban"></i>
+                        <span>EXECUTION TASK</span>
+                    </div>
+                    <h5 class="modal-title" id="myTaskDetailsTitle">
+                        Task Details
+                    </h5>
+                </div>
+
+                <button type="button" class="btn-close mt-1" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+
+            <!-- Modal Body -->
+            <div class="modal-body task-modal-body" id="myTaskDetailsBody">
+                <p class="text-muted small mb-0">
+                    Select a task to view its details.
+                </p>
+            </div>
+
+            <!-- Modal Footer -->
+            <div class="modal-footer task-modal-footer justify-content-between">
+                <span class="small text-muted">
+                    <i class="bi bi-shield-check me-1 text-primary"></i>
+                    Changes sync automatically with tender execution workflow
+                </span>
+                <button type="button" class="btn btn-sm btn-outline-secondary px-3" data-bs-dismiss="modal">
+                    Close
+                </button>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+
+        const API_URL = "{% url 'get_execution_tasks' %}?scope={{ task_scope|escapejs }}";
+        const API_ROOT = API_URL.split("?")[0].replace(/execution\/tasks\/?$/, "");
+
+        function getCookie(name) {
+            let cookieValue = null;
+
+            if (document.cookie) {
+                document.cookie.split(";").forEach(cookie => {
+                    const item = cookie.trim();
+
+                    if (item.startsWith(name + "=")) {
+                        cookieValue = decodeURIComponent(
+                            item.substring(name.length + 1)
+                        );
+                    }
+                });
+            }
+
+            return cookieValue;
+        }
+
+        function getTaskStatusUrl(task) {
+            return `${API_ROOT}my-tenders/${task.my_tender_id}/execution/tasks/${task.task_id}/status/`;
+        }
+
+        function getTaskCommentUrl(task) {
+            return `${API_ROOT}my-tenders/${task.my_tender_id}/execution/tasks/${task.task_id}/comments/`;
+        }
+
+        function getTaskAttachmentUrl(task) {
+            return `${API_ROOT}my-tenders/${task.my_tender_id}/execution/tasks/${task.task_id}/attachments/`;
+        }
+
+        function getAttachmentDownloadUrl(task, attachmentId) {
+            return `${API_ROOT}my-tenders/${task.my_tender_id}/execution/tasks/${task.task_id}/attachments/${attachmentId}/download/`;
+        }
+
+        let allTasks = [];
+
+        const tableBody = document.getElementById("myTasksTableBody");
+
+        const elements = {
+            total: document.getElementById("myTotalTasks"),
+            pending: document.getElementById("myPendingTasks"),
+            inProgress: document.getElementById("myInProgressTasks"),
+            completed: document.getElementById("myCompletedTasks"),
+            overdue: document.getElementById("myOverdueTasks"),
+
+            search: document.getElementById("myTaskSearch"),
+            status: document.getElementById("myTaskStatusFilter"),
+            priority: document.getElementById("myTaskPriorityFilter"),
+            department: document.getElementById("myTaskDepartmentFilter"),
+            sort: document.getElementById("myTaskSort"),
+
+            reset: document.getElementById("resetMyTaskFilters"),
+            resultCount: document.getElementById("myTaskResultCount"),
+
+            modal: document.getElementById("myTaskDetailsModal"),
+            modalKicker: document.getElementById("myTaskModalKicker"),
+            modalTitle: document.getElementById("myTaskDetailsTitle"),
+            modalBody: document.getElementById("myTaskDetailsBody")
+        };
+
+
+        // Safely escape dynamic content before inserting into HTML.
+        function escapeHTML(value) {
+            return String(value ?? "").replace(/[&<>"']/g, function (char) {
+                return {
+                    "&": "&amp;",
+                    "<": "&lt;",
+                    ">": "&gt;",
+                    '"': "&quot;",
+                    "'": "&#039;"
+                }[char];
+            });
+        }
+
+
+        function formatDate(dateValue) {
+            if (!dateValue) return "—";
+
+            const date = new Date(dateValue + "T00:00:00");
+
+            if (isNaN(date.getTime())) return "—";
+
+            return date.toLocaleDateString("en-IN", {
+                day: "2-digit",
+                month: "short",
+                year: "numeric"
+            });
+        }
+
+
+        function formatStatus(status) {
+            return (status || "PENDING")
+                .replaceAll("_", " ")
+                .toLowerCase()
+                .replace(/\b\w/g, char => char.toUpperCase());
+        }
+
+
+        function getStatusClass(status) {
+            const classes = {
+                PENDING: "status-pending",
+                IN_PROGRESS: "status-in-progress",
+                COMPLETED: "status-completed",
+                BLOCKED: "status-blocked"
+            };
+
+            return classes[status] || "status-pending";
+        }
+
+
+        function getPriorityClass(priority) {
+            const classes = {
+                HIGH: "priority-high",
+                MEDIUM: "priority-medium",
+                LOW: "priority-low"
+            };
+
+            return classes[priority] || "priority-medium";
+        }
+
+
+        function isOverdue(task) {
+            if (!task.due_date) return false;
+
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+
+            const dueDate = new Date(task.due_date + "T00:00:00");
+
+            return (
+                !isNaN(dueDate.getTime()) &&
+                dueDate < today &&
+                !["COMPLETED", "NOT_APPLICABLE"].includes(task.status)
+            );
+        }
+
+
+        // Fetch tasks from the API.
+        async function loadMyTasks() {
+
+            tableBody.innerHTML = `
+            <tr>
+                <td colspan="7" class="text-center py-5">
+                    <div class="spinner-border spinner-border-sm text-primary"></div>
+                    <div class="small text-muted mt-2">Loading tasks...</div>
+                </td>
+            </tr>
+        `;
+
+            try {
+                const response = await fetch(API_URL, {
+                    method: "GET",
+                    credentials: "same-origin",
+                    headers: {
+                        "X-Requested-With": "XMLHttpRequest"
+                    }
+                });
+
+                const result = await response.json();
+
+                if (!response.ok || !result.success) {
+                    throw new Error(
+                        result.error || "Unable to load tasks."
+                    );
+                }
+
+                allTasks = result.data.tasks || [];
+
+                updateStatistics(result.data.statistics || {});
+                populateDepartmentFilter();
+
+                applyFilters();
+
+            } catch (error) {
+
+                console.error("Task List API Error:", error);
+
+                tableBody.innerHTML = `
+                <tr>
+                    <td colspan="7">
+                        <div class="empty-state">
+                            <div class="empty-state-icon">
+                                <i class="bi bi-exclamation-circle"></i>
+                            </div>
+                            <h6 class="fw-bold">Unable to load tasks</h6>
+                            <p class="text-muted small mb-0">
+                                ${escapeHTML(error.message)}
+                            </p>
+                        </div>
+                    </td>
+                </tr>
+            `;
+            }
+        }
+
+
+        // Update statistics cards.
+        function updateStatistics(stats) {
+
+            elements.total.textContent = stats.total ?? allTasks.length;
+            elements.pending.textContent = stats.pending ?? 0;
+            elements.inProgress.textContent = stats.in_progress ?? 0;
+            elements.completed.textContent = stats.completed ?? 0;
+            elements.overdue.textContent = stats.overdue ?? 0;
+        }
+
+
+        // Populate unique departments.
+        function populateDepartmentFilter() {
+
+            const departments = [
+                ...new Set(
+                    allTasks
+                        .map(task => task.department)
+                        .filter(Boolean)
+                )
+            ].sort();
+
+            elements.department.innerHTML =
+                '<option value="">All Departments</option>';
+
+            departments.forEach(department => {
+
+                const option = document.createElement("option");
+
+                option.value = department;
+                option.textContent = department;
+
+                elements.department.appendChild(option);
+            });
+        }
+
+
+        // Apply search, filters and sorting.
+        function applyFilters() {
+
+            let filteredTasks = [...allTasks];
+
+            const searchValue = elements.search.value
+                .trim()
+                .toLowerCase();
+
+            const statusValue = elements.status.value;
+            const priorityValue = elements.priority.value;
+            const departmentValue = elements.department.value;
+            const sortValue = elements.sort.value;
+
+
+            // Search task and tender details.
+            if (searchValue) {
+
+                filteredTasks = filteredTasks.filter(task => {
+
+                    const searchableText = [
+                        task.task_title,
+                        task.task_code,
+                        task.task_description,
+                        task.phase_name,
+                        task.tender?.title,
+                        task.tender?.tender_id,
+                        task.tender?.reference_number
+                    ].join(" ").toLowerCase();
+
+                    return searchableText.includes(searchValue);
+                });
+            }
+
+
+            if (statusValue) {
+                filteredTasks = filteredTasks.filter(
+                    task => task.status === statusValue
+                );
+            }
+
+
+            if (priorityValue) {
+                filteredTasks = filteredTasks.filter(
+                    task => task.priority === priorityValue
+                );
+            }
+
+
+            if (departmentValue) {
+                filteredTasks = filteredTasks.filter(
+                    task => task.department === departmentValue
+                );
+            }
+
+
+            // Sorting.
+            const priorityOrder = {
+                HIGH: 1,
+                MEDIUM: 2,
+                LOW: 3
+            };
+
+            if (sortValue === "priority") {
+
+                filteredTasks.sort((a, b) => {
+                    return (
+                        (priorityOrder[a.priority] || 99) -
+                        (priorityOrder[b.priority] || 99)
+                    );
+                });
+
+            } else if (sortValue === "due_date") {
+
+                filteredTasks.sort((a, b) => {
+                    if (!a.due_date) return 1;
+                    if (!b.due_date) return -1;
+
+                    return new Date(a.due_date) - new Date(b.due_date);
+                });
+
+            } else if (sortValue === "created_at") {
+
+                filteredTasks.sort((a, b) => {
+                    return (b.assigned_at || "").localeCompare(
+                        a.assigned_at || ""
+                    );
+                });
+            }
+
+            renderTasks(filteredTasks);
+        }
+
+
+        // Render task table.
+        function renderTasks(tasks) {
+
+            elements.resultCount.textContent =
+                `${tasks.length} ${tasks.length === 1 ? "Task" : "Tasks"}`;
+
+            if (!tasks.length) {
+
+                tableBody.innerHTML = `
+                <tr>
+                    <td colspan="7">
+                        <div class="empty-state">
+                            <div class="empty-state-icon">
+                                <i class="bi bi-clipboard-check"></i>
+                            </div>
+                            <h6 class="fw-bold">No tasks found</h6>
+                            <p class="text-muted small mb-0">
+                                No tasks match your selected filters.
+                            </p>
+                        </div>
+                    </td>
+                </tr>
+            `;
+
+                return;
+            }
+
+
+            tableBody.innerHTML = tasks.map((task) => {
+
+                const tender = task.tender || {};
+                const overdue = isOverdue(task);
+                const assignerName = task.assigned_by || "Unknown";
+                const assignerInitials = assignerName
+                    .split(" ")
+                    .filter(Boolean)
+                    .map(p => p[0])
+                    .slice(0, 2)
+                    .join("")
+                    .toUpperCase() || "U";
+
+                return `
+                <tr data-task-index="${allTasks.indexOf(task)}">
+
+                    <td>
+                        <div class="task-title">
+                            ${escapeHTML(task.task_title || "Untitled Task")}
+                        </div>
+
+                        <div class="task-subtitle">
+                            <span class="code-pill">${escapeHTML(task.task_code || "—")}</span>
+                            ${task.phase_name
+                        ? `<span>• ${escapeHTML(task.phase_name)}</span>`
+                        : ""}
+                        </div>
+                    </td>
+
+                    <td>
+                        <div class="tender-title-cell">
+                            ${escapeHTML(tender.title || "—")}
+                        </div>
+
+                        <div class="task-subtitle">
+                            <span class="code-pill">${escapeHTML(tender.reference_number || tender.tender_id || "—")}</span>
+                        </div>
+                    </td>
+
+                    <td>
+                        <span class="priority-badge ${getPriorityClass(task.priority)}">
+                            ${escapeHTML(task.priority || "MEDIUM")}
+                        </span>
+                    </td>
+
+                    <td>
+                        <div class="${overdue ? "text-danger fw-bold" : "fw-semibold text-dark"}">
+                            ${formatDate(task.due_date)}
+                        </div>
+
+                        ${overdue
+                        ? '<div class="badge bg-danger-subtle text-danger border border-danger-subtle mt-1" style="font-size: 10px;">Overdue</div>'
+                        : ""}
+                    </td>
+
+                    <td>
+                        <span class="status-badge ${getStatusClass(task.status)}">
+                            <span class="status-dot"></span>
+                            ${escapeHTML(formatStatus(task.status))}
+                        </span>
+                    </td>
+
+                    <td>
+                        <div class="assignee-chip">
+                            <span class="assignee-avatar-mini">${escapeHTML(assignerInitials)}</span>
+                            <span>${escapeHTML(assignerName)}</span>
+                        </div>
+                    </td>
+
+                    <td class="text-end">
+                        <i class="bi bi-chevron-right row-chevron"></i>
+                    </td>
+
+                </tr>
+            `;
+            }).join("");
+        }
+
+
+        // Open enterprise task details modal.
+        function openTaskDetails(task) {
+            const tender = task.tender || {};
+            const attachments = task.attachments || [];
+            const comments = task.comments || [];
+            const overdue = isOverdue(task);
+
+            // Header Kicker & Title
+            elements.modalKicker.innerHTML = `
+                <i class="bi bi-kanban"></i>
+                <span>${escapeHTML(task.task_code || "EXECUTION TASK")}</span>
+                ${task.phase_name ? `<span class="text-muted fw-normal">•</span><span>${escapeHTML(task.phase_name)}</span>` : ""}
+            `;
+            elements.modalTitle.textContent = task.task_title || "Task Details";
+
+            // Attachments List
+            const attachmentsHtml = attachments.length
+                ? attachments.map(file => `
+                    <div class="attachment-row">
+                        <div class="d-flex align-items-center gap-3 text-truncate me-3">
+                            <div class="attachment-icon">
+                                <i class="bi bi-file-earmark-text"></i>
+                            </div>
+                            <div class="text-truncate">
+                                <div class="small fw-semibold text-dark text-truncate">
+                                    ${escapeHTML(file.original_filename || "Attachment")}
+                                </div>
+                                <div class="text-muted" style="font-size: 11px;">
+                                    Supporting Document
+                                </div>
+                            </div>
+                        </div>
+
+                        <a href="${getAttachmentDownloadUrl(task, file.id)}"
+                           class="btn btn-sm btn-outline-primary flex-shrink-0"
+                           title="Download file"
+                           target="_blank">
+                            <i class="bi bi-download me-1"></i>Download
+                        </a>
+                    </div>
+                `).join("")
+                : `<div class="text-center py-3 bg-light rounded border border-dashed">
+                       <p class="text-muted small mb-0">No supporting files uploaded yet.</p>
+                   </div>`;
+
+            // Comments List
+            const commentsHtml = comments.length
+                ? comments.map(comment => {
+                    const empName = comment.employee_name || "Employee";
+                    const empId = comment.employee_id || "N/A";
+                    const initials = empName
+                        .split(" ")
+                        .filter(Boolean)
+                        .map(part => part[0])
+                        .slice(0, 2)
+                        .join("")
+                        .toUpperCase() || "EM";
+
+                    return `
+            <div class="comment-item">
+                <div class="comment-meta d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="comment-avatar">${escapeHTML(initials)}</span>
+                        <div>
+                            <strong class="small text-dark">${escapeHTML(empName)}</strong>
+                            <span class="text-muted small">(${escapeHTML(empId)})</span>
+                        </div>
+                    </div>
+                    <small class="text-muted" style="font-size: 11px;">
+                        ${escapeHTML(formatDateTime(comment.created_at))}
+                    </small>
+                </div>
+                <div class="comment-text small text-dark ps-1" style="line-height: 1.5; white-space: pre-line;">
+                    ${escapeHTML(comment.text || "")}
+                </div>
+            </div>
+        `;
+                }).join("")
+                : `<p class="text-muted small mb-0">No comments added yet. Start the discussion below.</p>`;
+
+            // Two-Column Enterprise Modal Body
+            elements.modalBody.innerHTML = `
+                <!-- Feedback Banner (Required by updateTaskStatus, addTaskComment, uploadTaskFile) -->
+                <div id="myTaskActionMessage"></div>
+
+                <div class="row g-4">
+
+                    <!-- LEFT COLUMN: Primary Workspace -->
+                    <div class="col-lg-8">
+                        <div class="d-flex flex-column gap-3">
+
+                            <!-- Scope & Description -->
+                            <div class="modal-panel">
+                                <div class="modal-panel-title">
+                                    <i class="bi bi-file-text"></i>
+                                    <span>Task Scope & Description</span>
+                                </div>
+
+                                <div class="description-box mb-3">
+                                    ${escapeHTML(task.task_description || "No description available.")}
+                                </div>
+
+                                ${task.remarks ? `
+                                    <div class="small fw-bold text-muted text-uppercase mb-1" style="font-size: 11px;">
+                                        Remarks / Instructions
+                                    </div>
+                                    <div class="p-3 rounded border" style="background: #fffbeb; border-color: #fde68a !important; font-size: 13px; color: #78350f;">
+                                        <i class="bi bi-info-circle me-1"></i>
+                                        ${escapeHTML(task.remarks)}
+                                    </div>
+                                ` : `
+                                    <div class="small fw-bold text-muted text-uppercase mb-1" style="font-size: 11px;">
+                                        Remarks
+                                    </div>
+                                    <div class="small text-muted">No remarks available.</div>
+                                `}
+                            </div>
+
+                            <!-- Supporting Documents -->
+                            <div class="modal-panel">
+                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                    <div class="modal-panel-title mb-0">
+                                        <i class="bi bi-paperclip"></i>
+                                        <span>Attachments</span>
+                                    </div>
+                                    <span class="badge bg-light text-secondary border">
+                                        ${attachments.length} ${attachments.length === 1 ? "File" : "Files"}
+                                    </span>
+                                </div>
+
+                                <div id="myTaskAttachments" class="mb-3">
+                                    ${attachmentsHtml}
+                                </div>
+
+                                <div class="upload-dropzone">
+                                    <label for="myTaskFileInput" class="form-label small fw-bold text-dark mb-1">
+                                        Upload Supporting Document
+                                    </label>
+                                    <div class="d-flex flex-column flex-sm-row gap-2 align-items-sm-center">
+                                        <input type="file"
+                                               class="form-control form-control-sm"
+                                               id="myTaskFileInput"
+                                               accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg,.zip">
+
+                                        <button type="button"
+                                                class="btn btn-sm btn-outline-primary flex-shrink-0 px-3"
+                                                id="uploadMyTaskFileBtn">
+                                            <i class="bi bi-upload me-1"></i>Upload
+                                        </button>
+                                    </div>
+                                    <div class="text-muted mt-1" style="font-size: 11px;">
+                                        Supported: PDF, Word, Excel, Images, ZIP (Max 20 MB)
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Activity & Comments -->
+                            <div class="modal-panel">
+                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                    <div class="modal-panel-title mb-0">
+                                        <i class="bi bi-chat-left-text"></i>
+                                        <span>Activity & Comments</span>
+                                    </div>
+                                    <span class="badge bg-light text-secondary border">
+                                        ${comments.length}
+                                    </span>
+                                </div>
+
+                                <div id="myTaskCommentsList" class="mb-3">
+                                    ${commentsHtml}
+                                </div>
+
+                                <div class="border-top pt-3">
+                                    <label for="myTaskCommentInput" class="form-label small fw-bold text-dark">
+                                        Post an Update
+                                    </label>
+                                    <textarea
+                                        class="form-control mb-2"
+                                        id="myTaskCommentInput"
+                                        rows="2"
+                                        placeholder="Share progress notes, blockers, or review updates..."
+                                    ></textarea>
+
+                                    <div class="d-flex justify-content-end">
+                                        <button type="button"
+                                                class="btn btn-outline-primary btn-sm px-3"
+                                                id="addMyTaskCommentBtn">
+                                            <i class="bi bi-send me-1"></i>Add Comment
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
+                        </div>
+                    </div>
+
+                    <!-- RIGHT COLUMN: Workflow & Metadata Sidebar -->
+                    <div class="col-lg-4">
+                        <div class="d-flex flex-column gap-3">
+
+                            <!-- Status Action Card -->
+                            <div class="modal-panel" style="border-top: 3px solid #2563eb;">
+                                <div class="modal-panel-title">
+                                    <i class="bi bi-arrow-repeat"></i>
+                                    <span>Workflow Status</span>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="myTaskStatusSelect" class="form-label small text-muted mb-1">
+                                        Current Stage
+                                    </label>
+                                    <select class="form-select fw-semibold" id="myTaskStatusSelect">
+                                        <option value="PENDING" ${task.status === "PENDING" ? "selected" : ""}>
+                                            Pending
+                                        </option>
+                                        <option value="IN_PROGRESS" ${task.status === "IN_PROGRESS" ? "selected" : ""}>
+                                            In Progress
+                                        </option>
+                                        <option value="BLOCKED" ${task.status === "BLOCKED" ? "selected" : ""}>
+                                            Blocked
+                                        </option>
+                                        <option value="COMPLETED" ${task.status === "COMPLETED" ? "selected" : ""}>
+                                            Completed
+                                        </option>
+                                    </select>
+                                </div>
+
+                                <button type="button"
+                                        class="btn btn-task-primary w-100"
+                                        id="updateMyTaskStatusBtn">
+                                    <i class="bi bi-check2-circle me-1"></i>Update Status
+                                </button>
+                            </div>
+
+                            <!-- Task Attributes Card -->
+                            <div class="modal-panel">
+                                <div class="modal-panel-title">
+                                    <i class="bi bi-sliders"></i>
+                                    <span>Task Properties</span>
+                                </div>
+
+                                <div class="meta-list-item">
+                                    <span class="meta-key">Status</span>
+                                    <span class="meta-val">
+                                        <span class="status-badge ${getStatusClass(task.status)}">
+                                            ${escapeHTML(formatStatus(task.status))}
+                                        </span>
+                                    </span>
+                                </div>
+
+                                <div class="meta-list-item">
+                                    <span class="meta-key">Priority</span>
+                                    <span class="meta-val">
+                                        <span class="priority-badge ${getPriorityClass(task.priority)}">
+                                            ${escapeHTML(task.priority || "MEDIUM")}
+                                        </span>
+                                    </span>
+                                </div>
+
+                                <div class="meta-list-item">
+                                    <span class="meta-key">Due Date</span>
+                                    <span class="meta-val ${overdue ? "text-danger" : ""}">
+                                        ${formatDate(task.due_date)}
+                                        ${overdue ? `<span class="badge bg-danger ms-1" style="font-size: 9px;">OVERDUE</span>` : ""}
+                                    </span>
+                                </div>
+
+                                <div class="meta-list-item">
+                                    <span class="meta-key">Phase</span>
+                                    <span class="meta-val">${escapeHTML(task.phase_name || "—")}</span>
+                                </div>
+
+                                <div class="meta-list-item">
+                                    <span class="meta-key">Assigned By</span>
+                                    <span class="meta-val">${escapeHTML(task.assigned_by || "Unknown")}</span>
+                                </div>
+                            </div>
+
+                            <!-- Associated Tender Card -->
+                            <div class="modal-panel">
+                                <div class="modal-panel-title">
+                                    <i class="bi bi-briefcase"></i>
+                                    <span>Tender Context</span>
+                                </div>
+
+                                <div class="mb-2">
+                                    <div class="small text-muted">Tender Name</div>
+                                    <div class="small fw-bold text-dark">
+                                        ${escapeHTML(tender.title || "—")}
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <div class="small text-muted">Reference No.</div>
+                                    <div class="small fw-semibold text-primary">
+                                        ${escapeHTML(tender.reference_number || tender.tender_id || "—")}
+                                    </div>
+                                </div>
+                            </div>
+
+                        </div>
+                    </div>
+
+                </div>
+            `;
+
+            const updateStatusBtn = document.getElementById("updateMyTaskStatusBtn");
+
+            if (updateStatusBtn) {
+                updateStatusBtn.addEventListener("click", () => {
+                    updateTaskStatus(task);
+                });
+            }
+
+            const addCommentBtn = document.getElementById("addMyTaskCommentBtn");
+
+            if (addCommentBtn) {
+                addCommentBtn.addEventListener("click", () => {
+                    addTaskComment(task);
+                });
+            }
+
+            const uploadFileBtn = document.getElementById("uploadMyTaskFileBtn");
+
+            if (uploadFileBtn) {
+                uploadFileBtn.addEventListener("click", () => {
+                    uploadTaskFile(task);
+                });
+            }
+
+            const modal = bootstrap.Modal.getOrCreateInstance(elements.modal);
+            modal.show();
+        }
+
+        async function updateTaskStatus(task) {
+            const statusSelect = document.getElementById("myTaskStatusSelect");
+            const button = document.getElementById("updateMyTaskStatusBtn");
+            const message = document.getElementById("myTaskActionMessage");
+
+            const newStatus = statusSelect.value;
+
+            if (newStatus === task.status) {
+                message.innerHTML = `
+                    <div class="alert alert-info py-2 px-3 small mb-3">
+                        <i class="bi bi-info-circle me-1"></i>
+                        The selected status is already current.
+                    </div>
+                `;
+                return;
+            }
+
+            button.disabled = true;
+            button.innerHTML = `
+                <span class="spinner-border spinner-border-sm me-1"></span>
+                Updating...
+            `;
+
+            try {
+                const response = await fetch(getTaskStatusUrl(task), {
+                    method: "POST",
+                    credentials: "same-origin",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "X-CSRFToken": getCookie("csrftoken"),
+                        "X-Requested-With": "XMLHttpRequest"
+                    },
+                    body: JSON.stringify({
+                        status: newStatus
+                    })
+                });
+
+                const result = await response.json();
+
+                if (!response.ok || !result.success) {
+                    throw new Error(result.error || "Unable to update task status.");
+                }
+
+                task.status = newStatus;
+
+                refreshTaskStatistics();
+                applyFilters();
+                openTaskDetails(task);
+
+            } catch (error) {
+                message.innerHTML = `
+                    <div class="alert alert-danger py-2 px-3 small mb-3">
+                        <i class="bi bi-exclamation-triangle me-1"></i>
+                        ${escapeHTML(error.message)}
+                    </div>
+                `;
+
+                button.disabled = false;
+                button.innerHTML = `
+                    <i class="bi bi-check2-circle me-1"></i>Update Status
+                `;
+            }
+        }
+
+        async function addTaskComment(task) {
+            const commentInput = document.getElementById("myTaskCommentInput");
+            const button = document.getElementById("addMyTaskCommentBtn");
+            const message = document.getElementById("myTaskActionMessage");
+
+            const comment = commentInput.value.trim();
+
+            if (!comment) {
+                message.innerHTML = `
+                    <div class="alert alert-warning py-2 px-3 small mb-3">
+                        <i class="bi bi-exclamation-circle me-1"></i>
+                        Please enter a comment.
+                    </div>
+                `;
+                return;
+            }
+
+            button.disabled = true;
+            button.innerHTML = `
+                <span class="spinner-border spinner-border-sm me-1"></span>
+                Adding...
+            `;
+
+            try {
+                const response = await fetch(getTaskCommentUrl(task), {
+                    method: "POST",
+                    credentials: "same-origin",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "X-CSRFToken": getCookie("csrftoken"),
+                        "X-Requested-With": "XMLHttpRequest"
+                    },
+                    body: JSON.stringify({
+                        comment: comment
+                    })
+                });
+
+                const result = await response.json();
+
+                if (!response.ok || !result.success) {
+                    throw new Error(result.error || "Unable to add comment.");
+                }
+
+                // Reload tasks to get the latest comments from the API.
+                await loadMyTasks();
+
+                const updatedTask = allTasks.find(item =>
+                    String(item.task_id) === String(task.task_id) &&
+                    String(item.my_tender_id) === String(task.my_tender_id)
+                );
+
+                if (updatedTask) {
+                    openTaskDetails(updatedTask);
+                }
+
+            } catch (error) {
+                message.innerHTML = `
+                    <div class="alert alert-danger py-2 px-3 small mb-3">
+                        <i class="bi bi-exclamation-triangle me-1"></i>
+                        ${escapeHTML(error.message)}
+                    </div>
+                `;
+
+                button.disabled = false;
+                button.innerHTML = `
+                    <i class="bi bi-send me-1"></i>Add Comment
+                `;
+            }
+        }
+
+        async function markTaskComplete(task) {
+            if (!confirm(
+                "Are you sure you want to mark this task as completed? " +
+                "This will update the status for all assigned employees."
+            )) {
+                return;
+            }
+
+            const button = document.getElementById("completeMyTaskBtn");
+            const message = document.getElementById("myTaskActionMessage");
+
+            button.disabled = true;
+            button.innerHTML = `
+                <span class="spinner-border spinner-border-sm me-2"></span>
+                Updating...
+            `;
+
+            try {
+                const response = await fetch(getTaskStatusUrl(task), {
+                    method: "POST",
+                    credentials: "same-origin",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "X-CSRFToken": getCookie("csrftoken"),
+                        "X-Requested-With": "XMLHttpRequest"
+                    },
+                    body: JSON.stringify({
+                        status: "COMPLETED"
+                    })
+                });
+
+                const result = await response.json();
+
+                if (!response.ok || !result.success) {
+                    throw new Error(result.error || "Unable to complete task.");
+                }
+
+                task.status = "COMPLETED";
+                task.completed_at = new Date().toISOString();
+
+                refreshTaskStatistics();
+                applyFilters();
+                openTaskDetails(task);
+
+            } catch (error) {
+                message.innerHTML = `
+                    <div class="alert alert-danger py-2 px-3 small mb-3">
+                        <i class="bi bi-exclamation-triangle me-1"></i>
+                        ${escapeHTML(error.message)}
+                    </div>
+                `;
+
+                button.disabled = false;
+                button.innerHTML = `
+                    <i class="bi bi-check-circle me-2"></i>
+                    Mark Task as Complete
+                `;
+            }
+        }
+
+        async function uploadTaskFile(task) {
+            const fileInput = document.getElementById("myTaskFileInput");
+            const uploadButton = document.getElementById("uploadMyTaskFileBtn");
+            const message = document.getElementById("myTaskActionMessage");
+
+            const file = fileInput.files[0];
+
+            if (!file) {
+                message.innerHTML = `
+                    <div class="alert alert-warning py-2 px-3 small mb-3">
+                        <i class="bi bi-exclamation-circle me-1"></i>
+                        Please select a file first.
+                    </div>
+                `;
+                return;
+            }
+
+            if (file.size > 20 * 1024 * 1024) {
+                message.innerHTML = `
+                    <div class="alert alert-danger py-2 px-3 small mb-3">
+                        <i class="bi bi-exclamation-triangle me-1"></i>
+                        File size cannot exceed 20 MB.
+                    </div>
+                `;
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append("file", file);
+
+            uploadButton.disabled = true;
+            uploadButton.innerHTML = `
+                <span class="spinner-border spinner-border-sm me-1"></span>
+                Uploading...
+            `;
+
+            try {
+                const response = await fetch(getTaskAttachmentUrl(task), {
+                    method: "POST",
+                    credentials: "same-origin",
+                    headers: {
+                        "X-CSRFToken": getCookie("csrftoken"),
+                        "X-Requested-With": "XMLHttpRequest"
+                    },
+                    body: formData
+                });
+
+                const result = await response.json();
+
+                if (!response.ok || !result.success) {
+                    throw new Error(result.error || "File upload failed.");
+                }
+
+                task.attachments = task.attachments || [];
+                task.attachments.push(result.data);
+
+                openTaskDetails(task);
+
+            } catch (error) {
+                message.innerHTML = `
+                    <div class="alert alert-danger py-2 px-3 small mb-3">
+                        <i class="bi bi-exclamation-triangle me-1"></i>
+                        ${escapeHTML(error.message)}
+                    </div>
+                `;
+
+                uploadButton.disabled = false;
+                uploadButton.innerHTML = `
+                    <i class="bi bi-upload me-1"></i>Upload
+                `;
+            }
+        }
+
+        function refreshTaskStatistics() {
+            const stats = {
+                total: allTasks.length,
+                pending: 0,
+                in_progress: 0,
+                completed: 0,
+                overdue: 0
+            };
+
+            allTasks.forEach(task => {
+                if (task.status === "PENDING") stats.pending++;
+                if (task.status === "IN_PROGRESS") stats.in_progress++;
+                if (task.status === "COMPLETED") stats.completed++;
+                if (isOverdue(task)) stats.overdue++;
+            });
+
+            updateStatistics(stats);
+        }
+
+        function formatDateTime(dateTimeValue) {
+            if (!dateTimeValue) return "";
+
+            const date = new Date(dateTimeValue);
+            if (isNaN(date.getTime())) return "";
+
+            return date.toLocaleString("en-IN", {
+                day: "2-digit",
+                month: "short",
+                year: "numeric",
+                hour: "2-digit",
+                minute: "2-digit"
+            });
+        }
+
+        // Handle task row click.
+        tableBody.addEventListener("click", function (event) {
+
+            const row = event.target.closest("tr[data-task-index]");
+
+            if (!row) return;
+
+            const taskIndex = Number(row.dataset.taskIndex);
+            const task = allTasks[taskIndex];
+
+            if (task) {
+                openTaskDetails(task);
+            }
+        });
+
+
+        // Filter event listeners.
+        elements.search.addEventListener("input", applyFilters);
+        elements.status.addEventListener("change", applyFilters);
+        elements.priority.addEventListener("change", applyFilters);
+        elements.department.addEventListener("change", applyFilters);
+        elements.sort.addEventListener("change", applyFilters);
+
+
+        // Reset all filters.
+        elements.reset.addEventListener("click", function () {
+
+            elements.search.value = "";
+            elements.status.value = "";
+            elements.priority.value = "";
+            elements.department.value = "";
+            elements.sort.value = "due_date";
+
+            applyFilters();
+        });
+
+
+        // Initial API call.
+        loadMyTasks();
+
+    });
+</script>
+
+{% endblock %}

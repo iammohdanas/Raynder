@@ -2597,3 +2597,171 @@ def get_my_execution_tasks(request):
             "success": False,
             "error": "Unable to retrieve your assigned tasks."
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+"""Shared task-list API for My Tasks, Assigned by Me, Team Tasks and All Tasks.
+
+This endpoint reads the existing TenderExecution.workflow_data and ExecutionActivity
+records. It does not introduce models or change task mutation endpoints.
+"""
+
+from django.utils import timezone
+from rest_framework.decorators import api_view
+from rest_framework.response import Response
+from rest_framework import status
+
+from api_gateway.models import TenderExecution, ExecutionActivity
+from authenticator.permissions import (
+    is_system_admin,
+    is_approved_employee,
+    get_reporting_tree_profiles,
+)
+
+
+def _task_statistics(tasks):
+    today = timezone.localdate().isoformat()
+    counts = {
+        "total": len(tasks),
+        "pending": 0,
+        "in_progress": 0,
+        "completed": 0,
+        "overdue": 0,
+    }
+    for item in tasks:
+        current_status = item.get("status", "PENDING")
+        if current_status == "PENDING":
+            counts["pending"] += 1
+        elif current_status == "IN_PROGRESS":
+            counts["in_progress"] += 1
+        elif current_status == "COMPLETED":
+            counts["completed"] += 1
+        due_date = item.get("due_date")
+        if due_date and due_date < today and current_status not in ("COMPLETED", "NOT_APPLICABLE"):
+            counts["overdue"] += 1
+    return counts
+
+
+@api_view(["GET"])
+def get_execution_tasks(request):
+    """Return task rows for the requested scope using existing hierarchy rules.
+
+    scope=my       -> tasks assigned to the logged-in employee
+    scope=assigned -> tasks whose latest assignment was performed by the user
+    scope=team     -> tasks assigned to users in the user's reporting tree
+    scope=all      -> all tasks; system administrators only
+    """
+    if not request.user.is_authenticated:
+        return Response({"success": False, "error": "Authentication required."}, status=status.HTTP_401_UNAUTHORIZED)
+
+    if not (is_system_admin(request.user) or is_approved_employee(request.user)):
+        return Response({"success": False, "error": "Approved employee access required."}, status=status.HTTP_403_FORBIDDEN)
+
+    scope = (request.query_params.get("scope") or "my").strip().lower()
+    if scope not in {"my", "assigned", "team", "all"}:
+        return Response({"success": False, "error": "Invalid task scope."}, status=status.HTTP_400_BAD_REQUEST)
+
+    admin = is_system_admin(request.user)
+    profile = getattr(request.user, "profile", None)
+    level = getattr(profile, "level", None)
+
+    if scope == "all" and not admin:
+        return Response({"success": False, "error": "Only system administrators can view all tasks."}, status=status.HTTP_403_FORBIDDEN)
+
+    if scope in {"assigned", "team"} and not (admin or level in (2, 3, 4)):
+        return Response({"success": False, "error": "You do not have permission to view this task list."}, status=status.HTTP_403_FORBIDDEN)
+
+    user_id = str(request.user.pk)
+    team_user_ids = set()
+    if scope == "team" and not admin:
+        profiles = get_reporting_tree_profiles(request.user, include_self=True)
+        team_user_ids = {str(item.user_id) for item in profiles}
+        team_user_ids.discard(user_id)
+
+    try:
+        executions = TenderExecution.objects.select_related("my_tender__tender").all()
+        output = []
+
+        for execution in executions:
+            my_tender = execution.my_tender
+            tender = my_tender.tender
+
+            # The most recent assignment event is authoritative for Assigned By Me.
+            activities = (
+                ExecutionActivity.objects
+                .filter(execution=execution, activity_type="TASK_ASSIGNED")
+                .select_related("performed_by")
+                .order_by("-created_at")
+            )
+            latest_assignment = {}
+            for activity in activities:
+                key = str(activity.task_id)
+                if key not in latest_assignment:
+                    latest_assignment[key] = activity
+
+            for phase in (execution.workflow_data or {}).get("phases", []):
+                for task in phase.get("tasks", []):
+                    task_id = str(task.get("id"))
+                    assignees = {str(value) for value in task.get("assignees", [])}
+                    assignment = latest_assignment.get(task_id)
+                    assigned_by_id = str(assignment.performed_by_id) if assignment and assignment.performed_by_id else None
+
+                    if scope == "my" and user_id not in assignees:
+                        continue
+                    if scope == "assigned" and assigned_by_id != user_id:
+                        continue
+                    if scope == "team" and not (assignees & team_user_ids):
+                        continue
+                    # scope=all is already protected above.
+
+                    assigned_by = "Unknown"
+                    assigned_at = None
+                    if assignment:
+                        actor = assignment.performed_by
+                        if actor:
+                            assigned_by = actor.get_full_name() or actor.username
+                        assigned_at = assignment.created_at.isoformat() if assignment.created_at else None
+
+                    output.append({
+                        "execution_id": execution.id,
+                        "my_tender_id": my_tender.id,
+                        "task_id": task.get("id"),
+                        "task_code": task.get("code"),
+                        "task_title": task.get("title"),
+                        "task_description": task.get("description", ""),
+                        "phase_code": phase.get("code"),
+                        "phase_name": phase.get("name"),
+                        "tender": {
+                            "id": tender.id,
+                            "tender_id": tender.tender_id,
+                            "title": tender.title,
+                            "reference_number": tender.tender_ref_no,
+                        },
+                        "priority": task.get("priority", "MEDIUM"),
+                        "department": task.get("department", ""),
+                        "due_date": task.get("due_date"),
+                        "status": task.get("status", "PENDING"),
+                        "remarks": task.get("remarks", ""),
+                        "comments": task.get("comments", []),
+                        "attachments": [
+                            {key: value for key, value in attachment.items() if key != "file_path"}
+                            for attachment in task.get("attachments", [])
+                        ],
+                        "assigned_by": assigned_by,
+                        "assigned_at": assigned_at,
+                    })
+
+        # Stable sorting: earliest due date first; tasks without dates last.
+        output.sort(key=lambda item: (item.get("due_date") is None, item.get("due_date") or ""))
+        return Response({
+            "success": True,
+            "data": {
+                "tasks": output,
+                "statistics": _task_statistics(output),
+                "count": len(output),
+            },
+        }, status=status.HTTP_200_OK)
+
+    except Exception:
+        import logging
+        logging.getLogger(__name__).exception("Failed to retrieve execution tasks (scope=%s).", scope)
+        return Response({"success": False, "error": "Unable to retrieve tasks."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
