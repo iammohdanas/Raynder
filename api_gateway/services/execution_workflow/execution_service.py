@@ -928,11 +928,15 @@ def add_task_comment(
 
     if not task_found:
         raise ValidationError("Task not found.")
-
+    
+    profile = getattr(performed_by, "profile", None) if performed_by else None
+    employee_name = (performed_by.get_full_name().strip() or performed_by.username if performed_by else "Unknown" )
     comment_data = {
         "id": str(uuid.uuid4()),
         "text": comment.strip(),
         "user_id": str(performed_by.pk) if performed_by else None,
+        "employee_id": profile.employee_id if profile else None,
+        "employee_name": employee_name,
         "created_at": timezone.now().isoformat(),
     }
 
@@ -1024,6 +1028,7 @@ def update_task_remarks(
 
 
 
+
 @transaction.atomic
 def add_task_attachment(
     execution_id,
@@ -1032,14 +1037,13 @@ def add_task_attachment(
     uploaded_by=None,
 ):
     """
-    Upload a task attachment and store its metadata in workflow_data.
+    Upload a task attachment into its phase/task-specific folder.
     """
 
     if not uploaded_file:
         raise ValidationError("Please select a file.")
 
-    # Basic file validation.
-    MAX_FILE_SIZE = 20 * 1024 * 1024  # 20 MB
+    MAX_FILE_SIZE = 20 * 1024 * 1024
 
     if uploaded_file.size > MAX_FILE_SIZE:
         raise ValidationError("Maximum file size allowed is 20 MB.")
@@ -1060,15 +1064,19 @@ def add_task_attachment(
     execution = (
         TenderExecution.objects
         .select_for_update()
+        .select_related("my_tender")
         .get(pk=execution_id)
     )
 
     task_found = None
+    phase_found = None
 
+    # Identify both the phase and task.
     for phase in execution.workflow_data.get("phases", []):
         for task in phase.get("tasks", []):
             if str(task.get("id")) == str(task_id):
                 task_found = task
+                phase_found = phase
                 break
 
         if task_found:
@@ -1082,13 +1090,22 @@ def add_task_attachment(
             "Cannot attach files to a task marked not applicable."
         )
 
+    phase_code = phase_found.get("code")
+    task_code = task_found.get("code")
+
+    if not phase_code or not task_code:
+        raise ValidationError(
+            "Phase code or task code is missing."
+        )
+
     attachment_id = str(uuid.uuid4())
 
+    # Tender -> Execution -> Phase -> Task -> File
     storage_path = (
-            f"tenders/{execution.my_tender.tender_id}/"
-            f"execution/uploads/{task_id}/"
-            f"{attachment_id}{extension}"
-        )
+        f"tenders/{execution.my_tender.tender_id}/"
+        f"executions/{phase_code}/{task_code}/"
+        f"{attachment_id}{extension}"
+    )
 
     saved_path = default_storage.save(
         storage_path,
@@ -1101,6 +1118,8 @@ def add_task_attachment(
         "file_path": saved_path,
         "file_size": uploaded_file.size,
         "extension": extension,
+        "phase_code": phase_code,
+        "task_code": task_code,
         "uploaded_by": (
             str(uploaded_by.pk) if uploaded_by else None
         ),
@@ -1111,7 +1130,6 @@ def add_task_attachment(
         attachment_data
     )
 
-    execution.workflow_data = execution.workflow_data
     execution.save(
         update_fields=["workflow_data", "updated_at"]
     )
@@ -1128,6 +1146,8 @@ def add_task_attachment(
             "attachment_id": attachment_id,
             "filename": original_name,
             "file_size": uploaded_file.size,
+            "phase_code": phase_code,
+            "task_code": task_code,
         },
         performed_by=uploaded_by,
     )

@@ -105,3 +105,26 @@ def tender_execution_page(request, my_tender_id):
             "tender_id": my_tender.tender.id,
         }
     )
+
+@login_required
+@role_required(['admin', 'manager', 'customer', 'staff'])
+def my_tasks_page(request):
+    return render(request, "task_management/my_tasks.html")
+
+
+@login_required
+@role_required(['admin', 'manager'])
+def assigned_by_me_page(request):
+    return render(request, "task_management/assigned_by_me.html")
+
+
+@login_required
+@role_required(['admin', 'manager'])
+def team_tasks_page(request):
+    return render(request, "task_management/team_tasks.html")
+
+
+@login_required
+@role_required(['admin'])
+def all_tasks_page(request):
+    return render(request, "task_management/all_tasks.html")

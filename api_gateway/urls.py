@@ -33,4 +33,5 @@ urlpatterns = [
     path( "my-tenders/<int:my_tender_id>/execution/dashboard/", views.get_execution_dashboard,name="get_execution_dashboard",),
     path("execution/available-users/",views.get_execution_available_users,name="get_execution_available_users"),
     path("my-tenders/<int:my_tender_id>/execution/tasks/<uuid:task_id>/update/", views.update_execution_custom_task, name="update_execution_custom_task"),
+    path("execution/my-tasks/", views.get_my_execution_tasks, name="get_my_execution_tasks"),
 ]

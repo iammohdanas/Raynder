@@ -15,4 +15,10 @@ urlpatterns = [
     path("tenders/<int:tender_id>/summary/download/", download_tender_summary_excel, name="download_tender_summary_excel",),
     path("my-tenders/", views.my_tenders_page, name="my_tenders_page"),
     path("my-tenders/<int:my_tender_id>/execution/", views.tender_execution_page, name="tender_execution_page",),
+    #task management system
+    path("my-tasks/", views.my_tasks_page, name="my_tasks_page"),
+    path("tasks/assigned-by-me/", views.assigned_by_me_page, name="assigned_by_me_page"),
+    path("tasks/team/", views.team_tasks_page, name="team_tasks_page"),
+    path("tasks/all/", views.all_tasks_page, name="all_tasks_page"),
+
 ]

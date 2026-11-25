@@ -1,4 +1,7 @@
 import json
+import mimetypes
+from django.core.files.storage import default_storage
+from django.http import Http404, FileResponse
 from django.db.models.aggregates import Sum
 from dotenv import load_dotenv
 from rest_framework import status
@@ -53,7 +56,7 @@ from django.http import Http404
 from api_gateway.models import TenderExecution
 from api_gateway.services.execution_workflow.execution_service import ( set_task_applicability, add_custom_task, set_task_assignees, update_task_status, add_task_comment, update_task_remarks, calculate_execution_progress,)
 from django.contrib.auth import get_user_model
-from authenticator.permissions import (is_system_admin,is_approved_employee, get_approved_employee_profiles, can_assign_to_employee,)
+from authenticator.permissions import (get_employee_profile, is_system_admin,is_approved_employee, get_approved_employee_profiles, can_assign_to_employee,)
 from authenticator.permissions import ( get_reporting_tree_profiles, is_system_admin, is_approved_employee, can_assign_to_employee,)
 
 
@@ -1334,7 +1337,17 @@ def get_tender_execution_workspace(request, my_tender_id):
                     if tender.closing_date else None
                 ),
             },
-
+            "profile_permissions": {
+                "can_manage_attachments": (
+                    request.user.is_superuser
+                    or is_system_admin(request.user)
+                    or (
+                        (profile := get_employee_profile(request.user))
+                        and profile.approval_status == "APPROVED"
+                        and profile.level in (3, 4, 5)
+                    )
+                )
+            },
             "my_tender": {
                 "id": my_tender.id,
                 "status": my_tender.status,
@@ -1638,7 +1651,7 @@ def update_execution_task_status(request, my_tender_id, task_id):
 
     try:
         execution = get_execution_for_api(my_tender_id)
-        task, access_error = require_task_access(request, execution, task_id)
+        task, access_error = require_task_access(request, execution, task_id, allow_assigner=True)
         if access_error:
             return access_error
 
@@ -1683,7 +1696,7 @@ def add_execution_task_comment(request, my_tender_id, task_id):
         if access_error:
             return access_error
 
-        add_task_comment(
+        execution, comment_data = add_task_comment(
             execution_id=execution.id,
             task_id=str(task_id),
             comment=comment,
@@ -1692,7 +1705,8 @@ def add_execution_task_comment(request, my_tender_id, task_id):
 
         return Response({
             "success": True,
-            "message": "Comment added successfully."
+            "message": "Comment added successfully.",
+            "data": comment_data
         }, status=status.HTTP_201_CREATED)
 
     except ValidationError as exc:
@@ -1873,11 +1887,15 @@ def upload_execution_task_attachment(request, my_tender_id, task_id):
 
     try:
         execution = get_execution_for_api(my_tender_id)
-        task, access_error = require_task_access(request, execution, task_id)
+
+        task, access_error = require_task_access(
+            request, execution, task_id
+        )
         if access_error:
             return access_error
 
-        attachment = add_task_attachment(
+        # Service returns (execution, attachment_data)
+        execution, attachment = add_task_attachment(
             execution_id=execution.id,
             task_id=str(task_id),
             uploaded_file=uploaded_file,
@@ -1885,8 +1903,7 @@ def upload_execution_task_attachment(request, my_tender_id, task_id):
         )
 
         # Never expose the internal storage path.
-        if isinstance(attachment, dict):
-            attachment.pop("file_path", None)
+        attachment.pop("file_path", None)
 
         return Response({
             "success": True,
@@ -1896,11 +1913,15 @@ def upload_execution_task_attachment(request, my_tender_id, task_id):
 
     except (ValidationError, Http404) as exc:
         return execution_api_error(exc)
+
     except Exception as exc:
         return execution_api_error(exc)
 
+    
 @api_view(["DELETE"])
-def delete_execution_task_attachment(request, my_tender_id, task_id, attachment_id):
+def delete_execution_task_attachment(
+    request, my_tender_id, task_id, attachment_id
+):
     if not request.user.is_authenticated:
         return Response({
             "success": False,
@@ -1909,8 +1930,24 @@ def delete_execution_task_attachment(request, my_tender_id, task_id, attachment_
 
     try:
         execution = get_execution_for_api(my_tender_id)
-        task, access_error = require_task_access(request, execution, task_id)
-        if access_error:
+
+        task, access_error = require_task_access(
+            request, execution, task_id
+        )
+
+        profile = get_employee_profile(request.user)
+
+        can_manage_all_attachments = (
+            request.user.is_superuser
+            or is_system_admin(request.user)
+            or (
+                profile
+                and profile.approval_status == "APPROVED"
+                and profile.level in (3, 4, 5)
+            )
+        )
+
+        if access_error and not can_manage_all_attachments:
             return access_error
 
         delete_task_attachment(
@@ -1927,42 +1964,37 @@ def delete_execution_task_attachment(request, my_tender_id, task_id, attachment_
 
     except (ValidationError, Http404) as exc:
         return execution_api_error(exc)
+
     except Exception as exc:
+        logger.exception("Attachment deletion failed.")
         return execution_api_error(exc)
 
 @api_view(["GET"])
-def download_execution_task_attachment(
-    request,
-    my_tender_id,
-    task_id,
-    attachment_id
-):
+def download_execution_task_attachment( request, my_tender_id, task_id, attachment_id):
+    if not request.user.is_authenticated:
+        return Response({
+            "success": False,
+            "error": "Authentication required."
+        }, status=status.HTTP_401_UNAUTHORIZED)
+
     try:
         execution = get_execution_for_api(my_tender_id)
 
-        # Find the requested task.
-        task_data = None
+        # Verify employee access to this task.
+        task, access_error = require_task_access(
+            request,
+            execution,
+            task_id
+        )
 
-        for phase in execution.workflow_data.get("phases", []):
-            for task in phase.get("tasks", []):
-                if task.get("id") == str(task_id):
-                    task_data = task
-                    break
-
-            if task_data:
-                break
-
-        if not task_data:
-            return Response({
-                "success": False,
-                "error": "Task not found."
-            }, status=status.HTTP_404_NOT_FOUND)
+        if access_error:
+            return access_error
 
         # Find the requested attachment.
         attachment = next(
             (
                 item
-                for item in task_data.get("attachments", [])
+                for item in task.get("attachments", [])
                 if item.get("id") == str(attachment_id)
             ),
             None
@@ -1976,44 +2008,33 @@ def download_execution_task_attachment(
 
         file_path = attachment.get("file_path")
 
-        if not file_path:
+        if not file_path or not default_storage.exists(file_path):
             return Response({
                 "success": False,
-                "error": "Attachment file reference is missing."
-            }, status=status.HTTP_404_NOT_FOUND)
-
-        # Check whether the file exists in configured storage.
-        if not default_storage.exists(file_path):
-            return Response({
-                "success": False,
-                "error": "Attachment file does not exist in storage."
+                "error": "Attachment file not found."
             }, status=status.HTTP_404_NOT_FOUND)
 
         file_obj = default_storage.open(file_path, "rb")
 
-        filename = (
-            attachment.get("original_name")
-            or attachment.get("file_name")
-            or attachment.get("name")
-            or "attachment"
-        )
+        inline = request.query_params.get("inline") == "1"
 
-        content_type = attachment.get(
-            "content_type",
-            "application/octet-stream"
-        )
-
-        return FileResponse(
+        filename = attachment.get("original_filename") or "attachment"
+        content_type, _ = mimetypes.guess_type(filename)
+        content_type = content_type or "application/octet-stream"
+        response = FileResponse(
             file_obj,
-            as_attachment=True,
+            as_attachment=not inline,
             filename=filename,
             content_type=content_type
         )
 
-    except Http404 as exc:
-        return execution_api_error(exc)
+        if inline:
+            response["Content-Disposition"] = f'inline; filename="{filename}"'
 
-    except Exception as exc:
+        return response
+    except (ValidationError, Http404) as exc:
+        return execution_api_error(exc)
+    except Exception:
         logger.exception(
             "Failed to download attachment %s for task %s",
             attachment_id,
@@ -2284,13 +2305,13 @@ def get_execution_task(execution, task_id):
 
 
 
-def can_access_execution_task(user, task):
-    """
-    Access is granted to:
-    - An assigned employee.
-    - Any manager in that employee's reporting chain.
-    - System administrators.
-    """
+def can_access_execution_task(
+    user,
+    task,
+    execution=None,
+    task_id=None,
+    allow_assigner=False
+):
     if is_system_admin(user):
         return True
 
@@ -2302,14 +2323,28 @@ def can_access_execution_task(user, task):
         for user_id in task.get("assignees", [])
     }
 
-    if not assignee_ids:
-        return False
-
-    # The assigned employee can access their own task.
+    # Assigned employee
     if str(user.pk) in assignee_ids:
         return True
 
-    # Managers can access tasks assigned to employees below them.
+    # Most recent person who assigned/reassigned this task
+    if allow_assigner and execution and task_id:
+        latest_assignment = ExecutionActivity.objects.filter(
+            execution=execution,
+            task_id=str(task_id),
+            activity_type="TASK_ASSIGNED"
+        ).order_by("-created_at").first()
+
+        if (
+            latest_assignment
+            and latest_assignment.performed_by_id == user.pk
+        ):
+            return True
+
+    if not assignee_ids:
+        return False
+
+    # Existing organizational hierarchy access
     visible_profiles = get_reporting_tree_profiles(
         user,
         include_self=True
@@ -2322,29 +2357,176 @@ def can_access_execution_task(user, task):
 
     return bool(assignee_ids.intersection(visible_user_ids))
 
-
-def require_task_access(request, execution, task_id):
+def require_task_access(request,execution,task_id,allow_assigner=False):
     """Return an API error if the user cannot access this task."""
     access_error = require_approved_employee(request)
-
     if access_error:
         return None, access_error
-
     task = get_execution_task(execution, task_id)
-
     if not task:
         return None, Response(
             {"success": False, "error": "Task not found."},
             status=status.HTTP_404_NOT_FOUND
         )
 
-    if not can_access_execution_task(request.user, task):
-        return None, Response(
-            {
-                "success": False,
-                "error": "You do not have permission to access this task."
-            },
-            status=status.HTTP_403_FORBIDDEN
-        )
+    if not can_access_execution_task(request.user,task,execution=execution,task_id=task_id,allow_assigner=allow_assigner):
+        return None, Response({
+            "success": False,
+            "error": "You do not have permission to access this task."
+        }, status=status.HTTP_403_FORBIDDEN)
 
     return task, None
+
+
+
+@api_view(["GET"])
+def get_my_execution_tasks(request):
+    """
+    Return all execution tasks assigned to the logged-in employee.
+    """
+    access_error = require_approved_employee(request)
+    if access_error:
+        return access_error
+
+    try:
+        user_id = str(request.user.pk)
+        executions = (
+            TenderExecution.objects
+            .select_related("my_tender__tender")
+            .all()
+        )
+
+        tasks_data = []
+
+        for execution in executions:
+            my_tender = execution.my_tender
+            tender = my_tender.tender
+
+            # Find assignment activities for this execution.
+            activities = (
+                ExecutionActivity.objects
+                .filter(
+                    execution=execution,
+                    activity_type="TASK_ASSIGNED"
+                )
+                .select_related("performed_by")
+                .order_by("-created_at")
+            )
+
+            assigned_by_map = {}
+
+            for activity in activities:
+                task_id = str(activity.task_id)
+                metadata = activity.metadata or {}
+
+                assigned_ids = [
+                    str(uid)
+                    for uid in metadata.get("new_assignees", [])
+                ]
+
+                if (
+                    user_id in assigned_ids
+                    and task_id not in assigned_by_map
+                ):
+                    assigned_by_map[task_id] = (
+                        activity.performed_by.get_full_name()
+                        or activity.performed_by.username
+                        if activity.performed_by
+                        else "Unknown"
+                    )
+
+            # Find tasks assigned to the logged-in employee.
+            for phase in execution.workflow_data.get("phases", []):
+                for task in phase.get("tasks", []):
+
+                    assignees = [
+                        str(uid)
+                        for uid in task.get("assignees", [])
+                    ]
+
+                    if user_id not in assignees:
+                        continue
+
+                    tasks_data.append({
+                        "execution_id": execution.id,
+                        "my_tender_id": my_tender.id,
+                        "task_id": task.get("id"),
+                        "task_code": task.get("code"),
+                        "task_title": task.get("title"),
+                        "task_description": task.get("description", ""),
+                        "phase_code": phase.get("code"),
+                        "phase_name": phase.get("name"),
+
+                        "tender": {
+                            "id": tender.id,
+                            "tender_id": tender.tender_id,
+                            "title": tender.title,
+                            "reference_number": tender.tender_ref_no,
+                        },
+
+                        "priority": task.get("priority", "MEDIUM"),
+                        "department": task.get("department", ""),
+                        "due_date": task.get("due_date"),
+                        "status": task.get("status", "PENDING"),
+                        "remarks": task.get("remarks", ""),
+                        "comments": task.get("comments", []),
+                        "attachments": [
+                                            {
+                                                key: value
+                                                for key, value in attachment.items()
+                                                if key != "file_path"
+                                            }
+                                            for attachment in task.get("attachments", [])
+                                    ],
+                        "assigned_by": assigned_by_map.get(
+                            str(task.get("id")),
+                            "Unknown"
+                        ),
+                        
+                    })
+
+        # Calculate summary statistics.
+        today = timezone.localdate().isoformat()
+
+        task_counts = {
+            "total": len(tasks_data),
+            "pending": 0,
+            "in_progress": 0,
+            "completed": 0,
+            "overdue": 0,
+        }
+
+        for task in tasks_data:
+            task_status = task["status"]
+
+            if task_status == "PENDING":
+                task_counts["pending"] += 1
+            elif task_status == "IN_PROGRESS":
+                task_counts["in_progress"] += 1
+            elif task_status == "COMPLETED":
+                task_counts["completed"] += 1
+
+            due_date = task.get("due_date")
+
+            if (
+                due_date
+                and due_date < today
+                and task_status not in ("COMPLETED", "NOT_APPLICABLE")
+            ):
+                task_counts["overdue"] += 1
+
+        return Response({
+            "success": True,
+            "data": {
+                "tasks": tasks_data,
+                "statistics": task_counts,
+                "count": len(tasks_data),
+            }
+        }, status=status.HTTP_200_OK)
+
+    except Exception:
+        logger.exception("Failed to retrieve My Tasks.")
+        return Response({
+            "success": False,
+            "error": "Unable to retrieve your assigned tasks."
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
