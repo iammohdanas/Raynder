@@ -165,6 +165,23 @@
                             </li>
                             {% endif %}
 
+                            {% if user.is_authenticated and user.is_superuser %}
+                            <li class="nav-item dropdown">
+                                <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">
+                                    Admin
+                                </a>
+
+                                <ul class="dropdown-menu">
+                                    <li>
+                                        <a class="dropdown-item" href="{% url 'pending_employee_approvals' %}">
+                                            <i class="bi bi-person-check me-2"></i>
+                                            Employee Approvals
+                                        </a>
+                                    </li>
+                                </ul>
+                            </li>
+                            {% endif %}
+
                             <!-- Account Dropdown -->
                             <li class="nav-item dropdown">
                                 <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">
