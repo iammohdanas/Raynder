@@ -654,18 +654,21 @@ def update_custom_task(
     return execution, task
 
 
+
 @transaction.atomic
 def set_task_assignees(
     execution_id,
     task_id,
-    assignee_ids,
+    assignee_ids=None,
+    due_date=None,
+    update_due_date=False,
     performed_by=None,
 ):
     """
-    Replace the assignees assigned to an execution task.
+    Update execution task assignees and/or due date.
 
-    Multiple users can be assigned to the same task.
-    User IDs are stored as strings in workflow_data JSON.
+    Both operations work independently.
+    Existing assignments remain unchanged when assignee_ids is None.
     """
 
     execution = (
@@ -674,44 +677,50 @@ def set_task_assignees(
         .get(pk=execution_id)
     )
 
-    if not isinstance(assignee_ids, (list, tuple)):
-        raise ValidationError(
-            "Assignee IDs must be provided as a list."
+    normalized_ids = None
+
+    # Validate assignees only when they are provided.
+    if assignee_ids is not None:
+
+        if not isinstance(assignee_ids, (list, tuple)):
+            raise ValidationError(
+                "Assignee IDs must be provided as a list."
+            )
+
+        normalized_ids = list(dict.fromkeys(
+            str(user_id).strip()
+            for user_id in assignee_ids
+            if user_id is not None and str(user_id).strip()
+        ))
+
+        User = get_user_model()
+
+        users = User.objects.filter(
+            pk__in=normalized_ids
         )
 
-    # Normalize and remove duplicate IDs while preserving order.
-    normalized_ids = list(dict.fromkeys(
-        str(user_id).strip()
-        for user_id in assignee_ids
-        if user_id is not None and str(user_id).strip()
-    ))
+        existing_ids = {
+            str(user.pk)
+            for user in users
+        }
 
-    User = get_user_model()
+        invalid_ids = [
+            user_id
+            for user_id in normalized_ids
+            if user_id not in existing_ids
+        ]
 
-    # Validate that all requested users exist.
-    users = User.objects.filter(
-        pk__in=normalized_ids
-    )
+        if invalid_ids:
+            raise ValidationError(
+                f"Invalid user IDs: {', '.join(invalid_ids)}"
+            )
 
-    existing_ids = {str(user.pk) for user in users}
-
-    invalid_ids = [
-        user_id
-        for user_id in normalized_ids
-        if user_id not in existing_ids
-    ]
-
-    if invalid_ids:
-        raise ValidationError(
-            f"Invalid user IDs: {', '.join(invalid_ids)}"
-        )
-
-    # Find the task.
+    # Find task.
     task_found = None
 
     for phase in execution.workflow_data.get("phases", []):
         for task in phase.get("tasks", []):
-            if task.get("id") == str(task_id):
+            if str(task.get("id")) == str(task_id):
                 task_found = task
                 break
 
@@ -725,45 +734,83 @@ def set_task_assignees(
 
     if task_found.get("status") == "NOT_APPLICABLE":
         raise ValidationError(
-            "Cannot assign users to a task marked not applicable."
+            "Cannot update a task marked not applicable."
         )
 
     if task_found.get("is_applicable") is False:
         raise ValidationError(
-            "Cannot assign users to a task that is not applicable."
+            "Cannot update a task that is not applicable."
         )
 
     old_assignees = task_found.get("assignees", [])
+    old_due_date = task_found.get("due_date")
 
-    if old_assignees == normalized_ids:
+    # Check whether assignments actually changed.
+    assignees_changed = (
+        normalized_ids is not None
+        and old_assignees != normalized_ids
+    )
+
+    # Check whether due date actually changed.
+    new_due_date = str(due_date) if due_date else None
+
+    due_date_changed = (
+        update_due_date
+        and old_due_date != new_due_date
+    )
+
+    # Nothing changed: return successfully without duplicate activity.
+    if not assignees_changed and not due_date_changed:
         return execution, False
 
-    # Update task assignments.
-    task_found["assignees"] = normalized_ids
+    # Update only the requested fields.
+    if assignees_changed:
+        task_found["assignees"] = normalized_ids
+
+    if due_date_changed:
+        task_found["due_date"] = new_due_date
 
     execution.save(
         update_fields=["workflow_data", "updated_at"]
     )
 
-    # Record assignment activity.
-    ExecutionActivity.objects.create(
-        execution=execution,
-        task_id=str(task_id),
-        activity_type="TASK_ASSIGNED",
-        description=(
-            f"Assignees updated for task "
-            f"'{task_found.get('title')}'."
-        ),
-        metadata={
-            "task_code": task_found.get("code"),
-            "previous_assignees": old_assignees,
-            "new_assignees": normalized_ids,
-        },
-        performed_by=performed_by,
-    )
+    # Record assignment activity only when assignments changed.
+    if assignees_changed:
+        ExecutionActivity.objects.create(
+            execution=execution,
+            task_id=str(task_id),
+            activity_type="TASK_ASSIGNED",
+            description=(
+                f"Assignees updated for task "
+                f"'{task_found.get('title')}'."
+            ),
+            metadata={
+                "task_code": task_found.get("code"),
+                "previous_assignees": old_assignees,
+                "new_assignees": normalized_ids,
+            },
+            performed_by=performed_by,
+        )
+
+    # Record due-date activity only when due date changed.
+    if due_date_changed:
+        ExecutionActivity.objects.create(
+            execution=execution,
+            task_id=str(task_id),
+            activity_type="TASK_DUE_DATE_UPDATED",
+            description=(
+                f"Due date updated for task "
+                f"'{task_found.get('title')}'."
+            ),
+            metadata={
+                "task_code": task_found.get("code"),
+                "previous_due_date": old_due_date,
+                "new_due_date": new_due_date,
+            },
+            performed_by=performed_by,
+        )
 
     return execution, True
-
 
 
 @transaction.atomic

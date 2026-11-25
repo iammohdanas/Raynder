@@ -1552,6 +1552,7 @@ def update_execution_custom_task(request, my_tender_id, task_id):
         return execution_api_error(exc)
 
 
+
 @api_view(["POST"])
 def assign_execution_task(request, my_tender_id, task_id):
 
@@ -1559,71 +1560,137 @@ def assign_execution_task(request, my_tender_id, task_id):
     if access_error:
         return access_error
 
-    # Only Admin and Levels 2-4 can assign tasks.
-    if not is_system_admin(request.user):
-        if request.user.profile.level not in (2, 3, 4):
-            return Response({
-                "success": False,
-                "error": "You do not have permission to assign tasks."
-            }, status=status.HTTP_403_FORBIDDEN)
-
     assignee_ids = request.data.get("assignee_ids")
+    update_due_date = "due_date" in request.data
 
-    if not isinstance(assignee_ids, list):
+    # At least one supported field must be provided.
+    if assignee_ids is None and not update_due_date:
         return Response({
             "success": False,
-            "error": "assignee_ids must be a list."
+            "error": "Provide assignee_ids or due_date."
         }, status=status.HTTP_400_BAD_REQUEST)
+
+    # Apply existing assignment permissions only when changing assignees.
+    if assignee_ids is not None:
+        if not isinstance(assignee_ids, list):
+            return Response({
+                "success": False,
+                "error": "assignee_ids must be a list."
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        if not is_system_admin(request.user):
+            if request.user.profile.level not in (2, 3, 4):
+                return Response({
+                    "success": False,
+                    "error": "You do not have permission to assign tasks."
+                }, status=status.HTTP_403_FORBIDDEN)
 
     try:
         execution = get_execution_for_api(my_tender_id)
 
-        User = get_user_model()
+        # Validate task existence.
+        task = get_execution_task(execution, task_id)
 
-        selected_users = User.objects.filter(
-            pk__in=assignee_ids,
-            is_active=True
-        ).select_related("profile")
+        if not task:
+            return Response({
+                "success": False,
+                "error": "Task not found."
+            }, status=status.HTTP_404_NOT_FOUND)
 
-        selected_user_map = {
-            str(user.pk): user
-            for user in selected_users
-        }
+        # Validate assignment hierarchy only when assignees are submitted.
+        if assignee_ids is not None:
+            User = get_user_model()
 
-        normalized_ids = list(dict.fromkeys(
-            str(user_id)
-            for user_id in assignee_ids
-        ))
+            selected_users = User.objects.filter(
+                pk__in=assignee_ids,
+                is_active=True
+            ).select_related("profile")
 
-        for user_id in normalized_ids:
-            target_user = selected_user_map.get(user_id)
+            selected_user_map = {
+                str(user.pk): user
+                for user in selected_users
+            }
 
-            if not target_user:
+            normalized_ids = list(dict.fromkeys(
+                str(user_id)
+                for user_id in assignee_ids
+            ))
+
+            for user_id in normalized_ids:
+                target_user = selected_user_map.get(user_id)
+
+                if not target_user:
+                    return Response({
+                        "success": False,
+                        "error": f"Invalid or inactive employee: {user_id}"
+                    }, status=status.HTTP_400_BAD_REQUEST)
+
+                if not can_assign_to_employee(request.user, target_user):
+                    return Response({
+                        "success": False,
+                        "error": (
+                            "You are not authorized to assign tasks to this employee. "
+                            "You can only assign tasks within your permitted "
+                            "organizational hierarchy."
+                        )
+                    }, status=status.HTTP_403_FORBIDDEN)
+
+        # Due-date-only permission check.
+        if update_due_date and assignee_ids is None:
+
+            current_assignees = task.get("assignees", [])
+
+            if not current_assignees:
                 return Response({
                     "success": False,
-                    "error": f"Invalid or inactive employee: {user_id}"
+                    "error": "Assign this task before changing its due date."
                 }, status=status.HTTP_400_BAD_REQUEST)
 
-            if not can_assign_to_employee(request.user, target_user):
+            User = get_user_model()
+
+            assignees = list(
+                User.objects.filter(
+                    pk__in=current_assignees,
+                    is_active=True
+                ).select_related("profile")
+            )
+
+            if len(assignees) != len(set(map(str, current_assignees))):
                 return Response({
                     "success": False,
-                    "error": (
-                        "You are not authorized to assign tasks to this employee. "
-                        "You can only assign tasks within your permitted "
-                        "organizational hierarchy."
-                    )
-                }, status=status.HTTP_403_FORBIDDEN)
+                    "error": "Unable to verify all task assignees."
+                }, status=status.HTTP_400_BAD_REQUEST)
 
-        set_task_assignees(
+            if not is_system_admin(request.user):
+                user_level = request.user.profile.level
+
+                assignee_levels = [
+                    user.profile.level
+                    for user in assignees
+                ]
+
+                minimum_level = min(assignee_levels)
+
+                if user_level < minimum_level:
+                    return Response({
+                        "success": False,
+                        "error": "You do not have permission to change this task's due date."
+                    }, status=status.HTTP_403_FORBIDDEN)
+
+        # Update assignments and/or due date.
+        execution, changed = set_task_assignees(
             execution_id=execution.id,
             task_id=str(task_id),
             assignee_ids=assignee_ids,
+            due_date=request.data.get("due_date"),
+            update_due_date=update_due_date,
             performed_by=request.user
         )
 
         return Response({
             "success": True,
-            "message": "Task assignees updated successfully."
+            "message": "Task updated successfully.",
+            "changed": changed
         }, status=status.HTTP_200_OK)
 
     except (ValidationError, Http404) as exc:

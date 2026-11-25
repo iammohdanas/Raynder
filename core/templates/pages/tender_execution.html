@@ -379,21 +379,32 @@
         border-color: var(--ws-border-hover);
     }
 
-    .execution-workspace-wrapper .stat-tile-total { --tile-accent: #1e293b; }
+    .execution-workspace-wrapper .stat-tile-total {
+        --tile-accent: #1e293b;
+    }
+
     .execution-workspace-wrapper .stat-tile-completed {
         --tile-accent: #10b981;
         background: linear-gradient(180deg, rgba(16, 185, 129, 0.04) 0%, #fff 100%);
     }
+
     .execution-workspace-wrapper .stat-tile-progress {
         --tile-accent: #2563eb;
         background: linear-gradient(180deg, rgba(37, 99, 235, 0.04) 0%, #fff 100%);
     }
-    .execution-workspace-wrapper .stat-tile-pending { --tile-accent: #f59e0b; }
+
+    .execution-workspace-wrapper .stat-tile-pending {
+        --tile-accent: #f59e0b;
+    }
+
     .execution-workspace-wrapper .stat-tile-blocked {
         --tile-accent: #ef4444;
         background: linear-gradient(180deg, rgba(239, 68, 68, 0.04) 0%, #fff 100%);
     }
-    .execution-workspace-wrapper .stat-tile-na { --tile-accent: #cbd5e1; }
+
+    .execution-workspace-wrapper .stat-tile-na {
+        --tile-accent: #cbd5e1;
+    }
 
     /* Execution Workflow Phases */
     .execution-workspace-wrapper .workflow-phase {
@@ -821,12 +832,37 @@
         border: 1px solid #e2e8f0;
         white-space: nowrap;
     }
-    #taskDetailsModal .workflow-task-status.status-completed { background: #ecfdf5; color: #059669; border-color: #a7f3d0; }
-    #taskDetailsModal .workflow-task-status.status-in-progress { background: #eff6ff; color: #2563eb; border-color: #bfdbfe; }
-    #taskDetailsModal .workflow-task-status.status-blocked { background: #fef2f2; color: #dc2626; border-color: #fecaca; }
-    #taskDetailsModal .workflow-task-status.status-pending { background: #fffbeb; color: #d97706; border-color: #fde68a; }
+
+    #taskDetailsModal .workflow-task-status.status-completed {
+        background: #ecfdf5;
+        color: #059669;
+        border-color: #a7f3d0;
+    }
+
+    #taskDetailsModal .workflow-task-status.status-in-progress {
+        background: #eff6ff;
+        color: #2563eb;
+        border-color: #bfdbfe;
+    }
+
+    #taskDetailsModal .workflow-task-status.status-blocked {
+        background: #fef2f2;
+        color: #dc2626;
+        border-color: #fecaca;
+    }
+
+    #taskDetailsModal .workflow-task-status.status-pending {
+        background: #fffbeb;
+        color: #d97706;
+        border-color: #fde68a;
+    }
+
     #taskDetailsModal .workflow-task-status.status-not-applicable,
-    #taskDetailsModal .workflow-task-status.status-cancelled { background: #f8fafc; color: #64748b; border-color: #e2e8f0; }
+    #taskDetailsModal .workflow-task-status.status-cancelled {
+        background: #f8fafc;
+        color: #64748b;
+        border-color: #e2e8f0;
+    }
 
     /* Activity Timeline inside Modal & Page */
     .execution-workspace-wrapper .activity-list,
@@ -890,6 +926,7 @@
     }
 
     @media (max-width: 768px) {
+
         #taskDetailsModal .task-modal-header,
         #taskDetailsModal .task-modal-body,
         #taskDetailsModal .task-modal-footer {
@@ -1221,6 +1258,7 @@
 
     document.addEventListener("DOMContentLoaded", function () {
         let canManageExecutionAttachments = false;
+        let canAssignExecutionTasks = false;
 
         function setText(id, value, fallback = "—") {
             const element = document.getElementById(id);
@@ -1995,19 +2033,95 @@
 
             // 2. TASK PROPERTIES CARD
             const statusBadge = document.createElement("span");
-            statusBadge.className = `workflow-task-status ${getStatusBadgeClass(task.status)}`;
-            statusBadge.textContent = (task.status || "PENDING").replaceAll("_", " ");
+            statusBadge.className =
+                `workflow-task-status ${getStatusBadgeClass(task.status)}`;
+            statusBadge.textContent =
+                (task.status || "PENDING").replaceAll("_", " ");
 
+            // Due Date
+            const dueDateInput = document.createElement("input");
+            dueDateInput.type = "text";
+            dueDateInput.className = "form-control form-control-sm";
+            dueDateInput.placeholder = "DD-MM-YYYY";
+            dueDateInput.value = task.due_date
+                ? task.due_date.split("-").reverse().join("-")
+                : "";
+            dueDateInput.disabled = !canManageExecutionAttachments;
+
+            dueDateInput.addEventListener("change", async function () {
+                const enteredDate = dueDateInput.value.trim();
+
+                if (!enteredDate) return;
+
+                const match = enteredDate.match(/^(\d{2})-(\d{2})-(\d{4})$/);
+
+                if (!match) {
+                    alert("Please enter date in DD-MM-YYYY format.");
+                    dueDateInput.value = task.due_date
+                        ? task.due_date.split("-").reverse().join("-")
+                        : "";
+                    return;
+                }
+
+                const [, day, month, year] = match;
+                const parsedDate = new Date(`${year}-${month}-${day}T00:00:00`);
+
+                if (
+                    parsedDate.getFullYear() !== Number(year) ||
+                    parsedDate.getMonth() + 1 !== Number(month) ||
+                    parsedDate.getDate() !== Number(day)
+                ) {
+                    alert("Please enter a valid date.");
+                    return;
+                }
+
+                const newDate = `${year}-${month}-${day}`;
+
+                if (newDate === (task.due_date || "").substring(0, 10)) return;
+
+                dueDateInput.disabled = true;
+
+                try {
+                    const response = await fetch(
+                        `/api/my-tenders/${MY_TENDER_ID}/execution/tasks/${task.id}/assign/`,
+                        {
+                            method: "POST",
+                            credentials: "same-origin",
+                            headers: {
+                                "Content-Type": "application/json",
+                                "X-CSRFToken": getCSRFToken()
+                            },
+                            body: JSON.stringify({ due_date: newDate })
+                        }
+                    );
+
+                    const result = await response.json();
+
+                    if (!response.ok || !result.success) {
+                        throw new Error(result.error || "Unable to update due date.");
+                    }
+
+                    task.due_date = newDate;
+                } catch (error) {
+                    alert(error.message);
+                    dueDateInput.value = task.due_date
+                        ? task.due_date.split("-").reverse().join("-")
+                        : "";
+                } finally {
+                    dueDateInput.disabled = !canManageExecutionAttachments;
+                }
+            });
             rightCol.appendChild(
                 createMetaPanel("bi-sliders", "Task Properties", [
                     ["Current Status", statusBadge],
                     ["Task Code", task.code],
                     ["Department", task.department],
                     ["Priority", task.priority],
-                    ["Due Date", task.due_date ? formatDate(task.due_date) : "Not set"],
+                    ["Due Date", dueDateInput],
                     ["Phase", phase.name || phase.title]
                 ])
             );
+
 
             // 3. TASK ASSIGNMENT CARD
             const assignmentPanel = document.createElement("div");
@@ -3159,7 +3273,8 @@
                 }
 
                 const data = result.data;
-                canManageExecutionAttachments = data.permissions?.can_manage_attachments === true;
+                canManageExecutionAttachments = data.profile_permissions?.can_manage_attachments === true;
+
                 const tender = data.tender || {};
                 const myTender = data.my_tender || {};
                 const workflowData = data.workflow_data || {};
