@@ -557,3 +557,604 @@ def my_profile(request):
             "profile": profile,
         }
     )
+
+
+from django.contrib.auth.models import User
+from django.db import transaction
+from django.db.models import Q
+from django.utils import timezone
+from django.core.exceptions import ValidationError
+from rest_framework.decorators import api_view
+from rest_framework.response import Response
+from rest_framework import status
+
+from .models import Profile
+
+
+def employee_api_response(message, code=status.HTTP_400_BAD_REQUEST):
+    return Response(
+        {"success": False, "error": message},
+        status=code
+    )
+
+
+@api_view(["GET", "POST"])
+def employee_management_api(request):
+
+    # Admin-only access
+    if not request.user.is_authenticated:
+        return employee_api_response(
+            "Authentication required.",
+            status.HTTP_401_UNAUTHORIZED
+        )
+
+    if not is_system_admin(request.user):
+        return employee_api_response(
+            "You are not authorized to manage employees.",
+            status.HTTP_403_FORBIDDEN
+        )
+
+    # -------------------------------------------------
+    # GET: Employee listing / employee details
+    # -------------------------------------------------
+    if request.method == "GET":
+
+        employee_id = request.query_params.get("id")
+
+        if employee_id:
+            profile = Profile.objects.filter(
+                pk=employee_id,
+                account_type="EMPLOYEE"
+            ).select_related(
+                "user", "reporting_manager__user"
+            ).first()
+
+            if not profile:
+                return employee_api_response(
+                    "Employee not found.",
+                    status.HTTP_404_NOT_FOUND
+                )
+
+            user = profile.user
+
+            return Response({
+                "success": True,
+                "data": {
+                    "id": profile.id,
+                    "user_id": user.id,
+                    "username": user.username,
+                    "first_name": user.first_name,
+                    "last_name": user.last_name,
+                    "email": user.email,
+                    "mobile_number": profile.mobile_number,
+                    "employee_id": profile.employee_id,
+                    "department": profile.department,
+                    "designation": profile.designation,
+                    "level": profile.level,
+                    "role": profile.role,
+                    "reporting_manager_id": profile.reporting_manager_id,
+                    "reporting_manager": (
+                        profile.reporting_manager.user.get_full_name()
+                        or profile.reporting_manager.user.username
+                        if profile.reporting_manager else None
+                    ),
+                    "is_active": user.is_active,
+                    "approval_status": profile.approval_status,
+                    "is_email_verified": profile.is_email_verified,
+                    "created_at": profile.created_at.isoformat(),
+                }
+            })
+
+        # DataTables pagination
+        try:
+            start = max(0, int(request.query_params.get("start", 0)))
+            length = max(
+                1,
+                min(int(request.query_params.get("length", 10)), 100)
+            )
+        except (TypeError, ValueError):
+            return employee_api_response("Invalid pagination parameters.")
+
+        search = request.query_params.get(
+            "search[value]", ""
+        ).strip()
+
+        queryset = Profile.objects.filter(
+            account_type="EMPLOYEE"
+        ).select_related(
+            "user", "reporting_manager__user"
+        )
+
+        records_total = queryset.count()
+
+        if search:
+            queryset = queryset.filter(
+                Q(user__first_name__icontains=search)
+                | Q(user__last_name__icontains=search)
+                | Q(user__username__icontains=search)
+                | Q(user__email__icontains=search)
+                | Q(employee_id__icontains=search)
+                | Q(department__icontains=search)
+                | Q(designation__icontains=search)
+            )
+
+        # Optional filters
+        department = request.query_params.get("department")
+        level = request.query_params.get("level")
+        account_status = request.query_params.get("account_status")
+
+        if department:
+            queryset = queryset.filter(department=department)
+
+        if level:
+            queryset = queryset.filter(level=level)
+
+        if account_status == "active":
+            queryset = queryset.filter(user__is_active=True)
+        elif account_status == "inactive":
+            queryset = queryset.filter(user__is_active=False)
+
+        records_filtered = queryset.count()
+
+        employees = queryset.order_by(
+            "user__first_name",
+            "user__last_name"
+        )[start:start + length]
+
+        data = []
+
+        for profile in employees:
+            user = profile.user
+
+            data.append({
+                "id": profile.id,
+                "user_id": user.id,
+                "name": user.get_full_name() or user.username,
+                "username": user.username,
+                "email": user.email,
+                "mobile_number": profile.mobile_number,
+                "employee_id": profile.employee_id,
+                "department": profile.department,
+                "designation": profile.designation,
+                "level": profile.level,
+                "level_display": profile.get_level_display(),
+                "role": profile.role,
+                "reporting_manager": (
+                    profile.reporting_manager.user.get_full_name()
+                    or profile.reporting_manager.user.username
+                    if profile.reporting_manager else None
+                ),
+                "reporting_manager_id": profile.reporting_manager_id,
+                "is_active": user.is_active,
+                "approval_status": profile.approval_status,
+            })
+
+        # Reporting manager options for the frontend
+        managers = Profile.objects.filter(
+            account_type="EMPLOYEE",
+            approval_status="APPROVED",
+            level__in=[2, 3, 4],
+            user__is_active=True
+        ).select_related("user").order_by(
+            "user__first_name",
+            "user__last_name"
+        )
+
+        manager_data = [
+            {
+                "id": manager.id,
+                "name": (
+                    manager.user.get_full_name()
+                    or manager.user.username
+                ),
+                "employee_id": manager.employee_id,
+                "level": manager.level,
+                "department": manager.department,
+            }
+            for manager in managers
+        ]
+
+        departments = list(
+            Profile.objects.filter(
+                account_type="EMPLOYEE"
+            ).exclude(
+                department__isnull=True
+            ).exclude(
+                department=""
+            ).values_list(
+                "department", flat=True
+            ).distinct().order_by("department")
+        )
+
+        return Response({
+            "success": True,
+            "draw": int(request.query_params.get("draw", 1)),
+            "recordsTotal": records_total,
+            "recordsFiltered": records_filtered,
+            "data": data,
+            "managers": manager_data,
+            "departments": departments,
+        })
+
+    # -------------------------------------------------
+    # POST: Employee management actions
+    # -------------------------------------------------
+
+    action = request.data.get("action", "").strip().lower()
+
+    try:
+        with transaction.atomic():
+
+            # =============================================
+            # CREATE EMPLOYEE
+            # =============================================
+            if action == "create":
+
+                username = request.data.get("username", "").strip()
+                email = request.data.get("email", "").strip().lower()
+                password = request.data.get("password", "")
+
+                first_name = request.data.get("first_name", "").strip()
+                last_name = request.data.get("last_name", "").strip()
+
+                if not all([
+                    username, email, password,
+                    first_name, last_name
+                ]):
+                    return employee_api_response(
+                        "Username, email, password, first name and last name are required."
+                    )
+
+                if User.objects.filter(username__iexact=username).exists():
+                    return employee_api_response("Username already exists.")
+
+                if User.objects.filter(email__iexact=email).exists():
+                    return employee_api_response("Email already exists.")
+
+                employee_id = request.data.get("employee_id", "").strip()
+
+                if not employee_id:
+                    return employee_api_response("Employee ID is required.")
+
+                if Profile.objects.filter(
+                    employee_id__iexact=employee_id
+                ).exists():
+                    return employee_api_response(
+                        "Employee ID already exists."
+                    )
+
+                level = int(request.data.get("level"))
+
+                if level not in [1, 2, 3, 4, 5]:
+                    return employee_api_response("Invalid employee level.")
+
+                manager_id = request.data.get("reporting_manager_id")
+
+                manager = None
+
+                if manager_id:
+                    manager = Profile.objects.filter(
+                        pk=manager_id,
+                        account_type="EMPLOYEE",
+                        approval_status="APPROVED",
+                        user__is_active=True,
+                        level=level + 1
+                    ).first()
+
+                    if not manager:
+                        return employee_api_response(
+                            "Invalid reporting manager selected."
+                        )
+
+                if level in [1, 2, 3] and not manager:
+                    return employee_api_response(
+                        "A reporting manager is required for this level."
+                    )
+
+                if level in [4, 5] and manager:
+                    return employee_api_response(
+                        "Level 4 and Level 5 employees cannot have a reporting manager."
+                    )
+
+                user = User.objects.create_user(
+                    username=username,
+                    email=email,
+                    password=password,
+                    first_name=first_name,
+                    last_name=last_name,
+                    is_active=True
+                )
+
+                profile = user.profile
+
+                profile.account_type = "EMPLOYEE"
+                profile.approval_status = "APPROVED"
+                profile.approved_by = request.user
+                profile.approved_at = timezone.now()
+
+                profile.is_email_verified = True
+                profile.mobile_number = request.data.get(
+                    "mobile_number", ""
+                ).strip()
+
+                profile.employee_id = employee_id
+                profile.department = request.data.get(
+                    "department", ""
+                ).strip()
+                profile.designation = request.data.get(
+                    "designation", ""
+                ).strip()
+
+                profile.level = level
+                profile.reporting_manager = manager
+
+                profile.role = (
+                    "admin" if level == 5
+                    else "staff" if level == 1
+                    else "manager"
+                )
+
+                profile.full_clean()
+                profile.save()
+
+                return Response({
+                    "success": True,
+                    "message": "Employee created and approved successfully.",
+                    "employee_id": profile.id,
+                    "user_id": user.id,
+                }, status=status.HTTP_201_CREATED)
+
+            # =============================================
+            # FETCH EMPLOYEE FOR UPDATE / OTHER ACTIONS
+            # =============================================
+            profile_id = request.data.get("employee_id")
+
+            profile = Profile.objects.select_for_update().filter(
+                pk=profile_id,
+                account_type="EMPLOYEE"
+            ).select_related("user").first()
+
+            if not profile:
+                return employee_api_response(
+                    "Employee not found.",
+                    status.HTTP_404_NOT_FOUND
+                )
+
+            user = profile.user
+
+            # =============================================
+            # UPDATE EMPLOYEE
+            # =============================================
+            if action == "update":
+
+                first_name = request.data.get(
+                    "first_name", user.first_name
+                ).strip()
+
+                last_name = request.data.get(
+                    "last_name", user.last_name
+                ).strip()
+
+                email = request.data.get(
+                    "email", user.email
+                ).strip().lower()
+
+                username = request.data.get(
+                    "username", user.username
+                ).strip()
+
+                if not all([first_name, last_name, email, username]):
+                    return employee_api_response(
+                        "Name, username and email are required."
+                    )
+
+                if User.objects.filter(
+                    username__iexact=username
+                ).exclude(pk=user.pk).exists():
+                    return employee_api_response("Username already exists.")
+
+                if User.objects.filter(
+                    email__iexact=email
+                ).exclude(pk=user.pk).exists():
+                    return employee_api_response("Email already exists.")
+
+                new_employee_id = request.data.get(
+                    "new_employee_id", profile.employee_id
+                ).strip()
+
+                if not new_employee_id:
+                    return employee_api_response("Employee ID is required.")
+
+                if Profile.objects.filter(
+                    employee_id__iexact=new_employee_id
+                ).exclude(pk=profile.pk).exists():
+                    return employee_api_response(
+                        "Employee ID already exists."
+                    )
+
+                new_level = int(request.data.get("level", profile.level))
+
+                if new_level not in [1, 2, 3, 4, 5]:
+                    return employee_api_response("Invalid employee level.")
+
+                # Do not change a manager's level while they have subordinates.
+                if (
+                    profile.team_members.exists()
+                    and new_level != profile.level
+                ):
+                    return employee_api_response(
+                        "Reassign this employee's subordinates before changing their level."
+                    )
+
+                manager_id = request.data.get(
+                    "reporting_manager_id",
+                    profile.reporting_manager_id
+                )
+
+                manager = None
+
+                if manager_id:
+                    manager = Profile.objects.filter(
+                        pk=manager_id,
+                        account_type="EMPLOYEE",
+                        approval_status="APPROVED",
+                        user__is_active=True,
+                        level=new_level + 1
+                    ).exclude(pk=profile.pk).first()
+
+                    if not manager:
+                        return employee_api_response(
+                            "Invalid reporting manager selected."
+                        )
+
+                if new_level in [1, 2, 3] and not manager:
+                    return employee_api_response(
+                        "A reporting manager is required for this level."
+                    )
+
+                if new_level in [4, 5] and manager:
+                    return employee_api_response(
+                        "Level 4 and Level 5 employees cannot have a reporting manager."
+                    )
+
+                user.first_name = first_name
+                user.last_name = last_name
+                user.email = email
+                user.username = username
+                user.save()
+
+                profile.mobile_number = request.data.get(
+                    "mobile_number", profile.mobile_number
+                ).strip()
+
+                profile.employee_id = new_employee_id
+
+                profile.department = request.data.get(
+                    "department", profile.department
+                ).strip()
+
+                profile.designation = request.data.get(
+                    "designation", profile.designation
+                ).strip()
+
+                profile.level = new_level
+                profile.reporting_manager = manager
+
+                profile.role = (
+                    "admin" if new_level == 5
+                    else "staff" if new_level == 1
+                    else "manager"
+                )
+
+                profile.full_clean()
+                profile.save()
+
+                return Response({
+                    "success": True,
+                    "message": "Employee updated successfully."
+                })
+
+            # =============================================
+            # ACTIVATE / DEACTIVATE
+            # =============================================
+            elif action == "toggle_status":
+
+                if user.pk == request.user.pk:
+                    return employee_api_response(
+                        "You cannot deactivate your own account."
+                    )
+
+                new_status = request.data.get("is_active")
+
+                if not isinstance(new_status, bool):
+                    return employee_api_response(
+                        "is_active must be true or false."
+                    )
+
+                if not new_status and profile.team_members.exists():
+                    return employee_api_response(
+                        "Reassign this employee's subordinates before deactivating their account."
+                    )
+
+                user.is_active = new_status
+                user.save(update_fields=["is_active"])
+
+                return Response({
+                    "success": True,
+                    "message": (
+                        "Employee account activated successfully."
+                        if new_status
+                        else "Employee account deactivated successfully."
+                    ),
+                    "is_active": user.is_active,
+                })
+
+            # =============================================
+            # ADMIN PASSWORD RESET
+            # =============================================
+            elif action == "reset_password":
+
+                new_password = request.data.get("password", "")
+
+                if len(new_password) < 8:
+                    return employee_api_response(
+                        "Password must contain at least 8 characters."
+                    )
+
+                user.set_password(new_password)
+                user.save(update_fields=["password"])
+
+                return Response({
+                    "success": True,
+                    "message": "Employee password reset successfully."
+                })
+
+            # =============================================
+            # SAFE DELETE: DEACTIVATION
+            # =============================================
+            elif action == "delete":
+
+                if user.pk == request.user.pk:
+                    return employee_api_response(
+                        "You cannot delete your own account."
+                    )
+
+                if profile.team_members.exists():
+                    return employee_api_response(
+                        "Reassign this employee's subordinates before removing the account."
+                    )
+
+                # Preserve tender/task history and employee attribution.
+                user.is_active = False
+                user.save(update_fields=["is_active"])
+
+                return Response({
+                    "success": True,
+                    "message": (
+                        "Employee account deactivated. "
+                        "Historical tender and task records have been preserved."
+                    ),
+                    "is_active": False,
+                })
+
+            return employee_api_response("Invalid employee management action.")
+
+    except (ValidationError, ValueError, TypeError) as exc:
+        errors = (
+            exc.messages
+            if isinstance(exc, ValidationError)
+            else str(exc)
+        )
+
+        return employee_api_response(errors)
+
+    except Exception:
+        import logging
+        logging.getLogger(__name__).exception(
+            "Employee management API failed."
+        )
+
+        return employee_api_response(
+            "Unable to process employee management request.",
+            status.HTTP_500_INTERNAL_SERVER_ERROR
+        )

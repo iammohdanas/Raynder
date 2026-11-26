@@ -166,20 +166,34 @@
                             {% endif %}
 
                             {% if user.is_authenticated and user.is_superuser %}
-                            <li class="nav-item dropdown">
-                                <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">
-                                    Admin
-                                </a>
+                          <!-- Admin Dropdown -->
+<li class="nav-item dropdown">
+    <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+        Admin
+    </a>
 
-                                <ul class="dropdown-menu">
-                                    <li>
-                                        <a class="dropdown-item" href="{% url 'pending_employee_approvals' %}">
-                                            <i class="bi bi-person-check me-2"></i>
-                                            Employee Approvals
-                                        </a>
-                                    </li>
-                                </ul>
-                            </li>
+    <ul class="dropdown-menu dropdown-menu-end w-auto border shadow-sm rounded-3 p-2">
+        <li>
+            <h6 class="dropdown-header text-uppercase small fw-bold text-muted px-3 py-1 text-nowrap">
+                Administration
+            </h6>
+        </li>
+        <li>
+            <a class="dropdown-item d-flex align-items-center gap-2 rounded-2 py-2 px-3 text-nowrap"
+               href="{% url 'pending_employee_approvals' %}">
+                <i class="bi bi-person-check text-primary"></i>
+                <span>Employee Approvals</span>
+            </a>
+        </li>
+        <li>
+            <a class="dropdown-item d-flex align-items-center gap-2 rounded-2 py-2 px-3 text-nowrap"
+               href="{% url 'employee_management' %}">
+                <i class="bi bi-people text-primary"></i>
+                <span>Employee Management</span>
+            </a>
+        </li>
+    </ul>
+</li>
                             {% endif %}
 
                             <!-- Account Dropdown -->
@@ -191,7 +205,7 @@
                                         {{ user.get_full_name|default:user.username|slice:":1"|upper }}
                                     </span> -->
                                     <!-- <span>{{ user.first_name|default:user.username }}</span> -->
-                                     <span>Account</span>
+                                    <span>Account</span>
                                     {% else %}
                                     <i class="bi bi-person-circle"></i>
                                     <span>Account</span>

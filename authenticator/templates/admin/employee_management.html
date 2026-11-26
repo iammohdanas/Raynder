@@ -1,0 +1,1488 @@
+
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Employee Management | Raynder{% endblock %}
+
+{% block content %}
+
+<style>
+.employee-page {
+    padding: 24px 0;
+}
+
+.employee-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 15px;
+    flex-wrap: wrap;
+    margin-bottom: 24px;
+}
+
+.employee-header h3 {
+    font-weight: 700;
+    margin-bottom: 5px;
+}
+
+.employee-header p {
+    color: #6b7280;
+    margin: 0;
+}
+
+.employee-stat {
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 18px;
+    background: var(--bs-body-bg, #fff);
+    height: 100%;
+}
+
+.employee-stat .stat-label {
+    color: #6b7280;
+    font-size: 13px;
+}
+
+.employee-stat .stat-value {
+    font-size: 26px;
+    font-weight: 700;
+    margin-top: 5px;
+}
+
+.employee-toolbar {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 18px;
+}
+
+.employee-toolbar .form-control,
+.employee-toolbar .form-select {
+    min-width: 150px;
+}
+
+.employee-table-wrapper {
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.employee-table {
+    margin-bottom: 0;
+    vertical-align: middle;
+}
+
+.employee-table thead th {
+    background: #f8fafc;
+    color: #64748b;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: .4px;
+    white-space: nowrap;
+    padding: 15px;
+}
+
+.employee-table tbody td {
+    padding: 14px 15px;
+    font-size: 13px;
+}
+
+.employee-name {
+    font-weight: 600;
+    color: var(--bs-body-color);
+}
+
+.employee-email {
+    font-size: 12px;
+    color: #6b7280;
+}
+
+.employee-avatar {
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    background: #e8eefc;
+    color: #3156a5;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    flex-shrink: 0;
+}
+
+.employee-person {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.status-pill {
+    padding: 5px 10px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 600;
+    display: inline-block;
+}
+
+.status-active {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.status-inactive {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.status-pending {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.action-buttons {
+    display: flex;
+    gap: 5px;
+    white-space: nowrap;
+}
+
+.action-buttons .btn {
+    font-size: 12px;
+}
+
+.employee-pagination {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    padding: 15px;
+    flex-wrap: wrap;
+}
+
+.employee-empty {
+    padding: 50px 20px;
+    text-align: center;
+    color: #64748b;
+}
+
+.employee-modal .form-label {
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.employee-modal .form-control,
+.employee-modal .form-select {
+    font-size: 14px;
+}
+
+.employee-section-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: .5px;
+    border-bottom: 1px solid #e5e7eb;
+    padding-bottom: 9px;
+    margin: 8px 0 16px;
+}
+
+.employee-loading {
+    padding: 35px;
+    text-align: center;
+    color: #64748b;
+}
+
+@media(max-width: 768px) {
+    .employee-header {
+        align-items: flex-start;
+    }
+}
+
+.modal {
+    z-index: 2000 !important;
+}
+
+.modal-backdrop {
+    z-index: 1990 !important;
+}
+.navbar {
+    z-index: 1000;
+}
+</style>
+
+<div class="container-fluid employee-page">
+
+    <!-- Header -->
+    <div class="employee-header">
+        <div>
+            <h3>Employee Management</h3>
+            <p>Manage employee profiles, organizational hierarchy and accounts.</p>
+        </div>
+
+        <button class="btn btn-primary" id="addEmployeeBtn">
+            + Add Employee
+        </button>
+    </div>
+
+    <!-- Statistics -->
+    <div class="row g-3 mb-4">
+
+        <div class="col-md-4">
+            <div class="employee-stat">
+                <div class="stat-label">Total Employees</div>
+                <div class="stat-value" id="totalEmployees">0</div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="employee-stat">
+                <div class="stat-label">Active Employees</div>
+                <div class="stat-value text-success" id="activeEmployees">0</div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="employee-stat">
+                <div class="stat-label">Inactive Employees</div>
+                <div class="stat-value text-danger" id="inactiveEmployees">0</div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Employee listing -->
+    <div class="card border-0 shadow-sm">
+
+        <div class="card-body">
+
+            <div class="employee-toolbar">
+
+                <input
+                    type="search"
+                    class="form-control"
+                    id="employeeSearch"
+                    placeholder="Search employee..."
+                    style="max-width:260px;"
+                >
+
+                <select class="form-select" id="departmentFilter"
+                        style="max-width:190px;">
+                    <option value="">All Departments</option>
+                </select>
+
+                <select class="form-select" id="levelFilter"
+                        style="max-width:180px;">
+                    <option value="">All Levels</option>
+                    <option value="1">Level 1 - Employee</option>
+                    <option value="2">Level 2 - Manager</option>
+                    <option value="3">Level 3 - HOD</option>
+                    <option value="4">Level 4 - MD</option>
+                    <option value="5">Level 5 - Admin</option>
+                </select>
+
+                <select class="form-select" id="statusFilter"
+                        style="max-width:160px;">
+                    <option value="">All Accounts</option>
+                    <option value="active">Active</option>
+                    <option value="inactive">Inactive</option>
+                </select>
+
+                <button class="btn btn-outline-secondary" id="resetFiltersBtn">
+                    Reset
+                </button>
+
+            </div>
+
+            <div class="employee-table-wrapper">
+
+                <div class="table-responsive">
+                    <table class="table employee-table">
+                        <thead>
+                            <tr>
+                                <th>Employee</th>
+                                <th>Employee ID</th>
+                                <th>Department</th>
+                                <th>Designation</th>
+                                <th>Level</th>
+                                <th>Reporting Manager</th>
+                                <th>Account</th>
+                                <th style="min-width:180px;">Actions</th>
+                            </tr>
+                        </thead>
+
+                        <tbody id="employeeTableBody">
+                            <tr>
+                                <td colspan="8">
+                                    <div class="employee-loading">
+                                        Loading employees...
+                                    </div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="employee-pagination">
+                    <div class="text-muted small" id="paginationInfo">
+                        Showing 0 employees
+                    </div>
+
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-sm btn-outline-secondary"
+                                id="previousPageBtn" disabled>
+                            Previous
+                        </button>
+
+                        <button class="btn btn-sm btn-outline-secondary"
+                                id="nextPageBtn" disabled>
+                            Next
+                        </button>
+                    </div>
+                </div>
+
+            </div>
+
+        </div>
+    </div>
+
+</div>
+
+
+<!-- Add / Edit Employee Modal -->
+<div class="modal fade employee-modal" id="employeeModal"
+     tabindex="-1" aria-hidden="true">
+
+    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+
+        <div class="modal-content">
+
+            <div class="modal-header">
+                <div>
+                    <h5 class="modal-title fw-bold" id="employeeModalTitle">
+                        Add Employee
+                    </h5>
+                    <small class="text-muted">
+                        Employee information and organizational details
+                    </small>
+                </div>
+
+                <button type="button" class="btn-close"
+                        data-bs-dismiss="modal"></button>
+            </div>
+
+            <form id="employeeForm">
+
+                <div class="modal-body">
+
+                    <input type="hidden" id="profileId">
+
+                    <div class="employee-section-title">
+                        Personal Information
+                    </div>
+
+                    <div class="row g-3">
+
+                        <div class="col-md-6">
+                            <label class="form-label">First Name *</label>
+                            <input type="text" class="form-control"
+                                   id="firstName" required>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label">Last Name *</label>
+                            <input type="text" class="form-control"
+                                   id="lastName" required>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label">Username *</label>
+                            <input type="text" class="form-control"
+                                   id="username" required>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label">Email *</label>
+                            <input type="email" class="form-control"
+                                   id="email" required>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label">Mobile Number</label>
+                            <input type="text" class="form-control"
+                                   id="mobileNumber">
+                        </div>
+
+                    </div>
+
+                    <div class="employee-section-title mt-4">
+                        Employment Information
+                    </div>
+
+                    <div class="row g-3">
+
+                        <div class="col-md-6">
+                            <label class="form-label">Employee ID *</label>
+                            <input type="text" class="form-control"
+                                   id="employeeId" required>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label">Department *</label>
+                            <input type="text" class="form-control"
+                                   id="department" required>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label">Designation *</label>
+                            <input type="text" class="form-control"
+                                   id="designation" required>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label">Organizational Level *</label>
+                            <select class="form-select" id="employeeLevel" required>
+                                <option value="">Select Level</option>
+                                <option value="1">Level 1 - Employee</option>
+                                <option value="2">Level 2 - Manager</option>
+                                <option value="3">Level 3 - HOD</option>
+                                <option value="4">Level 4 - MD</option>
+                                <option value="5">Level 5 - Admin</option>
+                            </select>
+                        </div>
+
+                        <div class="col-md-12" id="managerField">
+                            <label class="form-label">Reporting Manager *</label>
+                            <select class="form-select" id="reportingManager">
+                                <option value="">Select Reporting Manager</option>
+                            </select>
+                            <small class="text-muted">
+                                Only employees at the immediately higher level are available.
+                            </small>
+                        </div>
+
+                    </div>
+
+                    <div id="passwordSection">
+
+                        <div class="employee-section-title mt-4">
+                            Login Credentials
+                        </div>
+
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Initial Password *</label>
+                                <input type="password" class="form-control"
+                                       id="employeePassword"
+                                       minlength="8"
+                                       autocomplete="new-password">
+                                <small class="text-muted">
+                                    Minimum 8 characters.
+                                </small>
+                            </div>
+                        </div>
+
+                    </div>
+
+                    <div class="alert alert-danger d-none mt-3"
+                         id="employeeFormError"></div>
+
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-light"
+                            data-bs-dismiss="modal">
+                        Cancel
+                    </button>
+
+                    <button type="submit" class="btn btn-primary"
+                            id="saveEmployeeBtn">
+                        Save Employee
+                    </button>
+                </div>
+
+            </form>
+
+        </div>
+    </div>
+</div>
+
+
+<!-- Password Reset Modal -->
+<div class="modal fade" id="passwordModal" tabindex="-1">
+
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold">Reset Employee Password</h5>
+                <button type="button" class="btn-close"
+                        data-bs-dismiss="modal"></button>
+            </div>
+
+            <form id="passwordForm">
+
+                <div class="modal-body">
+
+                    <input type="hidden" id="passwordProfileId">
+
+                    <label class="form-label">New Password</label>
+                    <input type="password" class="form-control"
+                           id="newEmployeePassword"
+                           minlength="8"
+                           required
+                           autocomplete="new-password">
+
+                    <div class="text-danger small mt-2 d-none"
+                         id="passwordError"></div>
+
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-light"
+                            data-bs-dismiss="modal">
+                        Cancel
+                    </button>
+
+                    <button type="submit" class="btn btn-primary"
+                            id="resetPasswordBtn">
+                        Reset Password
+                    </button>
+                </div>
+
+            </form>
+
+        </div>
+    </div>
+</div>
+
+
+<!-- Confirmation Modal -->
+<div class="modal fade" id="confirmationModal" tabindex="-1">
+
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold" id="confirmationTitle">
+                    Confirm Action
+                </h5>
+                <button type="button" class="btn-close"
+                        data-bs-dismiss="modal"></button>
+            </div>
+
+            <div class="modal-body" id="confirmationMessage"></div>
+
+            <div class="modal-footer">
+                <button type="button" class="btn btn-light"
+                        data-bs-dismiss="modal">
+                    Cancel
+                </button>
+
+                <button type="button" class="btn btn-danger"
+                        id="confirmActionBtn">
+                    Confirm
+                </button>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+
+    const API_URL = "{% url 'employee_management_api' %}";
+
+    const pageSize = 10;
+
+    let currentStart = 0;
+    let totalFiltered = 0;
+    let currentAction = null;
+    let currentEmployeeId = null;
+    let allManagers = [];
+
+    const employeeModal = new bootstrap.Modal(
+        document.getElementById("employeeModal")
+    );
+
+    const passwordModal = new bootstrap.Modal(
+        document.getElementById("passwordModal")
+    );
+
+    const confirmationModal = new bootstrap.Modal(
+        document.getElementById("confirmationModal")
+    );
+
+
+    // ------------------------------------------------
+    // CSRF
+    // ------------------------------------------------
+
+    function getCookie(name) {
+        let cookieValue = null;
+
+        if (document.cookie && document.cookie !== "") {
+            const cookies = document.cookie.split(";");
+
+            for (let cookie of cookies) {
+                cookie = cookie.trim();
+
+                if (cookie.substring(0, name.length + 1) === name + "=") {
+                    cookieValue = decodeURIComponent(
+                        cookie.substring(name.length + 1)
+                    );
+                    break;
+                }
+            }
+        }
+
+        return cookieValue;
+    }
+
+
+    // ------------------------------------------------
+    // API helpers
+    // ------------------------------------------------
+
+    async function apiGet(params = {}) {
+
+        const url = new URL(API_URL, window.location.origin);
+
+        Object.entries(params).forEach(([key, value]) => {
+            if (value !== null && value !== undefined) {
+                url.searchParams.set(key, value);
+            }
+        });
+
+        const response = await fetch(url, {
+            method: "GET",
+            credentials: "same-origin"
+        });
+
+        const result = await response.json();
+
+        if (!response.ok || !result.success) {
+            throw new Error(result.error || "Unable to retrieve data.");
+        }
+
+        return result;
+    }
+
+
+    async function apiPost(payload) {
+
+        const response = await fetch(API_URL, {
+            method: "POST",
+            credentials: "same-origin",
+            headers: {
+                "Content-Type": "application/json",
+                "X-CSRFToken": getCookie("csrftoken")
+            },
+            body: JSON.stringify(payload)
+        });
+
+        const result = await response.json();
+
+        if (!response.ok || !result.success) {
+            throw new Error(
+                Array.isArray(result.error)
+                    ? result.error.join(", ")
+                    : result.error || "Request failed."
+            );
+        }
+
+        return result;
+    }
+
+
+    // ------------------------------------------------
+    // Helpers
+    // ------------------------------------------------
+
+    function escapeHtml(value) {
+        return String(value ?? "").replace(/[&<>"']/g, function (char) {
+            return {
+                "&": "&amp;",
+                "<": "&lt;",
+                ">": "&gt;",
+                '"': "&quot;",
+                "'": "&#039;"
+            }[char];
+        });
+    }
+
+
+    function showError(elementId, message) {
+        const element = document.getElementById(elementId);
+        element.textContent = message;
+        element.classList.remove("d-none");
+    }
+
+
+    function hideError(elementId) {
+        document.getElementById(elementId).classList.add("d-none");
+    }
+
+
+    function showToast(message, type = "success") {
+
+        const toast = document.createElement("div");
+
+        toast.className =
+            `alert alert-${type} shadow position-fixed top-0 end-0 m-3`;
+
+        toast.style.zIndex = "9999";
+        toast.textContent = message;
+
+        document.body.appendChild(toast);
+
+        setTimeout(() => toast.remove(), 3500);
+    }
+
+
+    function getLevelLabel(level) {
+        const labels = {
+            1: "Level 1 - Employee",
+            2: "Level 2 - Manager",
+            3: "Level 3 - HOD",
+            4: "Level 4 - MD",
+            5: "Level 5 - Admin"
+        };
+
+        return labels[level] || "Not assigned";
+    }
+
+
+    // ------------------------------------------------
+    // Employee listing
+    // ------------------------------------------------
+
+    async function loadEmployees() {
+
+        const tbody = document.getElementById("employeeTableBody");
+
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="8">
+                    <div class="employee-loading">
+                        Loading employees...
+                    </div>
+                </td>
+            </tr>
+        `;
+
+        try {
+
+            const result = await apiGet({
+                start: currentStart,
+                length: pageSize,
+                "search[value]": document.getElementById("employeeSearch").value,
+                department: document.getElementById("departmentFilter").value,
+                level: document.getElementById("levelFilter").value,
+                account_status: document.getElementById("statusFilter").value
+            });
+
+            totalFiltered = result.recordsFiltered;
+
+            updateStatistics(result);
+
+            renderEmployees(result.data || []);
+
+            updatePagination();
+
+            populateDepartments(result.departments || []);
+
+            allManagers = result.managers || [];
+
+            populateManagerOptions();
+
+        } catch (error) {
+
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="8">
+                        <div class="employee-empty text-danger">
+                            ${escapeHtml(error.message)}
+                        </div>
+                    </td>
+                </tr>
+            `;
+
+        }
+    }
+
+
+    function updateStatistics(result) {
+
+        document.getElementById("totalEmployees").textContent =
+            result.recordsTotal ?? 0;
+
+        /*
+         * The API returns a paginated list, not global active/inactive
+         * statistics. These two figures therefore reflect the current page.
+         */
+        const active = (result.data || []).filter(
+            item => item.is_active
+        ).length;
+
+        const inactive = (result.data || []).filter(
+            item => !item.is_active
+        ).length;
+
+        document.getElementById("activeEmployees").textContent = active;
+        document.getElementById("inactiveEmployees").textContent = inactive;
+    }
+
+
+    function renderEmployees(employees) {
+
+        const tbody = document.getElementById("employeeTableBody");
+
+        if (!employees.length) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="8">
+                        <div class="employee-empty">
+                            <h6>No employees found</h6>
+                            <p class="mb-0 small">
+                                Try changing your search or filters.
+                            </p>
+                        </div>
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+
+        tbody.innerHTML = employees.map(employee => {
+
+            const initials = (
+                employee.name || "E"
+            ).split(" ").filter(Boolean).slice(0, 2)
+             .map(part => part[0]).join("").toUpperCase();
+
+            const active = employee.is_active;
+
+            return `
+                <tr>
+
+                    <td>
+                        <div class="employee-person">
+                            <div class="employee-avatar">
+                                ${escapeHtml(initials)}
+                            </div>
+
+                            <div>
+                                <div class="employee-name">
+                                    ${escapeHtml(employee.name)}
+                                </div>
+                                <div class="employee-email">
+                                    ${escapeHtml(employee.email)}
+                                </div>
+                            </div>
+                        </div>
+                    </td>
+
+                    <td>${escapeHtml(employee.employee_id)}</td>
+
+                    <td>${escapeHtml(employee.department)}</td>
+
+                    <td>${escapeHtml(employee.designation)}</td>
+
+                    <td>
+                        <span class="badge bg-light text-dark border">
+                            ${escapeHtml(getLevelLabel(employee.level))}
+                        </span>
+                    </td>
+
+                    <td>${escapeHtml(employee.reporting_manager || "—")}</td>
+
+                    <td>
+                        <span class="status-pill ${
+                            active ? "status-active" : "status-inactive"
+                        }">
+                            ${active ? "Active" : "Inactive"}
+                        </span>
+                    </td>
+
+                    <td>
+                        <div class="action-buttons">
+
+                            <button class="btn btn-sm btn-outline-primary"
+                                    data-action="edit"
+                                    data-id="${employee.id}">
+                                Edit
+                            </button>
+
+                            <button class="btn btn-sm btn-outline-secondary"
+                                    data-action="password"
+                                    data-id="${employee.id}">
+                                Password
+                            </button>
+
+                            <button class="btn btn-sm ${
+                                active
+                                    ? "btn-outline-danger"
+                                    : "btn-outline-success"
+                            }"
+                                    data-action="status"
+                                    data-id="${employee.id}"
+                                    data-active="${active}">
+                                ${active ? "Deactivate" : "Activate"}
+                            </button>
+
+                        </div>
+                    </td>
+
+                </tr>
+            `;
+
+        }).join("");
+    }
+
+
+    // ------------------------------------------------
+    // Pagination
+    // ------------------------------------------------
+
+    function updatePagination() {
+
+        const from = totalFiltered
+            ? currentStart + 1
+            : 0;
+
+        const to = Math.min(
+            currentStart + pageSize,
+            totalFiltered
+        );
+
+        document.getElementById("paginationInfo").textContent =
+            `Showing ${from}–${to} of ${totalFiltered} employees`;
+
+        document.getElementById("previousPageBtn").disabled =
+            currentStart <= 0;
+
+        document.getElementById("nextPageBtn").disabled =
+            currentStart + pageSize >= totalFiltered;
+    }
+
+
+    document.getElementById("previousPageBtn").addEventListener(
+        "click", function () {
+            currentStart = Math.max(0, currentStart - pageSize);
+            loadEmployees();
+        }
+    );
+
+
+    document.getElementById("nextPageBtn").addEventListener(
+        "click", function () {
+            if (currentStart + pageSize < totalFiltered) {
+                currentStart += pageSize;
+                loadEmployees();
+            }
+        }
+    );
+
+
+    // ------------------------------------------------
+    // Search and filters
+    // ------------------------------------------------
+
+    let searchTimeout;
+
+    document.getElementById("employeeSearch").addEventListener(
+        "input", function () {
+            clearTimeout(searchTimeout);
+
+            searchTimeout = setTimeout(() => {
+                currentStart = 0;
+                loadEmployees();
+            }, 350);
+        }
+    );
+
+
+    [
+        "departmentFilter",
+        "levelFilter",
+        "statusFilter"
+    ].forEach(id => {
+
+        document.getElementById(id).addEventListener(
+            "change", function () {
+                currentStart = 0;
+                loadEmployees();
+            }
+        );
+
+    });
+
+
+    document.getElementById("resetFiltersBtn").addEventListener(
+        "click", function () {
+
+            document.getElementById("employeeSearch").value = "";
+            document.getElementById("departmentFilter").value = "";
+            document.getElementById("levelFilter").value = "";
+            document.getElementById("statusFilter").value = "";
+
+            currentStart = 0;
+            loadEmployees();
+        }
+    );
+
+
+    function populateDepartments(departments) {
+
+        const select = document.getElementById("departmentFilter");
+        const selectedValue = select.value;
+
+        const existing = Array.from(select.options)
+            .map(option => option.value);
+
+        departments.forEach(department => {
+
+            if (!existing.includes(department)) {
+                const option = document.createElement("option");
+                option.value = department;
+                option.textContent = department;
+                select.appendChild(option);
+            }
+
+        });
+
+        select.value = selectedValue;
+    }
+
+
+    // ------------------------------------------------
+    // Reporting manager options
+    // ------------------------------------------------
+
+    function populateManagerOptions(selectedId = null) {
+
+        const level = parseInt(
+            document.getElementById("employeeLevel").value
+        );
+
+        const select = document.getElementById("reportingManager");
+        const managerField = document.getElementById("managerField");
+
+        select.innerHTML = `
+            <option value="">Select Reporting Manager</option>
+        `;
+
+        if ([4, 5].includes(level)) {
+            managerField.classList.add("d-none");
+            select.required = false;
+            return;
+        }
+
+        managerField.classList.remove("d-none");
+        select.required = [1, 2, 3].includes(level);
+
+        const eligibleManagers = allManagers.filter(
+            manager => manager.level === level + 1
+        );
+
+        eligibleManagers.forEach(manager => {
+
+            const option = document.createElement("option");
+
+            option.value = manager.id;
+
+            option.textContent =
+                `${manager.name} (${manager.employee_id || "No ID"})`;
+
+            select.appendChild(option);
+        });
+
+        if (selectedId) {
+            select.value = String(selectedId);
+        }
+    }
+
+
+    document.getElementById("employeeLevel").addEventListener(
+        "change", function () {
+            populateManagerOptions();
+        }
+    );
+
+
+    // ------------------------------------------------
+    // Add employee
+    // ------------------------------------------------
+
+    document.getElementById("addEmployeeBtn").addEventListener(
+        "click", function () {
+
+            document.getElementById("employeeForm").reset();
+
+            document.getElementById("profileId").value = "";
+
+            document.getElementById("employeeModalTitle").textContent =
+                "Add Employee";
+
+            document.getElementById("saveEmployeeBtn").textContent =
+                "Create Employee";
+
+            document.getElementById("passwordSection").classList.remove(
+                "d-none"
+            );
+
+            document.getElementById("employeePassword").required = true;
+
+            hideError("employeeFormError");
+
+            populateManagerOptions();
+
+            employeeModal.show();
+        }
+    );
+
+
+    // ------------------------------------------------
+    // Edit employee
+    // ------------------------------------------------
+
+    async function editEmployee(profileId) {
+
+        try {
+
+            const result = await apiGet({ id: profileId });
+            const employee = result.data;
+
+            document.getElementById("employeeForm").reset();
+
+            document.getElementById("profileId").value = employee.id;
+
+            document.getElementById("firstName").value =
+                employee.first_name || "";
+
+            document.getElementById("lastName").value =
+                employee.last_name || "";
+
+            document.getElementById("username").value =
+                employee.username || "";
+
+            document.getElementById("email").value =
+                employee.email || "";
+
+            document.getElementById("mobileNumber").value =
+                employee.mobile_number || "";
+
+            document.getElementById("employeeId").value =
+                employee.employee_id || "";
+
+            document.getElementById("department").value =
+                employee.department || "";
+
+            document.getElementById("designation").value =
+                employee.designation || "";
+
+            document.getElementById("employeeLevel").value =
+                employee.level || "";
+
+            document.getElementById("employeeModalTitle").textContent =
+                "Edit Employee";
+
+            document.getElementById("saveEmployeeBtn").textContent =
+                "Update Employee";
+
+            document.getElementById("passwordSection").classList.add(
+                "d-none"
+            );
+
+            document.getElementById("employeePassword").required = false;
+
+            hideError("employeeFormError");
+
+            populateManagerOptions(employee.reporting_manager_id);
+
+            employeeModal.show();
+
+        } catch (error) {
+            showToast(error.message, "danger");
+        }
+    }
+
+
+    // ------------------------------------------------
+    // Save employee
+    // ------------------------------------------------
+
+    document.getElementById("employeeForm").addEventListener(
+        "submit", async function (event) {
+
+            event.preventDefault();
+
+            hideError("employeeFormError");
+
+            const profileId = document.getElementById("profileId").value;
+
+            const level = parseInt(
+                document.getElementById("employeeLevel").value
+            );
+
+            const payload = {
+
+                action: profileId ? "update" : "create",
+
+                first_name: document.getElementById("firstName").value.trim(),
+                last_name: document.getElementById("lastName").value.trim(),
+                username: document.getElementById("username").value.trim(),
+                email: document.getElementById("email").value.trim(),
+
+                mobile_number: document.getElementById("mobileNumber").value.trim(),
+
+                department: document.getElementById("department").value.trim(),
+                designation: document.getElementById("designation").value.trim(),
+
+                level: level,
+
+                reporting_manager_id:
+                    [4, 5].includes(level)
+                        ? null
+                        : document.getElementById("reportingManager").value || null
+            };
+
+            if (profileId) {
+                payload.employee_id = profileId;
+
+                payload.new_employee_id =
+                    document.getElementById("employeeId").value.trim();
+
+            } else {
+
+                payload.employee_id =
+                    document.getElementById("employeeId").value.trim();
+
+                payload.password =
+                    document.getElementById("employeePassword").value;
+            }
+
+            const button = document.getElementById("saveEmployeeBtn");
+
+            button.disabled = true;
+            button.textContent = "Saving...";
+
+            try {
+
+                await apiPost(payload);
+
+                employeeModal.hide();
+
+                showToast(
+                    profileId
+                        ? "Employee updated successfully."
+                        : "Employee created successfully."
+                );
+
+                currentStart = 0;
+                await loadEmployees();
+
+            } catch (error) {
+
+                showError("employeeFormError", error.message);
+
+            } finally {
+
+                button.disabled = false;
+
+                button.textContent = profileId
+                    ? "Update Employee"
+                    : "Create Employee";
+            }
+
+        }
+    );
+
+
+    // ------------------------------------------------
+    // Table actions
+    // ------------------------------------------------
+
+    document.getElementById("employeeTableBody").addEventListener(
+        "click", function (event) {
+
+            const button = event.target.closest("[data-action]");
+
+            if (!button) return;
+
+            const action = button.dataset.action;
+            const profileId = button.dataset.id;
+
+            if (action === "edit") {
+                editEmployee(profileId);
+            }
+
+            if (action === "password") {
+                openPasswordModal(profileId);
+            }
+
+            if (action === "status") {
+
+                const currentlyActive =
+                    button.dataset.active === "true";
+
+                confirmEmployeeStatus(
+                    profileId,
+                    currentlyActive
+                );
+            }
+
+        }
+    );
+
+
+    // ------------------------------------------------
+    // Activate / Deactivate
+    // ------------------------------------------------
+
+    function confirmEmployeeStatus(profileId, currentlyActive) {
+
+        currentEmployeeId = profileId;
+
+        currentAction = async function () {
+
+            await apiPost({
+                action: "toggle_status",
+                employee_id: currentEmployeeId,
+                is_active: !currentlyActive
+            });
+
+            showToast(
+                currentlyActive
+                    ? "Employee deactivated successfully."
+                    : "Employee activated successfully."
+            );
+
+            await loadEmployees();
+        };
+
+        document.getElementById("confirmationTitle").textContent =
+            currentlyActive
+                ? "Deactivate Employee"
+                : "Activate Employee";
+
+        document.getElementById("confirmationMessage").textContent =
+            currentlyActive
+                ? "Are you sure you want to deactivate this employee? Their account access will be disabled, but historical records will be preserved."
+                : "Are you sure you want to activate this employee's account?";
+
+        document.getElementById("confirmActionBtn").className =
+            currentlyActive
+                ? "btn btn-danger"
+                : "btn btn-success";
+
+        confirmationModal.show();
+    }
+
+
+    // ------------------------------------------------
+    // Password reset
+    // ------------------------------------------------
+
+    function openPasswordModal(profileId) {
+
+        document.getElementById("passwordForm").reset();
+
+        document.getElementById("passwordProfileId").value = profileId;
+
+        hideError("passwordError");
+
+        passwordModal.show();
+    }
+
+
+    document.getElementById("passwordForm").addEventListener(
+        "submit", async function (event) {
+
+            event.preventDefault();
+
+            hideError("passwordError");
+
+            const profileId =
+                document.getElementById("passwordProfileId").value;
+
+            const password =
+                document.getElementById("newEmployeePassword").value;
+
+            const button = document.getElementById("resetPasswordBtn");
+
+            button.disabled = true;
+            button.textContent = "Resetting...";
+
+            try {
+
+                await apiPost({
+                    action: "reset_password",
+                    employee_id: profileId,
+                    password: password
+                });
+
+                passwordModal.hide();
+
+                showToast("Employee password reset successfully.");
+
+            } catch (error) {
+
+                showError("passwordError", error.message);
+
+            } finally {
+
+                button.disabled = false;
+                button.textContent = "Reset Password";
+            }
+
+        }
+    );
+
+
+    // ------------------------------------------------
+    // Confirmation action
+    // ------------------------------------------------
+
+    document.getElementById("confirmActionBtn").addEventListener(
+        "click", async function () {
+
+            if (!currentAction) return;
+
+            const button = this;
+
+            button.disabled = true;
+            button.textContent = "Processing...";
+
+            try {
+
+                await currentAction();
+
+                confirmationModal.hide();
+
+            } catch (error) {
+
+                showToast(error.message, "danger");
+
+            } finally {
+
+                button.disabled = false;
+                button.textContent = "Confirm";
+                currentAction = null;
+            }
+
+        }
+    );
+
+
+    // ------------------------------------------------
+    // Initial load
+    // ------------------------------------------------
+
+    loadEmployees();
+
+});
+</script>
+
+{% endblock %}

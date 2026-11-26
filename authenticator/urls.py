@@ -16,4 +16,7 @@ urlpatterns = [
     path("admin/employee-approvals/<int:profile_id>/review/", views.review_employee_registration, name="review_employee_registration"),
     path("my-profile/", views.my_profile, name="my_profile"),
     path("help-support/", TemplateView.as_view( template_name="accounts/help_support.html"), name="help_support"),
+    path("admin/employee-management/api/", views.employee_management_api, name="employee_management_api"),
+    path("admin/employee-management/", TemplateView.as_view(template_name="admin/employee_management.html"),name="employee_management"
+),
 ]
