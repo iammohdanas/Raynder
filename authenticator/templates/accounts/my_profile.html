@@ -1,0 +1,439 @@
+
+{% extends "base.html" %}
+
+{% block title %}My Profile | Raynder{% endblock %}
+
+{% block extra_head %}
+<style>
+    .profile-page {
+        padding: 55px 0 70px;
+        min-height: 75vh;
+    }
+
+    .profile-heading {
+        margin-bottom: 28px;
+    }
+
+    .profile-heading h2 {
+        font-weight: 700;
+        letter-spacing: -0.5px;
+    }
+
+    .profile-card {
+        background: var(--bs-body-bg);
+        border: 1px solid var(--bs-border-color);
+        border-radius: 16px;
+        padding: 26px;
+        height: 100%;
+        box-shadow: 0 4px 18px rgba(0,0,0,0.035);
+    }
+
+    .profile-hero {
+        display: flex;
+        align-items: center;
+        gap: 20px;
+        padding: 30px;
+        background: var(--bs-tertiary-bg);
+        border: 1px solid var(--bs-border-color);
+        border-radius: 18px;
+        margin-bottom: 25px;
+    }
+
+    .profile-avatar {
+        width: 76px;
+        height: 76px;
+        border-radius: 50%;
+        background: #174b83;
+        color: #fff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 27px;
+        font-weight: 700;
+        flex-shrink: 0;
+    }
+
+    .profile-hero h3 {
+        font-weight: 700;
+        margin-bottom: 5px;
+    }
+
+    .profile-hero p {
+        margin-bottom: 5px;
+        color: var(--bs-secondary-color);
+    }
+
+    .profile-section-title {
+        font-size: 17px;
+        font-weight: 700;
+        margin-bottom: 23px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .profile-section-title i {
+        color: #2878bd;
+        font-size: 19px;
+    }
+
+    .profile-field {
+        margin-bottom: 21px;
+    }
+
+    .profile-field:last-child {
+        margin-bottom: 0;
+    }
+
+    .profile-label {
+        display: block;
+        color: var(--bs-secondary-color);
+        font-size: 12px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: .55px;
+        margin-bottom: 6px;
+    }
+
+    .profile-value {
+        font-size: 14px;
+        font-weight: 600;
+        overflow-wrap: anywhere;
+    }
+
+    .profile-divider {
+        border-top: 1px solid var(--bs-border-color);
+        margin: 22px 0;
+    }
+
+    .profile-status {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        border-radius: 30px;
+        padding: 5px 11px;
+        font-size: 12px;
+        font-weight: 600;
+        background: var(--bs-tertiary-bg);
+    }
+
+    .profile-status.success {
+        color: #198754;
+        background: rgba(25,135,84,.10);
+    }
+
+    .profile-status.warning {
+        color: #b7791f;
+        background: rgba(183,121,31,.12);
+    }
+
+    .profile-status.danger {
+        color: #dc3545;
+        background: rgba(220,53,69,.10);
+    }
+
+    @media(max-width: 576px) {
+        .profile-page {
+            padding: 35px 0;
+        }
+
+        .profile-card {
+            padding: 20px;
+        }
+
+        .profile-hero {
+            padding: 20px;
+            align-items: flex-start;
+        }
+
+        .profile-avatar {
+            width: 60px;
+            height: 60px;
+            font-size: 22px;
+        }
+    }
+</style>
+{% endblock %}
+
+
+{% block content %}
+<div class="profile-page">
+    <div class="container">
+
+        <div class="profile-heading">
+            <h2>My Profile</h2>
+            <p class="text-secondary mb-0">
+                View your personal and organizational information.
+            </p>
+        </div>
+
+        <!-- Profile Overview -->
+        <div class="profile-hero">
+            <div class="profile-avatar">
+                {{ profile_user.first_name|first|upper }}{{ profile_user.last_name|first|upper }}
+            </div>
+
+            <div>
+                <h3>{{ profile_user.get_full_name|default:profile_user.username }}</h3>
+
+                <p>
+                    {% if profile.designation %}
+                        {{ profile.designation }}
+                    {% elif profile.get_role_display %}
+                        {{ profile.get_role_display }}
+                    {% else %}
+                        Raynder User
+                    {% endif %}
+                </p>
+
+                <div class="d-flex flex-wrap gap-2 mt-2">
+                    {% if profile.account_type == "EMPLOYEE" %}
+                        <span class="profile-status">
+                            <i class="bi bi-person-badge"></i>
+                            Employee
+                        </span>
+                    {% else %}
+                        <span class="profile-status">
+                            <i class="bi bi-person"></i>
+                            Customer
+                        </span>
+                    {% endif %}
+
+                    {% if profile.account_type == "EMPLOYEE" %}
+                        {% if profile.approval_status == "APPROVED" %}
+                            <span class="profile-status success">
+                                <i class="bi bi-check-circle"></i>
+                                Approved
+                            </span>
+                        {% elif profile.approval_status == "PENDING" %}
+                            <span class="profile-status warning">
+                                <i class="bi bi-clock"></i>
+                                Pending Approval
+                            </span>
+                        {% elif profile.approval_status == "REJECTED" %}
+                            <span class="profile-status danger">
+                                <i class="bi bi-x-circle"></i>
+                                Rejected
+                            </span>
+                        {% endif %}
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+
+        <div class="row g-4">
+
+            <!-- Personal Information -->
+            <div class="col-lg-6">
+                <div class="profile-card">
+                    <h5 class="profile-section-title">
+                        <i class="bi bi-person-lines-fill"></i>
+                        Personal Information
+                    </h5>
+
+                    <div class="profile-field">
+                        <span class="profile-label">Full Name</span>
+                        <div class="profile-value">
+                            {{ profile_user.get_full_name|default:"—" }}
+                        </div>
+                    </div>
+
+                    <div class="profile-field">
+                        <span class="profile-label">Username</span>
+                        <div class="profile-value">
+                            {{ profile_user.username }}
+                        </div>
+                    </div>
+
+                    <div class="profile-field">
+                        <span class="profile-label">Email Address</span>
+                        <div class="profile-value">
+                            {{ profile_user.email|default:"—" }}
+                        </div>
+                    </div>
+
+                    <div class="profile-field">
+                        <span class="profile-label">Mobile Number</span>
+                        <div class="profile-value">
+                            {{ profile.mobile_number|default:"Not provided" }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+
+            <!-- Employment Information -->
+            <div class="col-lg-6">
+                <div class="profile-card">
+                    <h5 class="profile-section-title">
+                        <i class="bi bi-building"></i>
+                        Employment Information
+                    </h5>
+
+                    <div class="profile-field">
+                        <span class="profile-label">Employee ID</span>
+                        <div class="profile-value">
+                            {{ profile.employee_id|default:"—" }}
+                        </div>
+                    </div>
+
+                    <div class="profile-field">
+                        <span class="profile-label">Department</span>
+                        <div class="profile-value">
+                            {{ profile.department|default:"—" }}
+                        </div>
+                    </div>
+
+                    <div class="profile-field">
+                        <span class="profile-label">Designation</span>
+                        <div class="profile-value">
+                            {{ profile.designation|default:"—" }}
+                        </div>
+                    </div>
+
+                    <div class="profile-field">
+                        <span class="profile-label">Organizational Level</span>
+                        <div class="profile-value">
+                            {{ profile.get_level_display|default:"—" }}
+                        </div>
+                    </div>
+
+                    <div class="profile-field">
+                        <span class="profile-label">Reporting Manager</span>
+                        <div class="profile-value">
+                            {% if profile.reporting_manager %}
+                                {{ profile.reporting_manager.user.get_full_name|default:profile.reporting_manager.user.username }}
+                            {% else %}
+                                —
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="profile-field">
+                        <span class="profile-label">System Role</span>
+                        <div class="profile-value">
+                            {{ profile.get_role_display|default:"—" }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+
+            <!-- Account Information -->
+            <div class="col-lg-6">
+                <div class="profile-card">
+                    <h5 class="profile-section-title">
+                        <i class="bi bi-shield-check"></i>
+                        Account Information
+                    </h5>
+
+                    <div class="profile-field">
+                        <span class="profile-label">Account Type</span>
+                        <div class="profile-value">
+                            {{ profile.get_account_type_display }}
+                        </div>
+                    </div>
+
+                    <div class="profile-field">
+                        <span class="profile-label">Email Verification</span>
+                        <div class="profile-value">
+                            {% if profile.is_email_verified %}
+                                <span class="profile-status success">
+                                    <i class="bi bi-check-circle"></i> Verified
+                                </span>
+                            {% else %}
+                                <span class="profile-status warning">
+                                    <i class="bi bi-exclamation-circle"></i> Not Verified
+                                </span>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="profile-field">
+                        <span class="profile-label">Mobile Verification</span>
+                        <div class="profile-value">
+                            {% if profile.is_mobile_number_verified %}
+                                <span class="profile-status success">
+                                    <i class="bi bi-check-circle"></i> Verified
+                                </span>
+                            {% else %}
+                                <span class="profile-status warning">
+                                    <i class="bi bi-exclamation-circle"></i> Not Verified
+                                </span>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="profile-field">
+                        <span class="profile-label">Account Created</span>
+                        <div class="profile-value">
+                            {{ profile.created_at|date:"d M Y, h:i A" }}
+                        </div>
+                    </div>
+
+                    <div class="profile-field">
+                        <span class="profile-label">Last Profile Update</span>
+                        <div class="profile-value">
+                            {{ profile.updated_at|date:"d M Y, h:i A" }}
+                        </div>
+                    </div>
+
+                    <div class="profile-field">
+                        <span class="profile-label">Last Login</span>
+                        <div class="profile-value">
+                            {% if profile_user.last_login %}
+                                {{ profile_user.last_login|date:"d M Y, h:i A" }}
+                            {% else %}
+                                —
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+
+            <!-- Account Access -->
+            <div class="col-lg-6">
+                <div class="profile-card">
+                    <h5 class="profile-section-title">
+                        <i class="bi bi-lock"></i>
+                        Account Access
+                    </h5>
+
+                    <div class="profile-field">
+                        <span class="profile-label">Account Username</span>
+                        <div class="profile-value">
+                            {{ profile_user.username }}
+                        </div>
+                    </div>
+
+                    <div class="profile-field">
+                        <span class="profile-label">Account Status</span>
+                        <div class="profile-value">
+                            {% if profile_user.is_active %}
+                                <span class="profile-status success">
+                                    <i class="bi bi-check-circle"></i> Active
+                                </span>
+                            {% else %}
+                                <span class="profile-status danger">
+                                    <i class="bi bi-x-circle"></i> Inactive
+                                </span>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="profile-divider"></div>
+
+                    <p class="text-secondary small mb-0">
+                        Your profile information is managed by the system
+                        administrator. Please contact your administrator
+                        if any information needs to be corrected.
+                    </p>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+{% endblock %}

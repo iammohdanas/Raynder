@@ -1,0 +1,268 @@
+
+{% extends "base.html" %}
+
+{% block title %}Help & Support | Raynder{% endblock %}
+
+{% block extra_head %}
+<style>
+    .support-page {
+        min-height: 75vh;
+        padding: 55px 0 70px;
+    }
+
+    .support-card {
+        max-width: 850px;
+        margin: auto;
+        padding: 35px;
+        border: 1px solid var(--bs-border-color);
+        border-radius: 18px;
+        background: var(--bs-body-bg);
+        box-shadow: 0 5px 25px rgba(0,0,0,.04);
+    }
+
+    .support-header {
+        text-align: center;
+        margin-bottom: 32px;
+    }
+
+    .support-icon {
+        width: 65px;
+        height: 65px;
+        border-radius: 18px;
+        background: rgba(37, 99, 235, .10);
+        color: #2878bd;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 29px;
+        margin: 0 auto 18px;
+    }
+
+    .support-header h2 {
+        font-weight: 700;
+    }
+
+    .support-header p {
+        color: var(--bs-secondary-color);
+    }
+
+    .support-label {
+        font-size: 13px;
+        font-weight: 650;
+        margin-bottom: 8px;
+    }
+
+    .support-control {
+        border: 1px solid var(--bs-border-color);
+        border-radius: 9px;
+        padding: 12px 14px;
+        background: var(--bs-body-bg);
+        color: var(--bs-body-color);
+    }
+
+    .support-control:focus {
+        border-color: #2878bd;
+        box-shadow: 0 0 0 .2rem rgba(40,120,189,.12);
+    }
+
+    .support-actions {
+        display: flex;
+        gap: 14px;
+        margin-top: 25px;
+    }
+
+    .support-btn {
+        flex: 1;
+        border: 0;
+        border-radius: 9px;
+        padding: 13px 18px;
+        color: white;
+        font-weight: 650;
+        transition: .2s ease;
+    }
+
+    .support-btn:hover {
+        transform: translateY(-2px);
+        filter: brightness(.95);
+    }
+
+    .whatsapp-btn {
+        background: #20a85a;
+    }
+
+    .email-btn {
+        background: #2563eb;
+    }
+
+    .support-note {
+        font-size: 12px;
+        color: var(--bs-secondary-color);
+        text-align: center;
+        margin-top: 22px;
+        margin-bottom: 0;
+    }
+
+    @media(max-width: 576px) {
+        .support-card {
+            padding: 23px 18px;
+        }
+
+        .support-actions {
+            flex-direction: column;
+        }
+    }
+</style>
+{% endblock %}
+
+
+{% block content %}
+<div class="support-page">
+    <div class="container">
+
+        <div class="support-card">
+
+            <div class="support-header">
+                <div class="support-icon">
+                    <i class="bi bi-headset"></i>
+                </div>
+
+                <h2>Help & Support</h2>
+
+                <p class="mb-0">
+                    Have a question or facing an issue?
+                    Send us a message and we'll help you.
+                </p>
+            </div>
+
+            <div class="mb-4">
+                <label class="support-label" for="supportCategory">
+                    Support Category
+                </label>
+
+                <select id="supportCategory"
+                        class="form-select support-control">
+                    <option value="">Select a category</option>
+                    <option value="Technical Issue">Technical Issue</option>
+                    <option value="Account & Login">Account & Login</option>
+                    <option value="Tender Management">Tender Management</option>
+                    <option value="Tasks & Workflow">Tasks & Workflow</option>
+                    <option value="AI Features">AI Features</option>
+                    <option value="Other">Other</option>
+                </select>
+            </div>
+
+            <div class="mb-3">
+                <label class="support-label" for="supportSubject">
+                    Subject
+                </label>
+
+                <input type="text"
+                       id="supportSubject"
+                       class="form-control support-control"
+                       placeholder="Briefly describe your issue">
+            </div>
+
+            <div class="mb-3">
+                <label class="support-label" for="supportMessage">
+                    Message
+                </label>
+
+                <textarea id="supportMessage"
+                          class="form-control support-control"
+                          rows="6"
+                          placeholder="Describe your issue or query in detail..."></textarea>
+            </div>
+
+            <div class="support-actions">
+
+                <button type="button"
+                        class="support-btn whatsapp-btn"
+                        onclick="sendSupportMessage('whatsapp')">
+                    <i class="bi bi-whatsapp me-2"></i>
+                    Continue on WhatsApp
+                </button>
+
+                <button type="button"
+                        class="support-btn email-btn"
+                        onclick="sendSupportMessage('email')">
+                    <i class="bi bi-envelope-fill me-2"></i>
+                    Send via Email
+                </button>
+
+            </div>
+
+            <p class="support-note">
+                <i class="bi bi-shield-check me-1"></i>
+                Your message will open in your selected application.
+                Raynder does not store or submit support messages.
+            </p>
+
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+
+{% block extra_js %}
+<script>
+    function sendSupportMessage(channel) {
+
+        const category = document.getElementById("supportCategory").value;
+        const subject = document.getElementById("supportSubject").value.trim();
+        const message = document.getElementById("supportMessage").value.trim();
+
+        if (!category) {
+            alert("Please select a support category.");
+            return;
+        }
+
+        if (!subject) {
+            alert("Please enter a subject.");
+            document.getElementById("supportSubject").focus();
+            return;
+        }
+
+        if (!message) {
+            alert("Please enter your message.");
+            document.getElementById("supportMessage").focus();
+            return;
+        }
+
+        const fullName = "{{ request.user.get_full_name|escapejs }}";
+        const username = "{{ request.user.username|escapejs }}";
+        const email = "{{ request.user.email|escapejs }}";
+
+        const supportMessage = [
+            "Raynder Help & Support",
+            "",
+            "Name: " + (fullName || username),
+            "Username: " + username,
+            "Email: " + (email || "Not available"),
+            "Category: " + category,
+            "Subject: " + subject,
+            "",
+            "Message:",
+            message
+        ].join("\n");
+
+        if (channel === "whatsapp") {
+            const whatsappNumber = "917017528755";
+            const url = "https://wa.me/" + whatsappNumber +
+                        "?text=" + encodeURIComponent(supportMessage);
+
+            window.open(url, "_blank", "noopener,noreferrer");
+        }
+
+        else if (channel === "email") {
+            const recipient = "mohd.anas@rayspowerinfra.com";
+
+            const url = "https://mail.google.com/mail/?view=cm&fs=1" +
+                        "&to=" + encodeURIComponent(recipient) +
+                        "&su=" + encodeURIComponent("[Raynder Support] " + subject) +
+                        "&body=" + encodeURIComponent(supportMessage);
+
+            window.open(url, "_blank", "noopener,noreferrer");
+        }
+    }
+</script>
+{% endblock %}

@@ -150,7 +150,7 @@
                                     {% endif %}
                                 </ul>
                             </li>
-
+                            <!-- 
                             <li class="nav-item dropdown">
                                 <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">
                                     AI Agents
@@ -162,7 +162,7 @@
                                     <li><a class="dropdown-item" href="#">Document Summarizer & OCR</a></li>
                                     <li><a class="dropdown-item" href="#">Semantic Search (RAG)</a></li>
                                 </ul>
-                            </li>
+                            </li> -->
                             {% endif %}
 
                             {% if user.is_authenticated and user.is_superuser %}
@@ -183,24 +183,80 @@
                             {% endif %}
 
                             <!-- Account Dropdown -->
-                            <li class="nav-item dropdown">
-                                <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">
-                                    Account <i class="bi bi-chevron-down"></i>
-                                </a>
-                                <ul class="dropdown-menu">
+                            <li class="nav-item dropdown account-dropdown-wrapper">
+                                <a class="nav-link dropdown-toggle d-inline-flex align-items-center gap-2" href="#"
+                                    role="button" data-bs-toggle="dropdown" aria-expanded="false">
                                     {% if user.is_authenticated %}
+                                    <!-- <span class="nav-user-avatar">
+                                        {{ user.get_full_name|default:user.username|slice:":1"|upper }}
+                                    </span> -->
+                                    <!-- <span>{{ user.first_name|default:user.username }}</span> -->
+                                     <span>Account</span>
+                                    {% else %}
+                                    <i class="bi bi-person-circle"></i>
+                                    <span>Account</span>
+                                    {% endif %}
+                                    <!-- <i class="bi bi-chevron-down small opacity-75"></i> -->
+                                </a>
+
+                                <ul class="dropdown-menu dropdown-menu-end account-dropdown-menu">
+                                    {% if user.is_authenticated %}
+                                    <!-- User Info Header -->
+                                    <li class="account-dropdown-header">
+                                        <div class="d-flex align-items-center gap-2.5">
+                                            <!-- <span class="account-avatar-lg">
+                                                {{ user.get_full_name|default:user.username|slice:":2"|upper }}
+                                            </span> -->
+                                            <div class="min-w-0">
+                                                <div class="fw-bold text-dark small text-truncate">
+                                                    {{ user.get_full_name|default:user.username }}
+                                                </div>
+                                                <div class="text-muted text-truncate" style="font-size: 11px;">
+                                                    {{ user.email|default:"Authorized User" }}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </li>
+
                                     <li>
-                                        <a class="dropdown-item" href="{% url 'logout' %}">Logout</a>
+                                        <hr class="dropdown-divider my-1">
+                                    </li>
+
+                                    <li>
+                                        <a class="dropdown-item" href="{% url 'my_profile' %}">
+                                            <i class="bi bi-person-circle"></i>
+                                            <span>My Profile</span>
+                                        </a>
                                     </li>
                                     <li>
-                                        <a class="dropdown-item" href="#">My Profile</a>
+                                        <a class="dropdown-item" href="{% url 'help_support' %}">
+                                            <i class="bi bi-headset"></i>
+                                            <span>Help &amp; Support</span>
+                                        </a>
                                     </li>
                                     <li>
-                                        <a class="dropdown-item" href="#">System Audit Logs</a>
+                                        <a class="dropdown-item" href="#">
+                                            <i class="bi bi-journal-text"></i>
+                                            <span>System Audit Logs</span>
+                                        </a>
+                                    </li>
+
+                                    <li>
+                                        <hr class="dropdown-divider my-1">
+                                    </li>
+
+                                    <li>
+                                        <a class="dropdown-item dropdown-item-danger" href="{% url 'logout' %}">
+                                            <i class="bi bi-box-arrow-right"></i>
+                                            <span>Logout</span>
+                                        </a>
                                     </li>
                                     {% else %}
                                     <li>
-                                        <a class="dropdown-item" href="{% url 'login' %}">Login</a>
+                                        <a class="dropdown-item" href="{% url 'login' %}">
+                                            <i class="bi bi-box-arrow-in-right"></i>
+                                            <span>Login</span>
+                                        </a>
                                     </li>
                                     {% endif %}
                                 </ul>

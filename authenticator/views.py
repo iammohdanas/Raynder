@@ -543,3 +543,17 @@ def review_employee_registration(request, profile_id):
         messages.error(request, error)
 
     return redirect("pending_employee_approvals")
+
+@login_required
+def my_profile(request):
+    user = request.user
+    profile = user.profile
+
+    return render(
+        request,
+        "accounts/my_profile.html",
+        {
+            "profile_user": user,
+            "profile": profile,
+        }
+    )

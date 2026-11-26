@@ -1,5 +1,6 @@
 from django.urls import path
 from . import views
+from django.views.generic import TemplateView
 
 urlpatterns = [
     path('register/', views.register, name='register'),
@@ -13,4 +14,6 @@ urlpatterns = [
     path('logout-all-devices/', views.logout_from_all_devices, name='logout_all_devices'),
     path("admin/employee-approvals/", views.pending_employee_approvals, name="pending_employee_approvals"),
     path("admin/employee-approvals/<int:profile_id>/review/", views.review_employee_registration, name="review_employee_registration"),
+    path("my-profile/", views.my_profile, name="my_profile"),
+    path("help-support/", TemplateView.as_view( template_name="accounts/help_support.html"), name="help_support"),
 ]
